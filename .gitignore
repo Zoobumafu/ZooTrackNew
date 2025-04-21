@@ -1,0 +1,64 @@
+# .NET Core
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+.vscode/
+
+# Build results
+*.dll
+*.exe
+*.app
+*.log
+
+# NuGet
+*.nupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+
+# ASP.NET
+project.lock.json
+wwwroot/
+
+# Blazor WebAssembly
+wwwroot/build/
+wwwroot/generated/
+dist/
+node_modules/
+bundle/
+build/
+
+# Logs
+*.log
+*.tlog
+*.bak
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
+
+# Rider IDE
+.idea/
+
+# Secrets
+secrets.json
+
+# Others
+*.db
+*.sqlite
+*.pdb
+*.mdb
+
+# Git
+*.orig

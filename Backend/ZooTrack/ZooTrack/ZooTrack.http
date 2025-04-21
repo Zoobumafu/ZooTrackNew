@@ -1,0 +1,6 @@
+@ZooTrack_HostAddress = http://localhost:5120
+
+GET {{ZooTrack_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
