@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ZooTrack.Models
 {
@@ -42,6 +43,7 @@ namespace ZooTrack.Models
 
         // Navigation properties
         [ForeignKey("DeviceId")]
+        [JsonIgnore]
         public virtual Device Device { get; set; }
         public virtual ICollection<Detection> Detections { get; set; }
     }
@@ -59,9 +61,11 @@ namespace ZooTrack.Models
 
         // Navigation properties
         [ForeignKey("MediaId")]
+        [JsonIgnore]
         public virtual Media Media { get; set; }
 
         [ForeignKey("EventId")]
+        [JsonIgnore]
         public virtual Event Event { get; set; }
 
         public virtual ICollection<Animal> Animals { get; set; }
@@ -80,6 +84,7 @@ namespace ZooTrack.Models
 
         // Navigation properties
         [ForeignKey("DetectionId")]
+        [JsonIgnore]
         public virtual Detection Detection { get; set; }
     }
 
@@ -96,9 +101,11 @@ namespace ZooTrack.Models
 
         // Navigation properties
         [ForeignKey("DetectionId")]
+        [JsonIgnore]
         public virtual Detection Detection { get; set; }
 
         [ForeignKey("UserId")]
+        [JsonIgnore]
         public virtual User User { get; set; }
     }
 
@@ -124,6 +131,7 @@ namespace ZooTrack.Models
 
         // Navigation properties
         [ForeignKey("UserId")]
+        [JsonIgnore]
         public virtual User User { get; set; }
     }
 
@@ -136,6 +144,7 @@ namespace ZooTrack.Models
 
         // Navigation properties
         [ForeignKey("UserId")]
+        [JsonIgnore]
         public virtual User User { get; set; }
     }
 
