@@ -9,7 +9,7 @@ namespace ZooTrack.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class UserController : Controller
+    public class UserController : ControllerBase
     {
         private readonly ZootrackDbContext _context;
 
@@ -20,17 +20,25 @@ namespace ZooTrack.Controllers
 
         // GET: api/User
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUser()
+        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            return await _context.Users.ToListAsync();
+            return await _context.Users
+                .Include(u => u.UserSettings)
+                .Include(u => u.Alerts)
+                .Include(u => u.Logs)
+                .ToListAsync();
         }
 
         // GET: api/User/5
         [HttpGet("{id}")]
         public async Task<ActionResult<User>> GetUser(int id)
         {
-            var user  = await _context.Users.FindAsync(id);
-            
+            var user = await _context.Users
+                .Include(u => u.UserSettings)
+                .Include(u => u.Alerts)
+                .Include(u => u.Logs)
+                .FirstOrDefaultAsync(u => u.UserId == id);
+
             if (user == null)
                 return NotFound();
 
@@ -48,10 +56,10 @@ namespace ZooTrack.Controllers
         }
 
         // PUT: api/User/5
-        [HttpPut]
+        [HttpPut("{id}")]
         public async Task<IActionResult> PutUser(int id, User user)
         {
-            if(id != user.UserId)
+            if (id != user.UserId)
                 return BadRequest();
 
             _context.Entry(user).State = EntityState.Modified;
@@ -60,18 +68,19 @@ namespace ZooTrack.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DBConcurrencyException)
+            catch (DbUpdateConcurrencyException)
             {
                 if (!_context.Users.Any(e => e.UserId == id))
                     return NotFound();
                 else
                     throw;
             }
+
             return NoContent();
         }
 
         // DELETE: api/User/5
-        [HttpDelete]
+        [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
@@ -83,9 +92,5 @@ namespace ZooTrack.Controllers
 
             return NoContent();
         }
-
-
-
-
     }
 }
