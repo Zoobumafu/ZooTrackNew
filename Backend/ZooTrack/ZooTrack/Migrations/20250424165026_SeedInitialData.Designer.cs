@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ZooTrack.Data;
 
@@ -10,9 +11,11 @@ using ZooTrack.Data;
 namespace ZooTrack.Migrations
 {
     [DbContext(typeof(ZootrackDbContext))]
-    partial class ZootrackDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250424165026_SeedInitialData")]
+    partial class SeedInitialData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.4");
@@ -120,14 +123,14 @@ namespace ZooTrack.Migrations
                         new
                         {
                             DeviceId = 1,
-                            LastActive = new DateTime(2025, 4, 24, 14, 0, 0, 0, DateTimeKind.Unspecified),
+                            LastActive = new DateTime(2025, 4, 24, 19, 50, 23, 586, DateTimeKind.Local).AddTicks(2169),
                             Location = "North Zone",
                             Status = "Online"
                         },
                         new
                         {
                             DeviceId = 2,
-                            LastActive = new DateTime(2025, 4, 24, 14, 30, 0, 0, DateTimeKind.Unspecified),
+                            LastActive = new DateTime(2025, 4, 24, 19, 20, 23, 587, DateTimeKind.Local).AddTicks(6355),
                             Location = "South Zone",
                             Status = "Offline"
                         });
