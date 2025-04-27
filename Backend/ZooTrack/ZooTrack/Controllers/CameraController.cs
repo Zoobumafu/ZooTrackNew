@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using ZooTrack.Services;
 
-namespace ZooTrack.Controllers
+namespace ZooTrackBackend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
