@@ -80,6 +80,9 @@ namespace ZooTrack.Migrations
                     b.Property<DateTime>("DetectedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("EventId")
                         .HasColumnType("INTEGER");
 
@@ -87,6 +90,8 @@ namespace ZooTrack.Migrations
                         .HasColumnType("INTEGER");
 
                     b.HasKey("DetectionId");
+
+                    b.HasIndex("DeviceId");
 
                     b.HasIndex("EventId");
 
@@ -309,6 +314,12 @@ namespace ZooTrack.Migrations
 
             modelBuilder.Entity("ZooTrack.Models.Detection", b =>
                 {
+                    b.HasOne("ZooTrack.Models.Device", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("ZooTrack.Models.Event", "Event")
                         .WithMany("Detections")
                         .HasForeignKey("EventId")
@@ -320,6 +331,8 @@ namespace ZooTrack.Migrations
                         .HasForeignKey("MediaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Device");
 
                     b.Navigation("Event");
 

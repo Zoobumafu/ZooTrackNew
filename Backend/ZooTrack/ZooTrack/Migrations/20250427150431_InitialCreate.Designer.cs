@@ -11,7 +11,7 @@ using ZooTrack.Data;
 namespace ZooTrack.Migrations
 {
     [DbContext(typeof(ZootrackDbContext))]
-    [Migration("20250423125002_InitialCreate")]
+    [Migration("20250427150431_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -83,6 +83,9 @@ namespace ZooTrack.Migrations
                     b.Property<DateTime>("DetectedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("EventId")
                         .HasColumnType("INTEGER");
 
@@ -90,6 +93,8 @@ namespace ZooTrack.Migrations
                         .HasColumnType("INTEGER");
 
                     b.HasKey("DetectionId");
+
+                    b.HasIndex("DeviceId");
 
                     b.HasIndex("EventId");
 
@@ -118,6 +123,22 @@ namespace ZooTrack.Migrations
                     b.HasKey("DeviceId");
 
                     b.ToTable("Devices");
+
+                    b.HasData(
+                        new
+                        {
+                            DeviceId = 1,
+                            LastActive = new DateTime(2025, 4, 24, 14, 0, 0, 0, DateTimeKind.Unspecified),
+                            Location = "North Zone",
+                            Status = "Online"
+                        },
+                        new
+                        {
+                            DeviceId = 2,
+                            LastActive = new DateTime(2025, 4, 24, 14, 30, 0, 0, DateTimeKind.Unspecified),
+                            Location = "South Zone",
+                            Status = "Offline"
+                        });
                 });
 
             modelBuilder.Entity("ZooTrack.Models.Event", b =>
@@ -215,6 +236,22 @@ namespace ZooTrack.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            UserId = 1,
+                            Email = "admin@zootrack.local",
+                            Name = "Admin",
+                            Role = "Admin"
+                        },
+                        new
+                        {
+                            UserId = 2,
+                            Email = "ranger@zootrack.local",
+                            Name = "Ranger Rick",
+                            Role = "Ranger"
+                        });
                 });
 
             modelBuilder.Entity("ZooTrack.Models.UserSettings", b =>
@@ -232,6 +269,20 @@ namespace ZooTrack.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("UserSettings");
+
+                    b.HasData(
+                        new
+                        {
+                            UserId = 1,
+                            DetectionThreshold = 0.8f,
+                            NotificationPreference = "Email"
+                        },
+                        new
+                        {
+                            UserId = 2,
+                            DetectionThreshold = 0.7f,
+                            NotificationPreference = "SMS"
+                        });
                 });
 
             modelBuilder.Entity("ZooTrack.Models.Alert", b =>
@@ -266,6 +317,12 @@ namespace ZooTrack.Migrations
 
             modelBuilder.Entity("ZooTrack.Models.Detection", b =>
                 {
+                    b.HasOne("ZooTrack.Models.Device", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("ZooTrack.Models.Event", "Event")
                         .WithMany("Detections")
                         .HasForeignKey("EventId")
@@ -277,6 +334,8 @@ namespace ZooTrack.Migrations
                         .HasForeignKey("MediaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Device");
 
                     b.Navigation("Event");
 

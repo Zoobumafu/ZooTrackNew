@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace ZooTrack.Migrations
 {
     /// <inheritdoc />
@@ -126,12 +128,19 @@ namespace ZooTrack.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     Confidence = table.Column<float>(type: "REAL", nullable: false),
                     DetectedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    DeviceId = table.Column<int>(type: "INTEGER", nullable: false),
                     MediaId = table.Column<int>(type: "INTEGER", nullable: false),
                     EventId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Detections", x => x.DetectionId);
+                    table.ForeignKey(
+                        name: "FK_Detections_Devices_DeviceId",
+                        column: x => x.DeviceId,
+                        principalTable: "Devices",
+                        principalColumn: "DeviceId",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Detections_Events_EventId",
                         column: x => x.EventId,
@@ -195,6 +204,33 @@ namespace ZooTrack.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.InsertData(
+                table: "Devices",
+                columns: new[] { "DeviceId", "LastActive", "Location", "Status" },
+                values: new object[,]
+                {
+                    { 1, new DateTime(2025, 4, 24, 14, 0, 0, 0, DateTimeKind.Unspecified), "North Zone", "Online" },
+                    { 2, new DateTime(2025, 4, 24, 14, 30, 0, 0, DateTimeKind.Unspecified), "South Zone", "Offline" }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Users",
+                columns: new[] { "UserId", "Email", "Name", "Role" },
+                values: new object[,]
+                {
+                    { 1, "admin@zootrack.local", "Admin", "Admin" },
+                    { 2, "ranger@zootrack.local", "Ranger Rick", "Ranger" }
+                });
+
+            migrationBuilder.InsertData(
+                table: "UserSettings",
+                columns: new[] { "UserId", "DetectionThreshold", "NotificationPreference" },
+                values: new object[,]
+                {
+                    { 1, 0.8f, "Email" },
+                    { 2, 0.7f, "SMS" }
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_Alerts_DetectionId",
                 table: "Alerts",
@@ -209,6 +245,11 @@ namespace ZooTrack.Migrations
                 name: "IX_Animals_DetectionId",
                 table: "Animals",
                 column: "DetectionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Detections_DeviceId",
+                table: "Detections",
+                column: "DeviceId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Detections_EventId",

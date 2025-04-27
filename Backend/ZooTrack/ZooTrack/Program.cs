@@ -4,6 +4,7 @@ using ZooTrack.Data;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using ZooTrack.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
@@ -22,6 +23,10 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ZooTrack API", Version = "v1" });
 });
+
+// Notification service
+builder.Services.AddScoped<NotificationService>();
+
 
 var app = builder.Build();
 // Configure the HTTP request pipeline.

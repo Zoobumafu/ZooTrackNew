@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ZooTrack.Data;
 using ZooTrack.Models;
+using ZooTrack.Services;
 
 namespace ZooTrack.Controllers
 {
@@ -15,10 +16,12 @@ namespace ZooTrack.Controllers
     public class DetectionController : ControllerBase
     {
         private readonly ZootrackDbContext _context;
+        private readonly NotificationService _notificationService;
 
-        public DetectionController(ZootrackDbContext context)
+        public DetectionController(ZootrackDbContext context, NotificationService notificationService)
         {
             _context = context;
+            _notificationService = notificationService;
         }
 
         // GET: api/Detection
@@ -81,7 +84,9 @@ namespace ZooTrack.Controllers
             _context.Detections.Add(detection);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetDetection", new { id = detection.DetectionId }, detection);
+            await _notificationService.NotifyUserAsync(detection);
+
+            return CreatedAtAction(nameof(GetDetection), new { id = detection.DetectionId }, detection);
         }
 
         // DELETE: api/Detection/5

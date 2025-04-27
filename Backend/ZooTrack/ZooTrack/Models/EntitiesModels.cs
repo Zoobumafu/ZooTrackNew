@@ -55,6 +55,9 @@ namespace ZooTrack.Models
         public float Confidence { get; set; }
         public DateTime DetectedAt { get; set; }
 
+        public int DeviceId { get; set; }
+        public Device Device { get; set; }
+
         // Foreign keys
         public int MediaId { get; set; }
         public int EventId { get; set; }
