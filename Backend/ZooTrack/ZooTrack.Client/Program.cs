@@ -9,13 +9,15 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // --- Configure HttpClient ---
 // IMPORTANT: Use the base address of your ZooTrack.WebAPI
-// Find this in the API's launchSettings.json (e.g., https://localhost:7250)
+// Found in the WebAPI's launchSettings.json (e.g., https://localhost:7019)
 builder.Services.AddScoped(sp => new HttpClient
 {
-    BaseAddress = new Uri("https://localhost:7155;http://localhost:5119") // !!! REPLACE WITH YOUR API URL !!!
+    // --- Ensure this line points to your BACKEND API URL ---
+    BaseAddress = new Uri("https://localhost:7019")
 });
 
 // Add logging (optional but helpful)
+// Note: Default Blazor logging works without adding specific console providers here
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
 

@@ -40,7 +40,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazorApp", policy =>
     {
-        policy.WithOrigins("https://localhost:7155;http://localhost:5119") // !!! IMPORTANT: Replace with your Blazor app's actual ports (HTTPS and HTTP)
+        // --- THIS LINE WAS CHANGED ---
+        // List the frontend Blazor app's origins (found in its launchSettings.json)
+        // as separate strings, not semicolon-separated.
+        policy.WithOrigins("https://localhost:7155", "http://localhost:5119")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials(); // Required for SignalR with credentials
@@ -64,7 +67,9 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 }
 
-app.UseHttpsRedirection();
+// If you only intend to run the backend on HTTPS, you might keep this.
+// If you need HTTP access too (like for SignalR on http), comment this out.
+// app.UseHttpsRedirection(); // Consider if needed based on http/https usage
 
 // --- Use CORS Policy ---
 // IMPORTANT: Place UseCors *before* UseAuthorization and endpoint mapping.

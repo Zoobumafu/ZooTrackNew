@@ -1,5 +1,5 @@
-﻿@using Microsoft.AspNetCore.SignalR.Client
-// ZooTrack.Client/Components/CameraStream.razor
+﻿// ZooTrack.Client/Components/CameraStream.razor
+@using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager NavigationManager
 @inject ILogger<CameraStream> Logger
 @implements IAsyncDisposable // To dispose the connection
@@ -18,7 +18,7 @@
     }
     else if (hubConnection == null || hubConnection.State != HubConnectionState.Connected)
     {
-        <p style="color: red;">Could not connect to camera hub. Ensure the backend is running and CORS is configured.</p>
+        <p style="color: red;">Could not connect to camera hub. Ensure the backend is running, CORS is configured correctly, and the backend URL is correct.</p>
         <button class="btn btn-secondary" @onclick="StartConnectionAsync">Retry Connection</button>
     }
 
@@ -26,9 +26,9 @@
     {
         <img src="@currentFrameSrc" alt="Camera Stream" style="max-width: 100%; height: auto; display: block;" />
     }
-    else if(hubConnection?.State == HubConnectionState.Connected)
+    else if (hubConnection?.State == HubConnectionState.Connected)
     {
-         <p>Waiting for video stream...</p>
+        <p>Waiting for video stream...</p>
     }
 
 </div>
@@ -50,32 +50,32 @@
     {
         if (isConnecting || (hubConnection != null && hubConnection.State == HubConnectionState.Connected))
         {
-             Logger.LogInformation("Connection attempt ignored: Already connecting or connected.");
+            Logger.LogInformation("Connection attempt ignored: Already connecting or connected.");
             return;
         }
 
         isConnecting = true;
         statusMessage = "Connecting...";
         statusStyle = "color: orange;";
+        currentFrameSrc = null; // Clear image while attempting connection
         StateHasChanged(); // Update UI
 
-        // Build Hub URL relative to the application base URI
-        // Assumes API serves the hub at "/cameraHub" from its base address
-        // This relies on the HttpClient base address being set correctly in Program.cs
-        var hubUrl = NavigationManager.ToAbsoluteUri("/cameraHub"); // Needs API base address set
-        Logger.LogInformation("Attempting to connect to SignalR Hub at: {HubUrl}", hubUrl.AbsoluteUri);
+        // This relies on HttpClient.BaseAddress being correctly set in Program.cs
+        // Should resolve to e.g., "https://localhost:7019/cameraHub"
+        // This should combine the BaseAddress ("https://localhost:7019") with "/cameraHub"
+        var hubUrl = NavigationManager.ToAbsoluteUri("/cameraHub");
+        Logger.LogInformation("Attempting to connect to SignalR Hub at: {HubUrl}", hubUrl.AbsoluteUri); // Check console for this log
 
 
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl, options => {
-                 // If experiencing connection issues, uncomment for more detailed logging:
-                 // options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
-                 // options.SkipNegotiation = true; // May be needed in some environments, test without first
-             })
-            .ConfigureLogging(logging => {
-                 logging.SetMinimumLevel(LogLevel.Information); // Or LogLevel.Debug for more detail
-                 logging.AddConsole(); // Logs SignalR client details to browser console
-             })
+            .WithUrl(hubUrl, options =>
+            {
+                // Optional: Configure transport type or skip negotiation if needed for specific environments
+                // options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
+                // options.SkipNegotiation = true;
+            })
+            // --- Logger Configuration Removed ---
+            // Removed .ConfigureLogging(...) section as .AddConsole() caused PlatformNotSupportedException in WASM
             .WithAutomaticReconnect() // Automatically try to reconnect if connection lost
             .Build();
 
@@ -85,24 +85,29 @@
             // Convert byte array to base64 string for img src
             var base64String = Convert.ToBase64String(frameData);
             currentFrameSrc = $"data:image/jpeg;base64,{base64String}";
-            // No status message change here unless needed
-            // statusMessage = "Receiving frames..."; // Can be noisy
+            // Optionally update status, but might be too noisy
+            // statusMessage = "Receiving frames...";
             statusStyle = "color: green;";
             InvokeAsync(StateHasChanged); // Update UI from non-UI thread
         });
 
-         hubConnection.On<string>("ReceiveStatus", (status) =>
-         {
-             statusMessage = status;
-              if (status.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || status.StartsWith("Warning", StringComparison.OrdinalIgnoreCase)) {
-                   statusStyle = "color: orange;";
-              } else if (status.Contains("Processing", StringComparison.OrdinalIgnoreCase)) {
-                   statusStyle = "color: green;";
-              } else {
-                   statusStyle = "color: grey;";
-              }
-             InvokeAsync(StateHasChanged);
-         });
+        hubConnection.On<string>("ReceiveStatus", (status) =>
+        {
+            statusMessage = status;
+            if (status.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || status.StartsWith("Warning", StringComparison.OrdinalIgnoreCase))
+            {
+                statusStyle = "color: orange;";
+            }
+            else if (status.Contains("Processing", StringComparison.OrdinalIgnoreCase))
+            {
+                statusStyle = "color: green;";
+            }
+            else
+            {
+                statusStyle = "color: grey;";
+            }
+            InvokeAsync(StateHasChanged);
+        });
 
 
         // --- Handle connection events ---
@@ -111,32 +116,30 @@
             Logger.LogError(error, "SignalR Hub connection closed.");
             statusMessage = $"Connection closed: {error?.Message ?? "No details"}";
             statusStyle = "color: red;";
-             currentFrameSrc = null; // Clear image on disconnect
+            currentFrameSrc = null; // Clear image on disconnect
             isConnecting = false;
             await InvokeAsync(StateHasChanged);
             // Optional: Attempt manual reconnect after a delay, though WithAutomaticReconnect handles some cases
-            // await Task.Delay(5000);
-            // await StartConnectionAsync();
         };
 
-         hubConnection.Reconnecting += error =>
-         {
-              Logger.LogWarning(error, "SignalR Hub connection reconnecting...");
-              statusMessage = $"Connection lost. Reconnecting... {error?.Message ?? ""}";
-              statusStyle = "color: orange;";
-              currentFrameSrc = null; // Clear image while reconnecting
-              isConnecting = true; // Show connecting state
-              return InvokeAsync(StateHasChanged); // Return completed task
-         };
+        hubConnection.Reconnecting += error =>
+        {
+            Logger.LogWarning(error, "SignalR Hub connection reconnecting...");
+            statusMessage = $"Connection lost. Reconnecting... {error?.Message ?? ""}";
+            statusStyle = "color: orange;";
+            currentFrameSrc = null; // Clear image while reconnecting
+            isConnecting = true; // Show connecting state
+            return InvokeAsync(StateHasChanged); // Return completed task
+        };
 
-         hubConnection.Reconnected += connectionId =>
-         {
-              Logger.LogInformation("SignalR Hub connection reconnected with ID: {ConnectionId}", connectionId);
-              statusMessage = "Connection re-established.";
-              statusStyle = "color: green;";
-              isConnecting = false;
-              return InvokeAsync(StateHasChanged); // Return completed task
-         };
+        hubConnection.Reconnected += connectionId =>
+        {
+            Logger.LogInformation("SignalR Hub connection reconnected with ID: {ConnectionId}", connectionId);
+            statusMessage = "Connection re-established.";
+            statusStyle = "color: green;";
+            isConnecting = false;
+            return InvokeAsync(StateHasChanged); // Return completed task
+        };
 
 
         // --- Start the connection ---
@@ -150,15 +153,16 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to connect to SignalR Hub.");
-            statusMessage = $"Connection failed: {ex.Message}";
+            // This will now catch the actual connection error (e.g., CORS, 404, network)
+            Logger.LogError(ex, "Failed to connect to SignalR Hub at {HubUrl}. Check backend logs and CORS.", hubUrl.AbsoluteUri);
+            statusMessage = $"Connection failed: {ex.Message}"; // Show specific error
             statusStyle = "color: red;";
             hubConnection = null; // Ensure connection is null on failure
             isConnecting = false;
         }
         finally
         {
-             StateHasChanged(); // Update UI after connection attempt
+            StateHasChanged(); // Update UI after connection attempt
         }
     }
 
@@ -168,13 +172,13 @@
     {
         if (hubConnection is not null)
         {
-             Logger.LogInformation("Disposing SignalR Hub connection.");
-             // Stop handlers before disposing
-             hubConnection.Remove("ReceiveFrame");
-             hubConnection.Remove("ReceiveStatus");
-             await hubConnection.DisposeAsync();
-             hubConnection = null; // Clear reference
-             Logger.LogInformation("SignalR Hub connection disposed.");
+            Logger.LogInformation("Disposing SignalR Hub connection.");
+            // Stop handlers before disposing
+            hubConnection.Remove("ReceiveFrame");
+            hubConnection.Remove("ReceiveStatus");
+            await hubConnection.DisposeAsync();
+            hubConnection = null; // Clear reference
+            Logger.LogInformation("SignalR Hub connection disposed.");
         }
     }
 }
