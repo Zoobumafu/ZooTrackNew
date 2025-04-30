@@ -1,68 +1,92 @@
 ﻿// ZooTrack.WebAPI/Controllers/CameraController.cs
-using System.IO;
-using System.Threading.Tasks;
+// Make sure the namespace matches your project structure, e.g., ZooTrack.Controllers or ZooTrackBackend.Controllers
 using Microsoft.AspNetCore.Mvc;
-using ZooTrack.Services;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq; // Needed for Linq Select
+using ZooTrack.Services; // Assuming CameraService is in ZooTrack.Services
 
-namespace ZooTrackBackend.Controllers
+namespace ZooTrack.Controllers // <-- Make sure this namespace is correct for your project
 {
     [ApiController]
     [Route("api/[controller]")]
     public class CameraController : ControllerBase
     {
+        private readonly ILogger<CameraController> _logger;
         private readonly CameraService _cameraService;
-        public CameraController(CameraService cameraService)
+        // No direct reference to the Background Service needed here,
+        // we interact via the shared CameraService state.
+
+        public CameraController(ILogger<CameraController> logger, CameraService cameraService)
         {
+            _logger = logger;
             _cameraService = cameraService;
         }
 
-        // GET: api/camera/stream
-        [HttpGet("stream")]
-        public async Task Stream()
+        // Class to define the expected JSON body for the start request
+        public class StartRequest
         {
-            HttpContext.Response.ContentType = "multipart/x-mixed-replace; boundary=--frame";
-            while (!HttpContext.RequestAborted.IsCancellationRequested)
+            public List<string> TargetAnimals { get; set; } = new List<string>();
+            public string HighlightSavePath { get; set; } = string.Empty;
+        }
+
+        [HttpPost("start")]
+        public IActionResult StartProcessing([FromBody] StartRequest request)
+        {
+            // Validate the request body
+            if (request == null || string.IsNullOrWhiteSpace(request.HighlightSavePath))
             {
-                byte[] frame = _cameraService.GetFrame();
-                if (frame != null)
-                {
-                    await HttpContext.Response.WriteAsync("--frame\r\n");
-                    await HttpContext.Response.WriteAsync("Content-Type: image/jpeg\r\n");
-                    await HttpContext.Response.WriteAsync($"Content-Length: {frame.Length}\r\n\r\n");
-                    await HttpContext.Response.Body.WriteAsync(frame, 0, frame.Length);
-                    await HttpContext.Response.WriteAsync("\r\n");
-                    await HttpContext.Response.Body.FlushAsync();
-                }
-                await Task.Delay(50); // ~20 FPS
+                _logger.LogWarning("Start request failed: Invalid request body or missing save path.");
+                // Provide a clear error message to the client
+                return BadRequest(new { message = "HighlightSavePath is required. Provide TargetAnimals list (can be empty)." });
             }
+
+            // Convert animal names to lower case for consistent matching inside CameraService
+            var targetAnimalsLower = request.TargetAnimals?.Select(a => a.ToLowerInvariant()).ToList() ?? new List<string>();
+
+            _logger.LogInformation("API: Received request to start processing. Targets: {Targets}, Path: {Path}", string.Join(",", targetAnimalsLower), request.HighlightSavePath);
+
+            // Initialize CameraService if it hasn't been initialized yet (e.g., on first request)
+            // This provides lazy initialization.
+            if (!_cameraService.IsInitialized)
+            {
+                _logger.LogInformation("API: Initializing CameraService on demand...");
+                if (!_cameraService.InitializeCameraAndYolo())
+                {
+                    _logger.LogError("API: Initialization failed via start request.");
+                    return StatusCode(500, new { message = "Failed to initialize camera or YOLO model." });
+                }
+            }
+
+            // Set the target animals and save path in the CameraService
+            _cameraService.SetProcessingTargets(targetAnimalsLower, request.HighlightSavePath);
+
+            // Signal the CameraService (and implicitly the background service) to start the processing loop
+            _cameraService.StartProcessing(); // Sets the IsProcessing flag checked by CameraProcessingService
+
+            return Ok(new { message = "Camera processing signaled to start." });
         }
 
-        // POST: api/camera/highlight/start
-        [HttpPost("highlight/start")]
-        public IActionResult StartHighlight()
+        [HttpPost("stop")]
+        public IActionResult StopProcessing()
         {
-            _cameraService.StartRecording();
-            return Ok(new { message = "Highlight recording started" });
+            _logger.LogInformation("API: Received request to stop processing.");
+            // Signal the CameraService (and implicitly the background service) to stop the processing loop
+            _cameraService.StopProcessing(); // Sets the IsProcessing flag to false
+            return Ok(new { message = "Camera processing signaled to stop." });
         }
 
-        // POST: api/camera/highlight/stop
-        [HttpPost("highlight/stop")]
-        public IActionResult StopHighlight()
+        [HttpGet("status")]
+        public IActionResult GetStatus()
         {
-            _cameraService.StopRecording();
-            return Ok(new { message = "Highlight recording stopped" });
-        }
-
-        // GET: api/camera/highlight
-        [HttpGet("highlight")]
-        public IActionResult GetHighlight()
-        {
-            var path = Path.Combine(Directory.GetCurrentDirectory(), "highlight.avi");
-            if (!System.IO.File.Exists(path))
-                return NotFound("Highlight video not found.");
-
-            // Return file as download
-            return PhysicalFile(path, "video/avi", "highlight.avi");
+            _logger.LogDebug("API: Received request for status."); // Use Debug level for frequent status checks
+            // Return the current status based on the CameraService state
+            return Ok(new
+            {
+                IsInitialized = _cameraService.IsInitialized,
+                IsProcessing = _cameraService.IsProcessing
+            });
         }
     }
 }

@@ -1,0 +1,148 @@
+﻿// ZooTrack.Client/Pages/CameraTestPage.razor
+@page "/camera-test"
+@inject HttpClient Http // Inject HttpClient configured in Program.cs
+@inject ILogger<CameraTestPage> Logger
+
+<h3>Camera Test Page</h3>
+
+<p>Use the buttons below to control the camera processing on the backend. The stream will appear once processing starts.</p>
+
+<div class="controls" style="margin-bottom: 20px;">
+    <div class="mb-3">
+        <label for="targetAnimals" class="form-label">Target Animals (comma-separated):</label>
+        <input type="text" class="form-control" id="targetAnimals" @bind="targetAnimalsInput" placeholder="e.g., person, cat, dog"/>
+    </div>
+    <div class="mb-3">
+        <label for="savePath" class="form-label">Highlight Save Path (on server):</label>
+        <input type="text" class="form-control" id="savePath" @bind="savePathInput" placeholder="e.g., C:\ZooTrackHighlights or /app/data/highlights"/>
+        <small class="form-text text-muted">This path must be accessible by the backend API process.</small>
+    </div>
+
+    <button class="btn btn-success me-2" @onclick="StartProcessing" disabled="@isBusy">Start Processing</button>
+    <button class="btn btn-danger" @onclick="StopProcessing" disabled="@isBusy">Stop Processing</button>
+
+    @if (!string.IsNullOrEmpty(apiResponseMessage))
+    {
+        <div class="alert @apiResponseClass mt-3" role="alert">
+            @apiResponseMessage
+        </div>
+    }
+     @if (isBusy)
+     {
+         <div class="spinner-border text-primary mt-3" role="status">
+             <span class="visually-hidden">Loading...</span>
+         </div>
+     }
+</div>
+
+<hr />
+
+@* Embed the CameraStream component *@
+<CameraStream />
+
+
+@code {
+    private string targetAnimalsInput = "person, cat, dog, bird"; // Default example, adjust as needed
+    private string savePathInput = "C:/ZooTrackHighlights"; // Default, ensure this exists on the server machine or change it
+    private bool isBusy = false;
+    private string? apiResponseMessage;
+    private string apiResponseClass = "alert-info"; // For styling the message
+
+    private async Task StartProcessing()
+    {
+        if (isBusy) return;
+        isBusy = true;
+        apiResponseMessage = null; // Clear previous message
+        StateHasChanged();
+
+        var animals = targetAnimalsInput.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                        .ToList();
+
+         if (string.IsNullOrWhiteSpace(savePathInput))
+         {
+             apiResponseMessage = "Error: Highlight Save Path cannot be empty.";
+             apiResponseClass = "alert-danger";
+             isBusy = false;
+             StateHasChanged();
+             return;
+         }
+
+        var requestData = new
+        {
+            TargetAnimals = animals,
+            HighlightSavePath = savePathInput
+        };
+
+        try
+        {
+             Logger.LogInformation("Sending START request to API. Targets: {Targets}, Path: {Path}", string.Join(",", animals), savePathInput);
+            var response = await Http.PostAsJsonAsync("api/camera/start", requestData); // Uses HttpClient base address
+
+            if (response.IsSuccessStatusCode)
+            {
+                var message = await response.Content.ReadAsStringAsync();
+                apiResponseMessage = $"Success: {message}";
+                apiResponseClass = "alert-success";
+                Logger.LogInformation("API Start request successful.");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                apiResponseMessage = $"Error starting: {response.StatusCode} - {errorContent}";
+                apiResponseClass = "alert-danger";
+                 Logger.LogError("API Start request failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            apiResponseMessage = $"Exception calling API: {ex.Message}";
+            apiResponseClass = "alert-danger";
+            Logger.LogError(ex, "Exception during StartProcessing API call.");
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StopProcessing()
+    {
+         if (isBusy) return;
+        isBusy = true;
+        apiResponseMessage = null; // Clear previous message
+        StateHasChanged();
+
+        try
+        {
+             Logger.LogInformation("Sending STOP request to API.");
+            var response = await Http.PostAsync("api/camera/stop", null); // No body needed
+
+            if (response.IsSuccessStatusCode)
+            {
+                var message = await response.Content.ReadAsStringAsync();
+                apiResponseMessage = $"Success: {message}";
+                apiResponseClass = "alert-success";
+                Logger.LogInformation("API Stop request successful.");
+            }
+            else
+            {
+                 var errorContent = await response.Content.ReadAsStringAsync();
+                 apiResponseMessage = $"Error stopping: {response.StatusCode} - {errorContent}";
+                 apiResponseClass = "alert-danger";
+                 Logger.LogError("API Stop request failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            apiResponseMessage = $"Exception calling API: {ex.Message}";
+            apiResponseClass = "alert-danger";
+            Logger.LogError(ex, "Exception during StopProcessing API call.");
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
+    }
+}
