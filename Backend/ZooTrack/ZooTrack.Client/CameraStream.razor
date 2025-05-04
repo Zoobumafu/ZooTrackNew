@@ -61,10 +61,9 @@
         currentFrameSrc = null;
         StateHasChanged();
 
-        // --- *** NEW WAY TO BUILD HUB URL *** ---
         // Construct the URL directly from the HttpClient's BaseAddress
-        string hubPath = "cameraHub"; // The path to your hub
-        Uri? baseUri = Http.BaseAddress; // Get the base address configured in Program.cs
+        string hubPath = "cameraHub";
+        Uri? baseUri = Http.BaseAddress;
 
         if (baseUri == null)
         {
@@ -76,41 +75,91 @@
             return;
         }
 
-        // Combine base URI and hub path carefully
-        // Ensure there's only one '/' between base and path
         string baseUrlString = baseUri.AbsoluteUri.TrimEnd('/');
         string hubUrlString = $"{baseUrlString}/{hubPath}";
         Uri hubUrl = new Uri(hubUrlString);
-        // --- *** END NEW WAY *** ---
-
 
         Logger.LogInformation("Attempting to connect to SignalR Hub at: {HubUrl}", hubUrl.AbsoluteUri);
 
-
         hubConnection = new HubConnectionBuilder()
             .WithUrl(hubUrl, options =>
-            { // Use the explicitly constructed hubUrl
-              // options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
-              // options.SkipNegotiation = true;
+            {
+                // options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
+                // options.SkipNegotiation = true;
             })
             .WithAutomaticReconnect()
             .Build();
 
-        // --- Register handlers (remain the same) ---
-        hubConnection.On<byte[]>("ReceiveFrame", (frameData) => { /* ... */ InvokeAsync(StateHasChanged); });
-        hubConnection.On<string>("ReceiveStatus", (status) => { /* ... */ InvokeAsync(StateHasChanged); });
+        // --- Register handlers ---
 
-        // --- Handle connection events (remain the same) ---
-        hubConnection.Closed += async (error) => { /* ... */ await InvokeAsync(StateHasChanged); };
-        hubConnection.Reconnecting += error => { /* ... */ return InvokeAsync(StateHasChanged); };
-        hubConnection.Reconnected += connectionId => { /* ... */ return InvokeAsync(StateHasChanged); };
+        // Handler for receiving video frames
+        hubConnection.On<byte[]>("ReceiveFrame", (frameData) =>
+        { // --- Handler logic restored below ---
+            var base64String = Convert.ToBase64String(frameData);
+            currentFrameSrc = $"data:image/jpeg;base64,{base64String}";
+            // Don't update status message here constantly, just style maybe
+            // statusMessage = "Receiving frames..."; // Too noisy
+            statusStyle = "color: green;"; // Indicate activity
+            InvokeAsync(StateHasChanged); // Request UI update
+        }); // --- End ReceiveFrame handler ---
+
+        // Handler for receiving status updates
+        hubConnection.On<string>("ReceiveStatus", (status) =>
+        { // --- Handler logic restored below ---
+            statusMessage = status; // Update the message text
+            if (status.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || status.StartsWith("Warning", StringComparison.OrdinalIgnoreCase))
+            {
+                statusStyle = "color: orange;";
+            }
+            else if (status.Contains("Processing", StringComparison.OrdinalIgnoreCase))
+            {
+                statusStyle = "color: green;";
+            }
+            else
+            {
+                // Default style for messages like "Idle", "Connected", "Stopped"
+                statusStyle = "color: grey;";
+            }
+            InvokeAsync(StateHasChanged); // Request UI update
+        }); // --- End ReceiveStatus handler ---
+
+        // --- Handle connection events ---
+        hubConnection.Closed += async (error) =>
+        {
+            Logger.LogError(error, "SignalR Hub connection closed.");
+            statusMessage = $"Connection closed: {error?.Message ?? "No details"}";
+            statusStyle = "color: red;";
+            currentFrameSrc = null; // Clear image on disconnect
+            isConnecting = false;
+            await InvokeAsync(StateHasChanged);
+        };
+
+        hubConnection.Reconnecting += error =>
+        {
+            Logger.LogWarning(error, "SignalR Hub connection reconnecting...");
+            statusMessage = $"Connection lost. Reconnecting... {error?.Message ?? ""}";
+            statusStyle = "color: orange;";
+            currentFrameSrc = null; // Clear image while reconnecting
+            isConnecting = true; // Show connecting state
+            return InvokeAsync(StateHasChanged);
+        };
+
+        hubConnection.Reconnected += connectionId =>
+        {
+            Logger.LogInformation("SignalR Hub connection reconnected with ID: {ConnectionId}", connectionId);
+            statusMessage = "Connection re-established.";
+            statusStyle = "color: green;";
+            isConnecting = false;
+            return InvokeAsync(StateHasChanged);
+        };
 
 
-        // --- Start the connection (remains the same) ---
+        // --- Start the connection ---
         try
         {
             await hubConnection.StartAsync();
             Logger.LogInformation("SignalR Hub connection established successfully. Connection ID: {ConnectionId}", hubConnection.ConnectionId);
+            // Set initial connected status, backend will override with "Processing..." etc.
             statusMessage = "Connected to hub. Waiting for backend to start processing...";
             statusStyle = "color: grey;";
             isConnecting = false;
@@ -129,6 +178,18 @@
         }
     }
 
-    // --- DisposeAsync remains the same ---
-    public async ValueTask DisposeAsync() { /* ... */ }
+    // --- DisposeAsync method ---
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            Logger.LogInformation("Disposing SignalR Hub connection.");
+            // Stop handlers before disposing
+            hubConnection.Remove("ReceiveFrame");
+            hubConnection.Remove("ReceiveStatus");
+            await hubConnection.DisposeAsync();
+            hubConnection = null; // Clear reference
+            Logger.LogInformation("SignalR Hub connection disposed.");
+        }
+    }
 }
