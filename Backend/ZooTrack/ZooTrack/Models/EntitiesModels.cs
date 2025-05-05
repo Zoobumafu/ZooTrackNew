@@ -132,17 +132,25 @@ namespace ZooTrack.Models
         public string ActionType { get; set; }
         public DateTime Timestamp { get; set; }
 
+        public string Message { get; set; }
+        public string Level { get; set; } = "Info";
+        public int? DetectionId { get; set; }
+
         // Navigation properties
         [ForeignKey("UserId")]
         [JsonIgnore]
         public virtual User User { get; set; }
+
+        [ForeignKey("DetectionId")]
+        [JsonIgnore]
+        public virtual Detection? Detection { get; set; }
     }
 
     public class UserSettings
     {
         [Key]
         public int UserId { get; set; }
-        public string NotificationPreference { get; set; }
+        public string? NotificationPreference { get; set; }
         public float DetectionThreshold { get; set; }
 
         // Navigation properties

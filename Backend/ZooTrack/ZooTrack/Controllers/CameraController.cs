@@ -1,5 +1,17 @@
 ﻿// ZooTrack.WebAPI/Controllers/CameraController.cs
 // Make sure the namespace matches your project structure, e.g., ZooTrack.Controllers or ZooTrackBackend.Controllers
+
+/* 
+ * About this controller:
+ *  1. This controller acts as interface between client app and camera processing service.
+ *  2. It allows:
+ *      a. start recording and processing video when detection is positive
+ *      b. stop the recording process
+ *      c. check the status of the camera system
+ *      
+ */
+
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
