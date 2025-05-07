@@ -49,6 +49,11 @@ namespace ZooTrack.Services
         // Buffer for recent frames (optional, if pre-detection frames are needed)
         // For simplicity, we start recording *after* detection for 5s.
 
+        // Tracker variables
+        private TrackerMIL? _tracker;
+        private Rect _trackedObjectBox;
+        private bool _isTrackingObject = false;
+
         public bool IsInitialized { get; private set; } = false;
         public bool IsProcessing { get; private set; } = false;
 
@@ -176,7 +181,138 @@ namespace ZooTrack.Services
             }
         }
 
+        private bool InitializeObjectTracker(Mat frame, YoloDotNet.Models.ObjectDetection initialDetection)
+        {
+            try
+            {
+                var rect = initialDetection.BoundingBox;
+                _trackedObjectBox = new Rect(rect.Left, rect.Top, rect.Width, rect.Height); // Initialized as Rect
+                _tracker = TrackerMIL.Create();
+                _tracker.Init(frame, _trackedObjectBox);
+                _isTrackingObject = true;
+                _logger.LogInformation("Object tracker initialized for {Label}", initialDetection.Label.Name);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to initialize object tracker.");
+                return false;
+            }
+        }
+
         // Called by the background service loop
+        public FrameData? ProcessFrame()
+        {
+            if (!IsInitialized || _capture == null || !_capture.IsOpened() || _yolo == null)
+            {
+                _logger.LogWarning("ProcessFrame called but service is not ready.");
+                return null;
+            }
+
+            using var frame = new Mat();
+            try
+            {
+                if (!_capture.Read(frame) || frame.Empty())
+                {
+                    _logger.LogWarning("Could not read frame from camera.");
+                    return null;
+                }
+            }
+            catch (Exception readEx)
+            {
+                _logger.LogError(readEx, "Exception while reading frame from camera.");
+                return null;
+            }
+
+            List<string> currentFrameDetections = new List<string>();
+            bool targetFoundInFrame = false;
+            YoloDotNet.Models.ObjectDetection? mainTarget = null; // Track the first target
+
+            try
+            {
+                // 1. Run YOLO Detection
+                Cv2.ImEncode(".jpg", frame, out byte[] rawData);
+                using var skImage = SKImage.FromEncodedData(rawData);
+
+                if (skImage == null)
+                {
+                    _logger.LogWarning("Could not decode frame using SkiaSharp.");
+                    return new FrameData { JpegBytes = rawData, TargetDetected = false };
+                }
+
+                var results = _yolo.RunObjectDetection(skImage, confidence: 0.35f, iou: 0.6f);
+
+                // 2. Process Detections & Draw Boxes
+                foreach (var res in results)
+                {
+                    string label = res.Label.Name.ToLowerInvariant();
+                    currentFrameDetections.Add(res.Label.Name);
+
+                    if (_targetAnimals.Contains(label))
+                    {
+                        targetFoundInFrame = true;
+                        if (mainTarget == null) // Track the first target found
+                        {
+                            mainTarget = res;
+                        }
+                    }
+
+                    DrawDetection(frame, res);
+                }
+
+                // 3. Initialize Tracker if a target is found and not already tracking
+                if (mainTarget != null && !_isTrackingObject)
+                {
+                    InitializeObjectTracker(frame, mainTarget);
+                }
+
+                // 4. Update Tracker if tracking
+                if (_isTrackingObject && _tracker != null)
+                {
+                    Rect currentTrackedBox = _trackedObjectBox; // Create a local variable of type Rect
+                    bool tracked = _tracker.Update(frame, ref currentTrackedBox); // Use 'ref' with Rect
+                    _trackedObjectBox = currentTrackedBox; // Update the class member
+
+                    if (tracked)
+                    {
+                        // Draw the tracked object's box
+                        Cv2.Rectangle(frame, _trackedObjectBox, Scalar.Cyan, 2); // Draw using Rect
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Tracking failed. Re-enabling YOLO detection.");
+                        _isTrackingObject = false;
+                        _tracker.Dispose();
+                        _tracker = null;
+                    }
+                }
+            }
+            catch (Exception yoloEx)
+            {
+                _logger.LogError(yoloEx, "Error during YOLO detection or tracking.");
+                Cv2.PutText(frame, "Detection Error", new Point(10, 30), HersheyFonts.HersheySimplex, 1.0, Scalar.Magenta, 2);
+                _isTrackingObject = false; // Ensure tracking is off on error
+                _tracker?.Dispose();
+                _tracker = null;
+            }
+
+            // 5. Handle Highlight Recording Logic
+            HandleHighlightRecording(frame, targetFoundInFrame);
+
+            // 6. Encode Final Frame for Streaming
+            Cv2.ImEncode(".jpg", frame, out byte[] finalJpegBytes);
+
+            return new FrameData
+            {
+                JpegBytes = finalJpegBytes,
+                TargetDetected = targetFoundInFrame,
+                DetectedTargets = currentFrameDetections
+            };
+        }
+
+
+        // previuos working function without tracking
+        /*
         public FrameData? ProcessFrame()
         {
             if (!IsInitialized || _capture == null || !_capture.IsOpened() || _yolo == null)
@@ -262,6 +398,7 @@ namespace ZooTrack.Services
                 DetectedTargets = currentFrameDetections // Send list of detected animals
             };
         }
+        */
 
         private void DrawDetection(Mat frame, YoloDotNet.Models.ObjectDetection res)
         {
@@ -446,32 +583,24 @@ namespace ZooTrack.Services
                 if (disposing)
                 {
                     _logger.LogInformation("Disposing CameraService resources...");
-                    // Stop processing and recording
-                    StopProcessing(); // Will also stop recording if active
+                    StopProcessing();
 
-                    // Stop and dispose timer
                     _recordingTimer?.Stop();
                     _recordingTimer?.Dispose();
 
-                    // Release VideoCapture resource
-                    _capture?.Release(); // Release camera
-
-                    // Release VideoWriter if somehow still open (should be closed by StopRecording)
+                    _capture?.Release();
                     _writer?.Release();
+                    _yolo = null;
 
-                    // Yolo object disposal - YoloDotNet might manage its resources internally
-                    // If issues arise, check YoloDotNet documentation for explicit disposal needs.
-                    _yolo = null; // Allow GC
+                    _tracker?.Dispose(); // Dispose the tracker
+                    _tracker = null;
 
                     _logger.LogInformation("Managed resources disposed.");
                 }
 
-                // Dispose unmanaged resources here if any directly held by this class
-                // (OpenCVSharp handles its own unmanaged resources via its Dispose methods)
-
                 _disposed = true;
-                IsInitialized = false; // Mark as not initialized on dispose
-                _isInitialized = false; // Reset static flag too
+                IsInitialized = false;
+                _isInitialized = false;
                 _logger.LogInformation("CameraService disposed.");
             }
         }
