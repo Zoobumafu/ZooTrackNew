@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using ZooTrack.Data;
 using ZooTrack.Services;
-using ZooTrack.Hubs; // Add Hubs namespace
-
+using ZooTrack.Hubs;
+using ZooTrackBackend.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Existing Services ---
@@ -20,6 +20,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Example Notification/Detection services (keep them if used elsewhere)
+builder.Services.AddScoped<ILogService, LogService>();
 builder.Services.AddScoped<NotificationService>(); // Assuming scoped lifetime is correct
 builder.Services.AddScoped<IDetectionService, DetectionService>(); // Use interface
 builder.Services.AddScoped<DetectionMediaService>(); // Assuming scoped is correct

@@ -128,11 +128,17 @@ namespace ZooTrack.Models
     {
         [Key]
         public int LogId { get; set; }
+        [Required]
         public int UserId { get; set; }
+        [Required]
+        [MaxLength(100)]
         public string ActionType { get; set; }
+        [Required]
         public DateTime Timestamp { get; set; }
 
+        [MaxLength(500)]
         public string Message { get; set; }
+        [MaxLength(20)]
         public string Level { get; set; } = "Info";
         public int? DetectionId { get; set; }
 

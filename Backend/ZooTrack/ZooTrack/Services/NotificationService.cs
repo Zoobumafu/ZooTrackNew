@@ -3,6 +3,7 @@ using ZooTrack.Models;
 using Microsoft.EntityFrameworkCore;
 using SQLitePCL;
 using System.Threading.Tasks;
+using ZooTrackBackend.Services;
 
 
 /*
@@ -15,10 +16,12 @@ namespace ZooTrack.Services
     public class NotificationService
     {
         private readonly ZootrackDbContext _context;
+        private readonly ILogService _logService;
 
-        public NotificationService(ZootrackDbContext context)
+        public NotificationService(ZootrackDbContext context, ILogService logService)
         {
             _context = context;
+            _logService = logService;
         }
 
         public async Task NotifyUserAsync(Detection detection)
@@ -51,7 +54,12 @@ namespace ZooTrack.Services
                 _context.Alerts.Add(alert);
 
                 // add log entry
-                await AddLogAsync(user.UserId, $"NotificationSent: Detection {detection.DetectionId}");
+                await _logService.AddLogAsync(
+                   userId: user.UserId,
+                   actionType: "NotificationSent",
+                   message: $"Alert created for Detection {detection.DetectionId}",
+                   detectionId: detection.DetectionId
+               );
             }
             await _context.SaveChangesAsync();
         }

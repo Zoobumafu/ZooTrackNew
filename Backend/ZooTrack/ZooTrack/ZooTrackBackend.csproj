@@ -34,4 +34,8 @@
     <PackageReference Include="Yolov5Net" Version="1.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Migrations\" />
+  </ItemGroup>
+
 </Project>
