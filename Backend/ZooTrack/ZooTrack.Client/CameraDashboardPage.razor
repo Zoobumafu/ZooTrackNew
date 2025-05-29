@@ -1,0 +1,306 @@
+﻿@page "/camera-dashboard"
+@using ZooTrack.Client // For DeviceViewModel
+@using ZooTrack.Client // For CameraStreamConfigurable
+@inject HttpClient Http
+@inject ILogger<CameraDashboardPage> Logger
+
+<h3>Multi-Camera Dashboard</h3>
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="AddNewStreamComponent">
+        <span class="oi oi-plus" aria-hidden="true"></span> Add Camera Stream
+    </button>
+</div>
+
+@if (isLoadingDevices)
+{
+    <p><em>Loading available cameras...</em></p>
+}
+else if (availableDevices == null || !availableDevices.Any())
+{
+    <p class="text-warning">No camera devices found or failed to load. Please ensure devices are configured in the backend and the API is accessible.</p>
+}
+
+@if (activeStreamConfigs.Any())
+{
+    <div class="row">
+        @foreach (var config in activeStreamConfigs)
+        {
+            <div class="col-md-6 col-lg-4 mb-3" @key="config.InstanceId">
+                <div class="card">
+                    <div class="card-header">
+                        Camera Stream: @(string.IsNullOrEmpty(config.UserGivenName) ? $"Instance {config.InstanceId.ToString().Substring(0, 8)}" : config.UserGivenName)
+                        <button class="btn btn-sm btn-danger float-end" @onclick="() => RemoveStreamComponent(config.InstanceId)">
+                            <span class="oi oi-trash" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <label for="cameraSelect_@config.InstanceId" class="form-label">Select Camera:</label>
+                            @* Removed explicit @onchange, logic moved to SelectedDeviceId setter *@
+                            <select id="cameraSelect_@config.InstanceId" class="form-select form-select-sm" @bind="config.SelectedDeviceId">
+                                <option value="0">-- Select a Camera --</option>
+                                @if (availableDevices != null)
+                                {
+                                    foreach (var device in availableDevices)
+                                    {
+                                        var deviceIdValue = device.DeviceId;
+                                        var deviceName = device.Name;
+                                        var deviceLocation = device.Location ?? "N/A";
+                                        var optionText = $"{deviceIdValue}: {deviceName} ({deviceLocation})";
+                                        <option value="@deviceIdValue">@optionText</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="streamName_@config.InstanceId" class="form-label">Stream Name (Optional):</label>
+                            <input type="text" id="streamName_@config.InstanceId" class="form-control form-control-sm" @bind="config.UserGivenName" placeholder="E.g., Entrance Cam" />
+                        </div>
+
+                        @if (config.SelectedDeviceId > 0)
+                        {
+                            <CameraStreamConfigurable CameraId="config.SelectedDeviceId" />
+
+                            <div class="mt-2">
+                                <h6 class="small">Controls for Camera ID: @config.SelectedDeviceId</h6>
+                                <div class="mb-2">
+                                    <label for="targetAnimals_@config.InstanceId" class="form-label small">Target Animals (comma-separated):</label>
+                                    <input type="text" id="targetAnimals_@config.InstanceId" class="form-control form-control-sm" @bind="config.TargetAnimals" placeholder="e.g., lion,tiger" />
+                                </div>
+                                <div class="mb-2">
+                                    <label for="savePath_@config.InstanceId" class="form-label small">Highlight Save Path:</label>
+                                    <input type="text" id="savePath_@config.InstanceId" class="form-control form-control-sm" @bind="config.HighlightSavePath" placeholder="/highlights/cam@(config.SelectedDeviceId)" />
+                                </div>
+                                <button class="btn btn-sm btn-success me-2" @onclick="() => StartProcessing(config)" disabled="config.IsProcessing || config.SelectedDeviceId == 0">
+                                    <span class="oi oi-media-play" aria-hidden="true"></span> Start
+                                </button>
+                                <button class="btn btn-sm btn-warning" @onclick="() => StopProcessing(config)" disabled="!config.IsProcessing || config.SelectedDeviceId == 0">
+                                    <span class="oi oi-media-stop" aria-hidden="true"></span> Stop
+                                </button>
+                                @if (!string.IsNullOrEmpty(config.ApiStatusMessage))
+                                {
+                                    <p class="small mt-1" style="color: @(config.ApiStatusMessage.Contains("Error") || config.ApiStatusMessage.Contains("Failed") ? "red" : "blue");">API: @config.ApiStatusMessage</p>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted"><em>Select a camera to enable stream and controls.</em></p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <p>No camera streams added yet. Click "Add Camera Stream" to begin.</p>
+}
+
+
+@code {
+    private List<StreamComponentConfig> activeStreamConfigs = new List<StreamComponentConfig>();
+    private List<DeviceViewModel>? availableDevices;
+    private bool isLoadingDevices = true;
+
+    // Private reference to the parent page for the config class to call StateHasChanged
+    private CameraDashboardPage _parent = default!;
+
+
+    public class StreamComponentConfig
+    {
+        public Guid InstanceId { get; set; } = Guid.NewGuid();
+
+        private int _selectedDeviceId;
+        public int SelectedDeviceId
+        {
+            get => _selectedDeviceId;
+            set
+            {
+                if (_selectedDeviceId != value)
+                {
+                    _selectedDeviceId = value;
+                    // Logic from CameraSelectionChanged is now here
+                    this.IsProcessing = false;
+                    this.ApiStatusMessage = string.Empty;
+                    // We need a way to call StateHasChanged on the parent page.
+                    // This can be done by passing a reference to the parent or an Action.
+                    ParentPage?.NotifyStateChanged();
+                    // Log the change
+                    // Logger cannot be directly accessed here unless passed in or made static.
+                    // For simplicity, we'll assume logging happens in the parent or is omitted here.
+                    // Console.WriteLine($"Camera selection changed for instance {InstanceId} to Device ID {_selectedDeviceId}");
+                }
+            }
+        }
+
+        public string UserGivenName { get; set; } = string.Empty;
+        public string TargetAnimals { get; set; } = string.Empty; // Comma-separated
+        public string HighlightSavePath { get; set; } = string.Empty;
+        public bool IsProcessing { get; set; } = false; // Track processing state for this camera
+        public string ApiStatusMessage { get; set; } = string.Empty;
+
+        // Reference to the parent page to trigger StateHasChanged
+        public CameraDashboardPage? ParentPage { get; set; }
+    }
+
+    protected override void OnInitialized() // Changed to synchronous OnInitialized
+    {
+        _parent = this; // Set the reference to self for StreamComponentConfig
+        base.OnInitialized();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAvailableDevices();
+    }
+
+    // Method for StreamComponentConfig to call to trigger StateHasChanged on the parent
+    public void NotifyStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+        Logger.LogInformation("StateHasChanged invoked from StreamComponentConfig.");
+    }
+
+
+    private async Task LoadAvailableDevices()
+    {
+        isLoadingDevices = true;
+        try
+        {
+            var devices = await Http.GetFromJsonAsync<List<DeviceViewModel>>("api/Device");
+            availableDevices = devices ?? new List<DeviceViewModel>();
+            Logger.LogInformation("Successfully loaded {Count} available devices.", availableDevices.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load available devices from api/Device.");
+            availableDevices = new List<DeviceViewModel>();
+        }
+        finally
+        {
+            isLoadingDevices = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AddNewStreamComponent()
+    {
+        var newConfig = new StreamComponentConfig { ParentPage = this }; // Pass parent reference
+        activeStreamConfigs.Add(newConfig);
+        Logger.LogInformation("Added new stream component. Total: {Count}", activeStreamConfigs.Count);
+        StateHasChanged();
+    }
+
+    private void RemoveStreamComponent(Guid instanceId)
+    {
+        var configToRemove = activeStreamConfigs.FirstOrDefault(c => c.InstanceId == instanceId);
+        if (configToRemove != null)
+        {
+            if (configToRemove.IsProcessing)
+            {
+                Logger.LogInformation("Removing stream component {InstanceId} that might be processing camera {CameraId}.", instanceId, configToRemove.SelectedDeviceId);
+            }
+            activeStreamConfigs.Remove(configToRemove);
+            Logger.LogInformation("Removed stream component {InstanceId}. Remaining: {Count}", instanceId, activeStreamConfigs.Count);
+            StateHasChanged();
+        }
+    }
+
+    // This method is no longer directly called by @onchange, its logic is in SelectedDeviceId setter.
+    // It's kept here for reference or if needed elsewhere, but can be removed if not.
+    private void CameraSelectionChanged(StreamComponentConfig config)
+    {
+        // This logic is now in the setter of config.SelectedDeviceId
+        // config.IsProcessing = false;
+        // config.ApiStatusMessage = string.Empty;
+        Logger.LogInformation("CameraSelectionChanged method called for instance {InstanceId} to Device ID {DeviceId} (likely via setter now)", config.InstanceId, config.SelectedDeviceId);
+        // StateHasChanged(); // This would be called by the setter's notification mechanism
+    }
+
+    private async Task StartProcessing(StreamComponentConfig config)
+    {
+        if (config.SelectedDeviceId == 0)
+        {
+            config.ApiStatusMessage = "Error: No camera selected.";
+            Logger.LogWarning("StartProcessing called for instance {InstanceId} but no camera selected.", config.InstanceId);
+            return;
+        }
+
+        config.ApiStatusMessage = $"Starting processing for Camera ID {config.SelectedDeviceId}...";
+        StateHasChanged();
+
+        var startRequestPayload = new
+        {
+            CameraId = config.SelectedDeviceId,
+            TargetAnimals = config.TargetAnimals.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+            HighlightSavePath = config.HighlightSavePath
+        };
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/camera/start", startRequestPayload);
+
+            if (response.IsSuccessStatusCode)
+            {
+                config.IsProcessing = true;
+                config.ApiStatusMessage = $"Successfully started processing for Camera ID {config.SelectedDeviceId}.";
+                Logger.LogInformation("Successfully started processing for Camera ID {CameraId} via API.", config.SelectedDeviceId);
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                config.ApiStatusMessage = $"Error starting processing for Camera ID {config.SelectedDeviceId}: {response.StatusCode} - {errorContent}";
+                Logger.LogError("Error starting processing for Camera ID {CameraId}: {StatusCode} - {ErrorContent}", config.SelectedDeviceId, response.StatusCode, errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            config.ApiStatusMessage = $"Exception starting processing for Camera ID {config.SelectedDeviceId}: {ex.Message}";
+            Logger.LogError(ex, "Exception during StartProcessing for Camera ID {CameraId}.", config.SelectedDeviceId);
+        }
+        StateHasChanged();
+    }
+
+    private async Task StopProcessing(StreamComponentConfig config)
+    {
+        if (config.SelectedDeviceId == 0)
+        {
+            config.ApiStatusMessage = "Error: No camera selected to stop.";
+            Logger.LogWarning("StopProcessing called for instance {InstanceId} but no camera selected.", config.InstanceId);
+            return;
+        }
+
+        config.ApiStatusMessage = $"Stopping processing for Camera ID {config.SelectedDeviceId}...";
+        StateHasChanged();
+
+        var stopRequestPayload = new { CameraId = config.SelectedDeviceId };
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/camera/stop", stopRequestPayload);
+
+            if (response.IsSuccessStatusCode)
+            {
+                config.IsProcessing = false;
+                config.ApiStatusMessage = $"Successfully stopped processing for Camera ID {config.SelectedDeviceId}.";
+                Logger.LogInformation("Successfully stopped processing for Camera ID {CameraId} via API.", config.SelectedDeviceId);
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                config.ApiStatusMessage = $"Error stopping processing for Camera ID {config.SelectedDeviceId}: {response.StatusCode} - {errorContent}";
+                Logger.LogError("Error stopping processing for Camera ID {CameraId}: {StatusCode} - {ErrorContent}", config.SelectedDeviceId, response.StatusCode, errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            config.ApiStatusMessage = $"Exception stopping processing for Camera ID {config.SelectedDeviceId}: {ex.Message}";
+            Logger.LogError(ex, "Exception during StopProcessing for Camera ID {CameraId}.", config.SelectedDeviceId);
+        }
+        StateHasChanged();
+    }
+}
