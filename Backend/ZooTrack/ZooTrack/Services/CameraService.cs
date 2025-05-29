@@ -8,10 +8,13 @@ using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.Logging; // Added for logging
 using OpenCvSharp;
+using OpenCvSharp.Dnn;
 using YoloDotNet;
 using YoloDotNet.Enums;
 using YoloDotNet.Models;
 using SkiaSharp;
+using ZooTrack.Data;
+using ZooTrack.Models;
 using Timer = System.Timers.Timer; // Alias for clarity
 
 namespace ZooTrack.Services
@@ -25,6 +28,8 @@ namespace ZooTrack.Services
 
     public class CameraService : IDisposable
     {
+        private readonly IServiceScopeFactory _serviceScopeFactory;
+
         private readonly ILogger<CameraService> _logger;
         private VideoCapture? _capture;
         private Yolo? _yolo;
@@ -58,9 +63,10 @@ namespace ZooTrack.Services
         public bool IsProcessing { get; private set; } = false;
 
         // Inject logger
-        public CameraService(ILogger<CameraService> logger)
+        public CameraService(ILogger<CameraService> logger, IServiceScopeFactory serviceScopeFactory)
         {
             _logger = logger;
+            _serviceScopeFactory = serviceScopeFactory;
             // Defer initialization until StartProcessingAsync is called
         }
 
@@ -201,7 +207,7 @@ namespace ZooTrack.Services
         }
 
         // Called by the background service loop
-        public FrameData? ProcessFrame()
+        public async Task<FrameData?> ProcessFrameAsync()
         {
             if (!IsInitialized || _capture == null || !_capture.IsOpened() || _yolo == null)
             {
@@ -226,7 +232,7 @@ namespace ZooTrack.Services
 
             List<string> currentFrameDetections = new List<string>();
             bool targetFoundInFrame = false;
-            YoloDotNet.Models.ObjectDetection? mainTarget = null; // Track the first target
+            YoloDotNet.Models.ObjectDetection? mainTarget = null;
 
             try
             {
@@ -251,13 +257,19 @@ namespace ZooTrack.Services
                     if (_targetAnimals.Contains(label))
                     {
                         targetFoundInFrame = true;
-                        if (mainTarget == null) // Track the first target found
+                        if (mainTarget == null)
                         {
                             mainTarget = res;
                         }
                     }
 
                     DrawDetection(frame, res);
+                }
+
+                // Write positive detections to database - NOW PROPERLY AWAITED
+                if (targetFoundInFrame && mainTarget != null)
+                {
+                    await WriteDetectionToDatabase(mainTarget, rawData);
                 }
 
                 // 3. Initialize Tracker if a target is found and not already tracking
@@ -269,14 +281,13 @@ namespace ZooTrack.Services
                 // 4. Update Tracker if tracking
                 if (_isTrackingObject && _tracker != null)
                 {
-                    Rect currentTrackedBox = _trackedObjectBox; // Create a local variable of type Rect
-                    bool tracked = _tracker.Update(frame, ref currentTrackedBox); // Use 'ref' with Rect
-                    _trackedObjectBox = currentTrackedBox; // Update the class member
+                    Rect currentTrackedBox = _trackedObjectBox;
+                    bool tracked = _tracker.Update(frame, ref currentTrackedBox);
+                    _trackedObjectBox = currentTrackedBox;
 
                     if (tracked)
                     {
-                        // Draw the tracked object's box
-                        Cv2.Rectangle(frame, _trackedObjectBox, Scalar.Cyan, 2); // Draw using Rect
+                        Cv2.Rectangle(frame, _trackedObjectBox, Scalar.Cyan, 2);
                     }
                     else
                     {
@@ -291,7 +302,7 @@ namespace ZooTrack.Services
             {
                 _logger.LogError(yoloEx, "Error during YOLO detection or tracking.");
                 Cv2.PutText(frame, "Detection Error", new Point(10, 30), HersheyFonts.HersheySimplex, 1.0, Scalar.Magenta, 2);
-                _isTrackingObject = false; // Ensure tracking is off on error
+                _isTrackingObject = false;
                 _tracker?.Dispose();
                 _tracker = null;
             }
@@ -399,6 +410,87 @@ namespace ZooTrack.Services
             };
         }
         */
+
+        // Write detection to database
+        private async Task WriteDetectionToDatabase(YoloDotNet.Models.ObjectDetection detection, byte[] frameBytes)
+        {
+            try
+            {
+                // Create a new scope for database operations
+                using var scope = _serviceScopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<ZootrackDbContext>();
+
+                // GET DETECTION SERVICE FROM SCOPE INSTEAD OF CONSTRUCTOR INJECTION
+                var detectionService = scope.ServiceProvider.GetRequiredService<IDetectionService>();
+
+                // First, save the frame image as media
+                var media = await SaveFrameAsMedia(frameBytes, context);
+
+                // Create detection record
+                var detectionRecord = new Detection
+                {
+                    DeviceId = 1, // You'll need to configure this based on your device setup
+                    MediaId = media.MediaId,
+                    Confidence = (float)(detection.Confidence * 100), // Convert to percentage
+                    DetectedAt = DateTime.Now,
+                    // Add other properties as needed
+                };
+
+                // Use the detection service to create the detection
+                // This will also trigger notifications and logging
+                await detectionService.CreateDetectionAsync(detectionRecord);
+
+                _logger.LogInformation("Detection saved to database: {Label} with {Confidence}% confidence",
+                    detection.Label.Name, detection.Confidence * 100);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to write detection to database");
+                // Don't throw - we don't want to break the video stream
+            }
+        }
+
+        // NEW METHOD: Save frame as media file
+        private async Task<Media> SaveFrameAsMedia(byte[] frameBytes, ZootrackDbContext context)
+        {
+            try
+            {
+                // Create media directory if it doesn't exist
+                string mediaDir = Path.Combine(AppContext.BaseDirectory, "MediaFiles", "Detections");
+                Directory.CreateDirectory(mediaDir);
+
+                // Generate unique filename
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+                string fileName = $"detection_{timestamp}.jpg";
+                string filePath = Path.Combine(mediaDir, fileName);
+
+                // Save frame to disk
+                await File.WriteAllBytesAsync(filePath, frameBytes);
+
+                // Create media record
+                var media = new Media
+                {
+                    // FileName = fileName,
+                    FilePath = Path.Combine("Detections", fileName), // Relative path
+                    // FileSize = frameBytes.Length,
+                    Type = "Image",
+                    Timestamp = DateTime.Now,
+                    // UserId = 1 // System user - configure as needed
+                    // Device device
+                    // Icollection<Detection> detections
+                };
+
+                context.Media.Add(media);
+                await context.SaveChangesAsync();
+
+                return media;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save frame as media");
+                throw;
+            }
+        }
 
         private void DrawDetection(Mat frame, YoloDotNet.Models.ObjectDetection res)
         {
