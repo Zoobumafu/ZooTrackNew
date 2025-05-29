@@ -1,0 +1,257 @@
+﻿@* Client/Components/CameraStreamConfigurable.razor *@
+@using Microsoft.AspNetCore.SignalR.Client
+@inject HttpClient Http
+@inject ILogger<CameraStreamConfigurable> Logger
+@implements IAsyncDisposable
+
+<div class="camera-stream-configurable-container" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; background-color: #f9f9f9;">
+    <h5>Stream for Camera ID: @CameraId</h5>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <p>Status: <span style="@statusStyle">@statusMessage</span></p>
+    }
+
+    @if (isConnecting)
+    {
+        <p>Connecting to camera hub for Camera ID @CameraId...</p>
+    }
+    else if (hubConnection == null || hubConnection.State != HubConnectionState.Connected)
+    {
+        <p style="color: red;">Could not connect to camera hub for Camera ID @CameraId. Ensure backend supports per-camera streams.</p>
+        <button class="btn btn-sm btn-secondary" @onclick="StartConnectionAsync" disabled="@isConnecting">Retry Connection</button>
+    }
+
+    @if (!string.IsNullOrEmpty(currentFrameSrc))
+    {
+        <img src="@currentFrameSrc" alt="Camera Stream for @CameraId" style="max-width: 100%; height: auto; display: block; border: 1px solid #eee;" />
+    }
+    else if (hubConnection?.State == HubConnectionState.Connected)
+    {
+        <p>Waiting for video stream from Camera ID @CameraId...</p>
+    }
+    else if (!isConnecting && (hubConnection == null || hubConnection.State != HubConnectionState.Connected))
+    {
+        <p style="font-style: italic;">Connection not active.</p>
+    }
+
+</div>
+
+@code {
+    [Parameter] public int CameraId { get; set; } // Crucial parameter!
+    [Parameter] public EventCallback<string> OnStatusChanged { get; set; } // Optional: to bubble status up
+
+    private HubConnection? hubConnection;
+    private string? currentFrameSrc;
+    private string statusMessage = "Initializing...";
+    private string statusStyle = "color: grey;";
+    private bool isConnecting = false;
+    private string _hubPath = "cameraHub"; // This might need to become more dynamic or the hub needs to handle multiplexing
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (CameraId <= 0)
+        {
+            statusMessage = "Error: Camera ID not provided or invalid.";
+            statusStyle = "color: red;";
+            Logger.LogError("CameraStreamConfigurable initialized without a valid CameraId.");
+            return;
+        }
+        statusMessage = $"Initializing for Camera ID {CameraId}...";
+        await StartConnectionAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // If CameraId changes, we might need to disconnect and reconnect.
+        // This is a simplified example; robust handling would involve checking
+        // if the hubConnection is active and for the old CameraId.
+        if (hubConnection != null && hubConnection.State == HubConnectionState.Connected)
+        {
+            // If CameraId has changed and we are connected, we should ideally
+            // leave the old group and join the new one, or dispose and recreate.
+            // For simplicity, we'll log and expect a manual restart or new component instance.
+            Logger.LogWarning("CameraId changed while connected. Consider re-initializing the connection for Camera ID {NewUrlCameraId}.", CameraId);
+        }
+    }
+
+    private async Task StartConnectionAsync()
+    {
+        if (CameraId <= 0)
+        {
+            statusMessage = "Cannot connect: Invalid Camera ID.";
+            statusStyle = "color: red;";
+            Logger.LogError("StartConnectionAsync called with invalid CameraId: {CameraId}", CameraId);
+            StateHasChanged();
+            return;
+        }
+
+        if (isConnecting || (hubConnection != null && hubConnection.State == HubConnectionState.Connected))
+        {
+            Logger.LogInformation("Connection attempt for Camera ID {CameraId} ignored: Already connecting or connected.", CameraId);
+            return;
+        }
+
+        isConnecting = true;
+        statusMessage = $"Connecting to hub for Camera ID {CameraId}...";
+        statusStyle = "color: orange;";
+        currentFrameSrc = null;
+        StateHasChanged();
+
+        Uri? baseUri = Http.BaseAddress;
+        if (baseUri == null)
+        {
+            Logger.LogError("HttpClient BaseAddress is not configured.");
+            statusMessage = "Error: HttpClient BaseAddress not configured.";
+            statusStyle = "color: red;";
+            isConnecting = false;
+            StateHasChanged();
+            return;
+        }
+
+        // IMPORTANT BACKEND CHANGE NEEDED:
+        // The hub URL or the subscription mechanism needs to account for CameraId.
+        // Option 1: Hub handles multiplexing (preferred with SignalR Groups)
+        // The Hub URL remains the same, but client subscribes to a group.
+        string hubUrlString = $"{baseUri.AbsoluteUri.TrimEnd('/')}/{_hubPath}";
+
+        // Option 2: Different hub endpoint per camera (less common)
+        // string hubUrlString = $"{baseUri.AbsoluteUri.TrimEnd('/')}/{_hubPath}/{CameraId}";
+
+        Logger.LogInformation("Attempting to connect Camera ID {CameraId} to SignalR Hub at: {HubUrl}", CameraId, hubUrlString);
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrlString) // Hub URL
+            .WithAutomaticReconnect()
+            .Build();
+
+        // Handler for receiving video frames FOR THIS CAMERA
+        // IMPORTANT BACKEND CHANGE NEEDED: Hub must send frames to specific groups or connections.
+        // If using groups, client joins group after connection.
+        // Frame data might also include CameraId if hub sends to all and client filters.
+        hubConnection.On<byte[]>("ReceiveFrame", (frameData) =>
+        {
+            // TODO: If hub sends to all, add a check here: if (receivedFrameCameraId == this.CameraId)
+            var base64String = Convert.ToBase64String(frameData);
+            currentFrameSrc = $"data:image/jpeg;base64,{base64String}";
+            statusStyle = "color: green;"; // Indicate activity
+            InvokeAsync(StateHasChanged);
+        });
+
+        // Handler for receiving status updates FOR THIS CAMERA
+        // IMPORTANT BACKEND CHANGE NEEDED: Similar to ReceiveFrame.
+        hubConnection.On<string>("ReceiveStatus", (status) =>
+        {
+            // TODO: If hub sends to all, add a check here: if (receivedStatusCameraId == this.CameraId)
+            statusMessage = $"Cam {CameraId}: {status}";
+            if (status.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || status.StartsWith("Warning", StringComparison.OrdinalIgnoreCase))
+            {
+                statusStyle = "color: orange;";
+            }
+            else if (status.Contains("Processing", StringComparison.OrdinalIgnoreCase) || status.Contains("detected", StringComparison.OrdinalIgnoreCase))
+            {
+                statusStyle = "color: green;";
+            }
+            else
+            {
+                statusStyle = "color: grey;";
+            }
+            InvokeAsync(StateHasChanged);
+            if (OnStatusChanged.HasDelegate)
+            {
+                OnStatusChanged.InvokeAsync(statusMessage);
+            }
+        });
+
+        hubConnection.Closed += async (error) =>
+        {
+            Logger.LogError(error, "SignalR Hub connection closed for Camera ID {CameraId}.", CameraId);
+            statusMessage = $"Cam {CameraId} Connection closed: {error?.Message ?? "No details"}";
+            statusStyle = "color: red;";
+            currentFrameSrc = null;
+            isConnecting = false;
+            await InvokeAsync(StateHasChanged);
+        };
+
+        hubConnection.Reconnecting += error =>
+        {
+            Logger.LogWarning(error, "SignalR Hub connection reconnecting for Camera ID {CameraId}...", CameraId);
+            statusMessage = $"Cam {CameraId} Connection lost. Reconnecting... {error?.Message ?? ""}";
+            statusStyle = "color: orange;";
+            currentFrameSrc = null;
+            isConnecting = true;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        hubConnection.Reconnected += async (connectionId) =>
+        {
+            Logger.LogInformation("SignalR Hub reconnected for Camera ID {CameraId} with new Connection ID: {ConnectionId}", CameraId, connectionId);
+            statusMessage = $"Cam {CameraId} Connection re-established.";
+            statusStyle = "color: green;";
+            isConnecting = false;
+            // IMPORTANT: Re-subscribe to the camera group if using groups
+            if (hubConnection != null) // Check not null before invoking
+            {
+                await hubConnection.InvokeAsync("SubscribeToCameraStream", CameraId); // Assumes hub has this method
+                Logger.LogInformation("Re-subscribed to stream for Camera ID {CameraId}", CameraId);
+            }
+            await InvokeAsync(StateHasChanged);
+        };
+
+        try
+        {
+            await hubConnection.StartAsync();
+            Logger.LogInformation("SignalR Hub connection established for Camera ID {CameraId}. Connection ID: {ConnectionId}", CameraId, hubConnection.ConnectionId);
+
+            // IMPORTANT BACKEND CHANGE NEEDED: Client needs to subscribe to a specific camera's stream.
+            // This is where you'd tell the hub "I'm interested in CameraId X".
+            // Example using SignalR Groups:
+            await hubConnection.InvokeAsync("SubscribeToCameraStream", CameraId); // Assumes your hub has such a method
+            Logger.LogInformation("Subscribed to stream for Camera ID {CameraId}", CameraId);
+
+            statusMessage = $"Cam {CameraId}: Connected. Waiting for backend to start processing...";
+            statusStyle = "color: grey;";
+            isConnecting = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to connect Camera ID {CameraId} to SignalR Hub at {HubUrl}.", CameraId, hubUrlString);
+            statusMessage = $"Cam {CameraId} Connection failed: {ex.Message}";
+            statusStyle = "color: red;";
+            if (hubConnection != null) // Ensure hubConnection is not null before trying to dispose
+            {
+                await hubConnection.DisposeAsync(); // Clean up partially formed connection
+            }
+            hubConnection = null;
+            isConnecting = false;
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    public bool IsConnected()
+    {
+        return hubConnection?.State == HubConnectionState.Connected;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            Logger.LogInformation("Disposing SignalR Hub connection for Camera ID {CameraId}.", CameraId);
+            // IMPORTANT: Unsubscribe from group if applicable
+            // await hubConnection.InvokeAsync("UnsubscribeFromCameraStream", CameraId);
+
+            // Stop handlers before disposing - this helps prevent errors if messages arrive during disposal
+            hubConnection.Remove("ReceiveFrame");
+            hubConnection.Remove("ReceiveStatus");
+
+            await hubConnection.StopAsync(); // Gracefully stop the connection
+            await hubConnection.DisposeAsync();
+            hubConnection = null;
+            Logger.LogInformation("SignalR Hub connection for Camera ID {CameraId} disposed.", CameraId);
+        }
+    }
+}
