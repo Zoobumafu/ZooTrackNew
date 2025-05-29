@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ZooTrack.Data;
 using ZooTrack.Models;
+using ZooTrackBackend.Services;
 
 namespace ZooTrack.Services
 {
@@ -11,29 +12,136 @@ namespace ZooTrack.Services
     {
         private readonly ZootrackDbContext _context;
         private readonly NotificationService _notificationService;
+        private readonly ILogService _logService;
 
-        public DetectionService(ZootrackDbContext context, NotificationService notificationService)
+        const double CRITICAL_CONFIDENCE_RISK = 95.0;
+        const double HIGH_CONFIDENCE_RISK = 90.0;
+        const double MODERATE_CONFIDENCE_RISK = 80.0;
+
+        public DetectionService(ZootrackDbContext context, NotificationService notificationService, ILogService logService)
         {
             _context = context;
             _notificationService = notificationService;
+            _logService = logService;
         }
-        
+
         public async Task<Detection> CreateDetectionAsync(Detection detection)
         {
-            _context.Detections.Add(detection);
-            await _context.SaveChangesAsync();
+            try
+            {
+                // Set detection time if not provided
+                if (detection.DetectedAt == default)
+                    detection.DetectedAt = DateTime.Now;
 
-            await _notificationService.NotifyUserAsync(detection);
+                _context.Detections.Add(detection);
+                await _context.SaveChangesAsync();
 
-            return detection;
+                // Determine log level and action based on confidence
+                string logLevel = "Info";
+                string actionType = "DetectionCreated";
+
+                if (detection.Confidence >= CRITICAL_CONFIDENCE_RISK)
+                {
+                    logLevel = "Critical";
+                    actionType = "CriticalDetectionCreated";
+                }
+                else if (detection.Confidence >= MODERATE_CONFIDENCE_RISK)
+                {
+                    logLevel = "Warning";
+                    actionType = "HighConfidenceDetectionCreated";
+                }
+
+                // Log the detection creation
+                await _logService.AddLogAsync(
+                    userId: 1, // System user for service-level operations
+                    actionType: actionType,
+                    message: $"Detection created from device {detection.DeviceId} with confidence {detection.Confidence:F2}% at {detection.DetectedAt:G}",
+                    level: logLevel,
+                    detectionId: detection.DetectionId
+                );
+
+                // Log additional analytics for patterns
+                if (detection.Confidence >= HIGH_CONFIDENCE_RISK)
+                {
+                    await _logService.AddLogAsync(
+                        userId: 1,
+                        actionType: "HighConfidenceAlert",
+                        message: $"High confidence detection ({detection.Confidence:F2}%) from device {detection.DeviceId} - requires attention",
+                        level: "Warning",
+                        detectionId: detection.DetectionId
+                    );
+                }
+
+                // Check for frequent detections from same device (potential issue detection)
+                var recentDetections = await _context.Detections
+                    .Where(d => d.DeviceId == detection.DeviceId &&
+                               d.DetectedAt >= DateTime.Now.AddMinutes(-10) &&
+                               d.DetectionId != detection.DetectionId)
+                    .CountAsync();
+
+                if (recentDetections >= 5)
+                {
+                    await _logService.AddLogAsync(
+                        userId: 1,
+                        actionType: "FrequentDetections",
+                        message: $"Device {detection.DeviceId} has {recentDetections + 1} detections in last 10 minutes - possible system issue or high activity",
+                        level: "Warning",
+                        detectionId: detection.DetectionId
+                    );
+                }
+
+                await _notificationService.NotifyUserAsync(detection);
+
+                return detection;
+            }
+            catch (Exception ex)
+            {
+                // Log the error with detailed information
+                await _logService.AddLogAsync(
+                    userId: 1,
+                    actionType: "DetectionCreationFailed",
+                    message: $"Failed to create detection from device {detection?.DeviceId}: {ex.Message}. Stack: {ex.StackTrace}",
+                    level: "Error"
+                );
+
+                throw; // Re-throw the exception to handle it upstream
+            }
         }
 
         public async Task<IEnumerable<Detection>> GetDetectionsForDeviceAsync(int deviceId)
         {
-            return await _context.Detections
-                .Where(d => d.DeviceId == deviceId)
-                .ToListAsync();
-        }
+            try
+            {
+                var detections = await _context.Detections
+                    .Where(d => d.DeviceId == deviceId)
+                    .Include(d => d.Device)
+                    .Include(d => d.Media)
+                    .OrderByDescending(d => d.DetectedAt)
+                    .ToListAsync();
 
+                // Log the query with analytics
+                var highConfidenceCount = detections.Count(d => d.Confidence >= 80.0);
+                await _logService.AddLogAsync(
+                    userId: 1, // System user
+                    actionType: "DetectionsQueried",
+                    message: $"Retrieved {detections.Count} detections for device {deviceId} ({highConfidenceCount} high confidence)",
+                    level: "Info"
+                );
+
+                return detections;
+            }
+            catch (Exception ex)
+            {
+                // Log the error
+                await _logService.AddLogAsync(
+                    userId: 1,
+                    actionType: "DetectionQueryFailed",
+                    message: $"Failed to retrieve detections for device {deviceId}: {ex.Message}",
+                    level: "Error"
+                );
+
+                throw;
+            }
+        }
     }
 }

@@ -26,55 +26,78 @@ namespace ZooTrack.Services
 
         public async Task NotifyUserAsync(Detection detection)
         {
-            // load detection with device data
-            var detectionWithDevice = await _context.Detections
-                .Include(d => d.Device)
-                .FirstOrDefaultAsync(d => d.DetectionId == detection.DetectionId);
-            
-            if (detectionWithDevice == null)
-                throw new Exception($"Detection {detection.DetectionId} not found.");
-
-            var userToNotify = await _context.Users
-                .Include(u => u.UserSettings)
-                .Where(u => u.UserSettings.NotificationPreference != "None")
-                .ToListAsync();
-
-            foreach (var user in userToNotify)
+            try
             {
-                var alert = new Alert
+                // Load detection with device data
+                var detectionWithDevice = await _context.Detections
+                    .Include(d => d.Device)
+                    .FirstOrDefaultAsync(d => d.DetectionId == detection.DetectionId);
+
+                if (detectionWithDevice == null)
                 {
-                    Message = $"Detection from device '{detectionWithDevice.DeviceId}' " +
-                              $"occured ad {detectionWithDevice.DetectedAt:G} " +
-                              $"with confidence {detectionWithDevice.Confidence:F2}%",
-                    
-                    CreatedAt = DateTime.Now,
-                    DetectionId = detection.DetectionId,
-                    UserId = user.UserId,
-                };
-                _context.Alerts.Add(alert);
+                    await _logService.AddLogAsync(
+                        userId: 1,
+                        actionType: "NotificationFailed",
+                        message: $"Detection {detection.DetectionId} not found for notification",
+                        level: "Error",
+                        detectionId: detection.DetectionId
+                    );
+                    throw new Exception($"Detection {detection.DetectionId} not found.");
+                }
 
-                // add log entry
+                var usersToNotify = await _context.Users
+                    .Include(u => u.UserSettings)
+                    .Where(u => u.UserSettings.NotificationPreference != "None")
+                    .ToListAsync();
+
+                int alertsCreated = 0;
+                foreach (var user in usersToNotify)
+                {
+                    var alert = new Alert
+                    {
+                        Message = $"Detection from device '{detectionWithDevice.DeviceId}' " +
+                                  $"occurred at {detectionWithDevice.DetectedAt:G} " +
+                                  $"with confidence {detectionWithDevice.Confidence:F2}%",
+
+                        CreatedAt = DateTime.Now,
+                        DetectionId = detection.DetectionId,
+                        UserId = user.UserId,
+                    };
+                    _context.Alerts.Add(alert);
+                    alertsCreated++;
+
+                    // Log notification sent to user
+                    await _logService.AddLogAsync(
+                       userId: user.UserId,
+                       actionType: "NotificationSent",
+                       message: $"Alert created for Detection {detection.DetectionId} with {detection.Confidence:F2}% confidence",
+                       level: detection.Confidence >= 80.0 ? "Warning" : "Info",
+                       detectionId: detection.DetectionId
+                   );
+                }
+
+                await _context.SaveChangesAsync();
+
+                // Log summary of notifications
                 await _logService.AddLogAsync(
-                   userId: user.UserId,
-                   actionType: "NotificationSent",
-                   message: $"Alert created for Detection {detection.DetectionId}",
-                   detectionId: detection.DetectionId
-               );
+                    userId: 1, // System user
+                    actionType: "NotificationsSent",
+                    message: $"Created {alertsCreated} alerts for detection {detection.DetectionId}",
+                    level: "Info",
+                    detectionId: detection.DetectionId
+                );
             }
-            await _context.SaveChangesAsync();
-        }
-
-        // async helper method for logging
-        public async Task AddLogAsync(int userId, string actionType)
-        {
-            var log = new Log
+            catch (Exception ex)
             {
-                UserId = userId,
-                ActionType = actionType,
-                Timestamp = DateTime.Now
-            };
-            await _context.Logs.AddAsync(log);
+                await _logService.AddLogAsync(
+                    userId: 1,
+                    actionType: "NotificationFailed",
+                    message: $"Failed to send notifications for detection {detection.DetectionId}: {ex.Message}",
+                    level: "Error",
+                    detectionId: detection.DetectionId
+                );
+                throw;
+            }
         }
-
     }
 }
