@@ -21,42 +21,10 @@ namespace ZooTrack.Controllers
 
         private readonly ZootrackDbContext _context;
 
-        /*
-        public LogController(ZootrackDbContext context)
-        {
-            _context = context;
-        }
-        */
-
         public LogController(ILogService logService)
         {
             _logService = logService;
         }
-
-        /*
-        // GET: api/Log
-        [HttpGet]
-        // [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<IEnumerable<Log>>> GetLogs()
-        {
-            return await _context.Logs.ToListAsync();
-        }
-
-        // GET: api/Log/5
-        [HttpGet("{id}")]
-        // [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<Log>> GetLog(int id)
-        {
-            var log = await _context.Logs.FindAsync(id);
-
-            if (log == null)
-            {
-                return NotFound();
-            }
-
-            return log;
-        }
-        */
 
         // GET: api/Log
         [HttpGet]
@@ -121,49 +89,5 @@ namespace ZooTrack.Controllers
         {
             return _context.Logs.Any(e => e.LogId == id);
         }
-
-        /*
-        // PUT: api/Log/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutLog(int id, Log log)
-        {
-            if (id != log.LogId)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(log).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!LogExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // POST: api/Log
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<Log>> PostLog(Log log)
-        {
-            _context.Logs.Add(log);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetLog", new { id = log.LogId }, log);
-        }
-        */
     }
 }

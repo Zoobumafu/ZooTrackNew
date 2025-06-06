@@ -18,14 +18,15 @@ namespace ZooTrack.Controllers
     public class DetectionController : ControllerBase
     {
         private readonly ZootrackDbContext _context;
-        private readonly NotificationService _notificationService;
+        // private readonly NotificationService _notificationService;
+        private readonly IDetectionService _detectionService;
         private readonly ILogService _logService;
 
 
-        public DetectionController(ZootrackDbContext context, NotificationService notificationService, ILogService logService)
+        public DetectionController(ZootrackDbContext context, IDetectionService detectionService, ILogService logService)
         {
             _context = context;
-            _notificationService = notificationService;
+            _detectionService = detectionService;
             _logService = logService;
         }
 
@@ -173,55 +174,33 @@ namespace ZooTrack.Controllers
         {
             try
             {
-                // Set the detection time if not provided
-                if (detection.DetectedAt == default)
-                    detection.DetectedAt = DateTime.Now;
-
-                _context.Detections.Add(detection);
-                await _context.SaveChangesAsync();
-
-                // Determine log level based on confidence
-                string logLevel = "Info";
-                if (detection.Confidence >= 95.0) logLevel = "Critical";
-                else if (detection.Confidence >= 80.0) logLevel = "Warning";
-
-                // Log the positive detection
-                await _logService.AddLogAsync(
-                    userId: GetCurrentUserId(),
-                    actionType: "DetectionCreated",
-                    message: $"New detection from device {detection.DeviceId} with {detection.Confidence:F2}% confidence at {detection.DetectedAt:G}",
-                    level: logLevel,
-                    detectionId: detection.DetectionId
-                );
-
-                // Log additional info for high confidence detections
-                if (detection.Confidence >= 90.0)
+                // Validate the detection data
+                if (detection == null)
                 {
-                    await _logService.AddLogAsync(
-                        userId: GetCurrentUserId(),
-                        actionType: "HighConfidenceDetection",
-                        message: $"High confidence detection alert: {detection.Confidence:F2}% from device {detection.DeviceId}",
-                        level: "Warning",
-                        detectionId: detection.DetectionId
-                    );
+                    return BadRequest("Detection data is required");
                 }
 
-                // Send notifications
-                await _notificationService.NotifyUserAsync(detection);
+                if (detection.Confidence < 0 || detection.Confidence > 100)
+                {
+                    return BadRequest("Confidence must be between 0 and 100");
+                }
 
-                return CreatedAtAction(nameof(GetDetection), new { id = detection.DetectionId }, detection);
+                // Use the DetectionService instead of direct database manipulation
+                var createdDetection = await _detectionService.CreateDetectionAsync(detection);
+
+                return CreatedAtAction(nameof(GetDetection), new { id = createdDetection.DetectionId }, createdDetection);
             }
             catch (Exception ex)
             {
-                // Log the error
+                // The DetectionService already handles logging, but add controller-level logging
                 await _logService.AddLogAsync(
                     userId: GetCurrentUserId(),
-                    actionType: "DetectionCreationFailed",
-                    message: $"Failed to create detection: {ex.Message}",
+                    actionType: "DetectionControllerError",
+                    message: $"Controller failed to process detection: {ex.Message}",
                     level: "Error"
                 );
 
-                return StatusCode(500, "Internal server error occurred while creating detection");
+                return StatusCode(500, $"Internal server error occurred while creating detection: {ex.Message}");
             }
         }
 
@@ -279,21 +258,9 @@ namespace ZooTrack.Controllers
         {
             try
             {
-                var detections = await _context.Detections
-                    .Where(d => d.DeviceId == deviceId)
-                    .Include(d => d.Device)
-                    .Include(d => d.Media)
-                    .OrderByDescending(d => d.DetectedAt)
-                    .ToListAsync();
-
-                await _logService.AddLogAsync(
-                    userId: GetCurrentUserId(),
-                    actionType: "DeviceDetectionsQueried",
-                    message: $"Retrieved {detections.Count} detections for device {deviceId}",
-                    level: "Info"
-                );
-
-                return detections;
+                // Use the service method instead
+                var detections = await _detectionService.GetDetectionsForDeviceAsync(deviceId);
+                return Ok(detections);
             }
             catch (Exception ex)
             {
@@ -340,6 +307,7 @@ namespace ZooTrack.Controllers
                 return StatusCode(500, "Failed to retrieve recent detections");
             }
         }
+
 
         private bool DetectionExists(int id)
         {
