@@ -29,14 +29,22 @@ namespace ZooTrack.Services
         {
             try
             {
+                // Validate detection data
+                if (detection == null)
+                    throw new ArgumentNullException(nameof(detection), "Detection cannot be null");
+
                 // Set detection time if not provided
                 if (detection.DetectedAt == default)
                     detection.DetectedAt = DateTime.Now;
 
+                // Ensure DeviceId is set (you might want to get this from your camera/detection system)
+                if (detection.DeviceId <= 0)
+                    detection.DeviceId = 1; // Default camera/device ID
+
                 _context.Detections.Add(detection);
                 await _context.SaveChangesAsync();
 
-                // Determine log level and action based on confidence
+                // ALWAYS log detection creation (this addresses your requirement)
                 string logLevel = "Info";
                 string actionType = "DetectionCreated";
 
@@ -51,7 +59,7 @@ namespace ZooTrack.Services
                     actionType = "HighConfidenceDetectionCreated";
                 }
 
-                // Log the detection creation
+                // Log EVERY detection creation
                 await _logService.AddLogAsync(
                     userId: 1, // System user for service-level operations
                     actionType: actionType,
@@ -60,7 +68,7 @@ namespace ZooTrack.Services
                     detectionId: detection.DetectionId
                 );
 
-                // Log additional analytics for patterns
+                // Only send notifications/alerts for HIGH confidence detections (90%+)
                 if (detection.Confidence >= HIGH_CONFIDENCE_RISK)
                 {
                     await _logService.AddLogAsync(
@@ -70,6 +78,9 @@ namespace ZooTrack.Services
                         level: "Warning",
                         detectionId: detection.DetectionId
                     );
+
+                    // Only notify users for high confidence detections
+                    await _notificationService.NotifyUserAsync(detection);
                 }
 
                 // Check for frequent detections from same device (potential issue detection)
@@ -89,8 +100,6 @@ namespace ZooTrack.Services
                         detectionId: detection.DetectionId
                     );
                 }
-
-                await _notificationService.NotifyUserAsync(detection);
 
                 return detection;
             }
@@ -120,7 +129,7 @@ namespace ZooTrack.Services
                     .ToListAsync();
 
                 // Log the query with analytics
-                var highConfidenceCount = detections.Count(d => d.Confidence >= 80.0);
+                var highConfidenceCount = detections.Count(d => d.Confidence >= MODERATE_CONFIDENCE_RISK);
                 await _logService.AddLogAsync(
                     userId: 1, // System user
                     actionType: "DetectionsQueried",

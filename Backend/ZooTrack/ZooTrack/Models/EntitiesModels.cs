@@ -56,6 +56,7 @@ namespace ZooTrack.Models
         public DateTime DetectedAt { get; set; }
 
         public int DeviceId { get; set; }
+        [JsonIgnore]
         public Device Device { get; set; }
 
         // Foreign keys
