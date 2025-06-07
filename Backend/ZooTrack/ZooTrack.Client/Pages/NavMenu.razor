@@ -1,0 +1,107 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">
+            <i class="bi bi-camera-video-fill me-2"></i>ZooTrack
+        </a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        <div class="nav-section-header px-3 mt-3">
+            <small class="text-muted text-uppercase fw-bold">Monitoring</small>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="camera-test">
+                <span class="bi bi-camera-video-nav-menu" aria-hidden="true"></span> Camera Test
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="camera-dashboard">
+                <span class="bi bi-grid-3x3-gap-nav-menu" aria-hidden="true"></span> Camera Dashboard
+            </NavLink>
+        </div>
+
+        <div class="nav-section-header px-3 mt-3">
+            <small class="text-muted text-uppercase fw-bold">History & Logs</small>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="system-logs">
+                <span class="bi bi-journal-text-nav-menu" aria-hidden="true"></span> System Logs
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="detections">
+                <span class="bi bi-search-nav-menu" aria-hidden="true"></span> Detection History
+            </NavLink>
+        </div>
+
+        <div class="nav-section-header px-3 mt-3">
+            <small class="text-muted text-uppercase fw-bold">Examples</small>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="counter">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="weather">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+<style>
+    .nav-section-header {
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .nav-section-header:first-of-type {
+        margin-top: 0.5rem;
+    }
+
+    .nav-link {
+        border-radius: 6px;
+        margin: 2px 0;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .nav-link:hover {
+        background-color: rgba(255,255,255,0.1);
+        transform: translateX(2px);
+    }
+
+    .nav-link.active {
+        background-color: rgba(255,255,255,0.2);
+        font-weight: 500;
+    }
+
+    .navbar-brand {
+        font-weight: 600;
+        font-size: 1.25rem;
+    }
+
+    .bi {
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+    }
+</style>

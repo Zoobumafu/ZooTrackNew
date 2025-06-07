@@ -1,0 +1,110 @@
+﻿ASP.NET Project Structure: ZooTrack
+Generated on: 2025-06-07 19:30:40
+Path: D:\CODE\Zootrack\ZooTrackNew\Backend\ZooTrack
+
+Included file types: *.cs, *.razor, *.blazor, *.html, *.css, *.json, *.txt, *.sln, *.csproj, *.db, *.onnx, *.js
+Excluded directories: bin, obj, node_modules, .vs, .git, packages, TestResults, .vscode
+
+ZooTrack/
+|-- CameraDetectionApi
+|   |-- Properties
+|   |   +-- launchSettings.json
+|   |-- appsettings.Development.json
+|   |-- appsettings.json
+|   |-- CameraDetectionApi.csproj
+|   +-- Program.cs
+|-- ZooTrack
+|   |-- Controllers
+|   |   |-- AlertController.cs
+|   |   |-- AnimalController.cs
+|   |   |-- CameraController.cs
+|   |   |-- DetectionController.cs
+|   |   |-- DeviceController.cs
+|   |   |-- EventController.cs
+|   |   |-- LogController.cs
+|   |   |-- MediaController.cs
+|   |   |-- UserController.cs
+|   |   +-- UserSettingsController.cs
+|   |-- Data
+|   |   +-- ZootrackDbContext.cs
+|   |-- Migrations
+|   |   |-- 20250518134108_InitialCreate.cs
+|   |   |-- 20250518134108_InitialCreate.Designer.cs
+|   |   +-- ZootrackDbContextModelSnapshot.cs
+|   |-- Models
+|   |   |-- EntitiesModels.cs
+|   |   +-- yolov10s.onnx
+|   |-- Properties
+|   |   +-- launchSettings.json
+|   |-- Services
+|   |   |-- CameraHub.cs
+|   |   |-- CameraProcessingService.cs
+|   |   |-- CameraService.cs
+|   |   |-- DetectionMediaService.cs
+|   |   |-- DetectionService.cs
+|   |   |-- IDetectionService.cs
+|   |   |-- ILogService.cs
+|   |   |-- LogService.cs
+|   |   +-- NotificationService.cs
+|   |-- appsettings.Development.json
+|   |-- appsettings.json
+|   |-- Program.cs
+|   |-- zootrack.db
+|   +-- ZooTrackBackend.csproj
+|-- ZooTrack.Client
+|   |-- Layout
+|   |   |-- MainLayout.razor
+|   |   |-- MainLayout.razor.css
+|   |   |-- NavMenu.razor
+|   |   +-- NavMenu.razor.css
+|   |-- Pages
+|   |   |-- CameraTestPage.razor
+|   |   |-- Counter.razor
+|   |   |-- Home.razor
+|   |   +-- Weather.razor
+|   |-- Properties
+|   |   +-- launchSettings.json
+|   |-- wwwroot
+|   |   |-- css
+|   |   |   +-- app.css
+|   |   |-- lib
+|   |   |   +-- bootstrap
+|   |   |       +-- dist
+|   |   |           |-- css
+|   |   |           |   |-- bootstrap.css
+|   |   |           |   |-- bootstrap.min.css
+|   |   |           |   |-- bootstrap.rtl.css
+|   |   |           |   |-- bootstrap.rtl.min.css
+|   |   |           |   |-- bootstrap-grid.css
+|   |   |           |   |-- bootstrap-grid.min.css
+|   |   |           |   |-- bootstrap-grid.rtl.css
+|   |   |           |   |-- bootstrap-grid.rtl.min.css
+|   |   |           |   |-- bootstrap-reboot.css
+|   |   |           |   |-- bootstrap-reboot.min.css
+|   |   |           |   |-- bootstrap-reboot.rtl.css
+|   |   |           |   |-- bootstrap-reboot.rtl.min.css
+|   |   |           |   |-- bootstrap-utilities.css
+|   |   |           |   |-- bootstrap-utilities.min.css
+|   |   |           |   |-- bootstrap-utilities.rtl.css
+|   |   |           |   +-- bootstrap-utilities.rtl.min.css
+|   |   |           +-- js
+|   |   |               |-- bootstrap.bundle.js
+|   |   |               |-- bootstrap.bundle.min.js
+|   |   |               |-- bootstrap.esm.js
+|   |   |               |-- bootstrap.esm.min.js
+|   |   |               |-- bootstrap.js
+|   |   |               +-- bootstrap.min.js
+|   |   |-- sample-data
+|   |   |   +-- weather.json
+|   |   +-- index.html
+|   |-- _Imports.razor
+|   |-- AlertSettingViewModel.cs
+|   |-- App.razor
+|   |-- CameraDashboardPage.razor
+|   |-- CameraStream.razor
+|   |-- CameraStreamConfigurable.razor
+|   |-- DeviceViewModel.cs
+|   |-- Program.cs
+|   +-- ZooTrack.Client.csproj
+|-- project-files.txt
++-- ZooTrack.sln
