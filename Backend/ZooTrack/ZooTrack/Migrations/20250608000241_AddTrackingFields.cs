@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ZooTrackBackend.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class AddTrackingFields : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -108,6 +108,13 @@ namespace ZooTrackBackend.Migrations
                     Confidence = table.Column<float>(type: "REAL", nullable: false),
                     DetectedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     DeviceId = table.Column<int>(type: "INTEGER", nullable: false),
+                    TrackingId = table.Column<int>(type: "INTEGER", nullable: true),
+                    BoundingBoxX = table.Column<float>(type: "REAL", nullable: false),
+                    BoundingBoxY = table.Column<float>(type: "REAL", nullable: false),
+                    BoundingBoxWidth = table.Column<float>(type: "REAL", nullable: false),
+                    BoundingBoxHeight = table.Column<float>(type: "REAL", nullable: false),
+                    FrameNumber = table.Column<int>(type: "INTEGER", nullable: false),
+                    DetectedObject = table.Column<string>(type: "TEXT", nullable: true),
                     MediaId = table.Column<int>(type: "INTEGER", nullable: false),
                     EventId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
@@ -284,14 +291,14 @@ namespace ZooTrackBackend.Migrations
 
             migrationBuilder.InsertData(
                 table: "Detections",
-                columns: new[] { "DetectionId", "Confidence", "DetectedAt", "DeviceId", "EventId", "MediaId" },
+                columns: new[] { "DetectionId", "BoundingBoxHeight", "BoundingBoxWidth", "BoundingBoxX", "BoundingBoxY", "Confidence", "DetectedAt", "DetectedObject", "DeviceId", "EventId", "FrameNumber", "MediaId", "TrackingId" },
                 values: new object[,]
                 {
-                    { 1, 0.92f, new DateTime(2025, 1, 1, 12, 0, 0, 0, DateTimeKind.Unspecified), 1, 1, 1 },
-                    { 2, 0.85f, new DateTime(2025, 1, 2, 14, 30, 0, 0, DateTimeKind.Unspecified), 2, 2, 2 },
-                    { 3, 0.79f, new DateTime(2025, 1, 3, 10, 5, 0, 0, DateTimeKind.Unspecified), 1, 3, 3 },
-                    { 4, 0.88f, new DateTime(2025, 1, 4, 8, 30, 0, 0, DateTimeKind.Unspecified), 2, 4, 4 },
-                    { 5, 0.75f, new DateTime(2025, 1, 5, 15, 15, 0, 0, DateTimeKind.Unspecified), 4, 5, 5 }
+                    { 1, 0f, 0f, 0f, 0f, 0.92f, new DateTime(2025, 1, 1, 12, 0, 0, 0, DateTimeKind.Unspecified), null, 1, 1, 0, 1, null },
+                    { 2, 0f, 0f, 0f, 0f, 0.85f, new DateTime(2025, 1, 2, 14, 30, 0, 0, DateTimeKind.Unspecified), null, 2, 2, 0, 2, null },
+                    { 3, 0f, 0f, 0f, 0f, 0.79f, new DateTime(2025, 1, 3, 10, 5, 0, 0, DateTimeKind.Unspecified), null, 1, 3, 0, 3, null },
+                    { 4, 0f, 0f, 0f, 0f, 0.88f, new DateTime(2025, 1, 4, 8, 30, 0, 0, DateTimeKind.Unspecified), null, 2, 4, 0, 4, null },
+                    { 5, 0f, 0f, 0f, 0f, 0.75f, new DateTime(2025, 1, 5, 15, 15, 0, 0, DateTimeKind.Unspecified), null, 4, 5, 0, 5, null }
                 });
 
             migrationBuilder.InsertData(

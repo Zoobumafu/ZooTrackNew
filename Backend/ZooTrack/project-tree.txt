@@ -1,5 +1,5 @@
 ﻿ASP.NET Project Structure: ZooTrack
-Generated on: 2025-06-07 19:30:40
+Generated on: 2025-06-08 03:04:09
 Path: D:\CODE\Zootrack\ZooTrackNew\Backend\ZooTrack
 
 Included file types: *.cs, *.razor, *.blazor, *.html, *.css, *.json, *.txt, *.sln, *.csproj, *.db, *.onnx, *.js
@@ -28,10 +28,11 @@ ZooTrack/
 |   |-- Data
 |   |   +-- ZootrackDbContext.cs
 |   |-- Migrations
-|   |   |-- 20250518134108_InitialCreate.cs
-|   |   |-- 20250518134108_InitialCreate.Designer.cs
+|   |   |-- 20250608000241_AddTrackingFields.cs
+|   |   |-- 20250608000241_AddTrackingFields.Designer.cs
 |   |   +-- ZootrackDbContextModelSnapshot.cs
 |   |-- Models
+|   |   |-- DetectionWithTrackingRequest.cs
 |   |   |-- EntitiesModels.cs
 |   |   +-- yolov10s.onnx
 |   |-- Properties
@@ -49,7 +50,7 @@ ZooTrack/
 |   |-- appsettings.Development.json
 |   |-- appsettings.json
 |   |-- Program.cs
-|   |-- zootrack.db
+|   |-- Zootrack.db
 |   +-- ZooTrackBackend.csproj
 |-- ZooTrack.Client
 |   |-- Layout
@@ -60,7 +61,10 @@ ZooTrack/
 |   |-- Pages
 |   |   |-- CameraTestPage.razor
 |   |   |-- Counter.razor
+|   |   |-- DetectionHistoryPage.razor
 |   |   |-- Home.razor
+|   |   |-- NavMenu.razor
+|   |   |-- SystemLogsPage.razor
 |   |   +-- Weather.razor
 |   |-- Properties
 |   |   +-- launchSettings.json
@@ -106,5 +110,5 @@ ZooTrack/
 |   |-- DeviceViewModel.cs
 |   |-- Program.cs
 |   +-- ZooTrack.Client.csproj
-|-- project-files.txt
+|-- project-tree.txt
 +-- ZooTrack.sln

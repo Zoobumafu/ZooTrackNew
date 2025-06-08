@@ -44,6 +44,68 @@ namespace ZooTrack.Services
                 _context.Detections.Add(detection);
                 await _context.SaveChangesAsync();
 
+                // CRITICAL FIX: Ensure all required foreign keys are set
+                if (detection.DeviceId <= 0)
+                {
+                    // Try to get first available device or create a default one
+                    var firstDevice = await _context.Devices.FirstOrDefaultAsync();
+                    if (firstDevice != null)
+                    {
+                        detection.DeviceId = firstDevice.DeviceId;
+                    }
+                    else
+                    {
+                        // Create a default device if none exists
+                        var defaultDevice = new Device
+                        {
+                            Location = "Default Camera",
+                            Status = "Active",
+                            LastActive = DateTime.Now
+                        };
+                        _context.Devices.Add(defaultDevice);
+                        await _context.SaveChangesAsync();
+                        detection.DeviceId = defaultDevice.DeviceId;
+                    }
+                }
+
+                if (detection.MediaId <= 0)
+                {
+                    // Try to get or create default media
+                    var defaultMedia = await GetOrCreateDefaultMedia(detection.DeviceId);
+                    detection.MediaId = defaultMedia.MediaId;
+                }
+
+                if (detection.EventId <= 0)
+                {
+                    // Try to get or create default event
+                    var defaultEvent = await GetOrCreateDefaultEvent();
+                    detection.EventId = defaultEvent.EventId;
+                }
+
+                // Validate foreign key references exist
+                var deviceExists = await _context.Devices.AnyAsync(d => d.DeviceId == detection.DeviceId);
+                if (!deviceExists)
+                {
+                    throw new InvalidOperationException($"Device with ID {detection.DeviceId} does not exist");
+                }
+
+                var mediaExists = await _context.Media.AnyAsync(m => m.MediaId == detection.MediaId);
+                if (!mediaExists)
+                {
+                    throw new InvalidOperationException($"Media with ID {detection.MediaId} does not exist");
+                }
+
+                var eventExists = await _context.Events.AnyAsync(e => e.EventId == detection.EventId);
+                if (!eventExists)
+                {
+                    throw new InvalidOperationException($"Event with ID {detection.EventId} does not exist");
+                }
+
+                // Add to database
+                _context.Detections.Add(detection);
+                await _context.SaveChangesAsync();
+
+
                 // ALWAYS log detection creation (this addresses your requirement)
                 string logLevel = "Info";
                 string actionType = "DetectionCreated";
@@ -117,6 +179,53 @@ namespace ZooTrack.Services
             }
         }
 
+        // HELPER METHODS TO HANDLE DEFAULT ENTITIES
+        private async Task<Media> GetOrCreateDefaultMedia(int deviceId)
+        {
+            // Try to find existing default media for this device
+            var existingMedia = await _context.Media
+                .Where(m => m.DeviceId == deviceId)
+                .FirstOrDefaultAsync();
+
+            if (existingMedia != null)
+                return existingMedia;
+
+            // Create default media
+            var defaultMedia = new Media
+            {
+                Type = "Detection",
+                FilePath = $"default_detection_{DateTime.Now:yyyyMMdd_HHmmss}.jpg",
+                Timestamp = DateTime.Now,
+                DeviceId = deviceId
+            };
+
+            _context.Media.Add(defaultMedia);
+            await _context.SaveChangesAsync();
+            return defaultMedia;
+        }
+        private async Task<Event> GetOrCreateDefaultEvent()
+        {
+            // Try to find an active event
+            var activeEvent = await _context.Events
+                .Where(e => e.Status == "Active" || e.EndTime > DateTime.Now)
+                .FirstOrDefaultAsync();
+
+            if (activeEvent != null)
+                return activeEvent;
+
+            // Create default event
+            var defaultEvent = new Event
+            {
+                StartTime = DateTime.Now,
+                EndTime = DateTime.Now.AddHours(24), // 24-hour event
+                Status = "Active"
+            };
+
+            _context.Events.Add(defaultEvent);
+            await _context.SaveChangesAsync();
+            return defaultEvent;
+        }
+
         public async Task<IEnumerable<Detection>> GetDetectionsForDeviceAsync(int deviceId)
         {
             try
@@ -152,5 +261,55 @@ namespace ZooTrack.Services
                 throw;
             }
         }
+
+        public async Task<Detection> CreateDetectionWithTrackingAsync(Detection detection,
+    float boundingBoxX, float boundingBoxY, float boundingBoxWidth, float boundingBoxHeight,
+    string detectedObject = null)
+        {
+            try
+            {
+                // Set bounding box information
+                detection.BoundingBoxX = boundingBoxX;
+                detection.BoundingBoxY = boundingBoxY;
+                detection.BoundingBoxWidth = boundingBoxWidth;
+                detection.BoundingBoxHeight = boundingBoxHeight;
+                detection.DetectedObject = detectedObject;
+
+                // Set frame number (you might get this from your camera service)
+                detection.FrameNumber = await GetCurrentFrameNumber(detection.DeviceId);
+
+                // Create the detection using existing method
+                var createdDetection = await CreateDetectionAsync(detection);
+
+                // Extract frames for tracking (this will also handle correlation)
+                var mediaService = new DetectionMediaService(_context,
+                    // You'll need to inject IWebHostEnvironment into DetectionService
+                    null, // Replace with actual IWebHostEnvironment 
+                    _logService);
+
+                // Note: You might want to make this async fire-and-forget to avoid blocking
+                _ = Task.Run(async () => await mediaService.ExtractFramesAsync(createdDetection));
+
+                return createdDetection;
+            }
+            catch (Exception ex)
+            {
+                await _logService.AddLogAsync(1, "TrackingDetectionCreationFailed",
+                    $"Failed to create detection with tracking: {ex.Message}", "Error");
+                throw;
+            }
+        }
+
+        private async Task<int> GetCurrentFrameNumber(int deviceId)
+        {
+            // Get the last frame number for this device, or start at 0
+            var lastDetection = await _context.Detections
+                .Where(d => d.DeviceId == deviceId)
+                .OrderByDescending(d => d.DetectedAt)
+                .FirstOrDefaultAsync();
+
+            return (lastDetection?.FrameNumber ?? 0) + 1;
+        }
+
     }
 }

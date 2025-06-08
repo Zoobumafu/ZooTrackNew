@@ -108,6 +108,32 @@ namespace ZooTrack.Controllers
             }
         }
 
+        // Get all detections for a specific tracking ID (same object across time)
+        [HttpGet("Tracking/{trackingId}")]
+        public async Task<ActionResult<IEnumerable<Detection>>> GetDetectionsByTrackingId(int trackingId)
+        {
+            try
+            {
+                var detections = await _context.Detections
+                    .Where(d => d.TrackingId == trackingId)
+                    .Include(d => d.Device)
+                    .Include(d => d.Media)
+                    .OrderBy(d => d.DetectedAt)
+                    .ToListAsync();
+
+                await _logService.AddLogAsync(GetCurrentUserId(), "TrackingQuery",
+                    $"Retrieved {detections.Count} detections for tracking ID {trackingId}", "Info");
+
+                return detections;
+            }
+            catch (Exception ex)
+            {
+                await _logService.AddLogAsync(GetCurrentUserId(), "TrackingQueryFailed",
+                    $"Failed to retrieve tracking detections: {ex.Message}", "Error");
+                return StatusCode(500, "Failed to retrieve tracking detections");
+            }
+        }
+
         // PUT: api/Detection/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutDetection(int id, Detection detection)
@@ -168,7 +194,6 @@ namespace ZooTrack.Controllers
         }
 
         // POST: api/Detection
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Detection>> PostDetection(Detection detection)
         {
@@ -185,14 +210,82 @@ namespace ZooTrack.Controllers
                     return BadRequest("Confidence must be between 0 and 100");
                 }
 
-                // Use the DetectionService instead of direct database manipulation
+                // CRITICAL: Check required foreign keys
+                if (detection.DeviceId <= 0)
+                {
+                    return BadRequest("Valid DeviceId is required");
+                }
+
+                if (detection.MediaId <= 0)
+                {
+                    return BadRequest("Valid MediaId is required");
+                }
+
+                if (detection.EventId <= 0)
+                {
+                    return BadRequest("Valid EventId is required");
+                }
+
+                // Verify foreign key references exist
+                var deviceExists = await _context.Devices.AnyAsync(d => d.DeviceId == detection.DeviceId);
+                if (!deviceExists)
+                {
+                    return BadRequest($"Device with ID {detection.DeviceId} does not exist");
+                }
+
+                var mediaExists = await _context.Media.AnyAsync(m => m.MediaId == detection.MediaId);
+                if (!mediaExists)
+                {
+                    return BadRequest($"Media with ID {detection.MediaId} does not exist");
+                }
+
+                var eventExists = await _context.Events.AnyAsync(e => e.EventId == detection.EventId);
+                if (!eventExists)
+                {
+                    return BadRequest($"Event with ID {detection.EventId} does not exist");
+                }
+
+                // Set default values if not provided
+                if (detection.DetectedAt == default(DateTime))
+                {
+                    detection.DetectedAt = DateTime.Now;
+                }
+
+                // Log the detection data being processed
+                await _logService.AddLogAsync(
+                    userId: GetCurrentUserId(),
+                    actionType: "DetectionProcessing",
+                    message: $"Processing detection: DeviceId={detection.DeviceId}, MediaId={detection.MediaId}, EventId={detection.EventId}, Confidence={detection.Confidence}",
+                    level: "Info"
+                );
+
+                // Use the DetectionService
                 var createdDetection = await _detectionService.CreateDetectionAsync(detection);
+
+                await _logService.AddLogAsync(
+                    userId: GetCurrentUserId(),
+                    actionType: "DetectionCreated",
+                    message: $"Detection {createdDetection.DetectionId} created successfully",
+                    level: "Info",
+                    detectionId: createdDetection.DetectionId
+                );
 
                 return CreatedAtAction(nameof(GetDetection), new { id = createdDetection.DetectionId }, createdDetection);
             }
+            catch (DbUpdateException dbEx)
+            {
+                // Database-specific errors (foreign key constraints, etc.)
+                await _logService.AddLogAsync(
+                    userId: GetCurrentUserId(),
+                    actionType: "DetectionDbError",
+                    message: $"Database error creating detection: {dbEx.InnerException?.Message ?? dbEx.Message}",
+                    level: "Error"
+                );
+
+                return StatusCode(500, $"Database error: {dbEx.InnerException?.Message ?? dbEx.Message}");
+            }
             catch (Exception ex)
             {
-                // The DetectionService already handles logging, but add controller-level logging
                 await _logService.AddLogAsync(
                     userId: GetCurrentUserId(),
                     actionType: "DetectionControllerError",
@@ -200,7 +293,41 @@ namespace ZooTrack.Controllers
                     level: "Error"
                 );
 
-                return StatusCode(500, $"Internal server error occurred while creating detection: {ex.Message}");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // Endpoint for creating detections with tracking data
+        [HttpPost("WithTracking")]
+        public async Task<ActionResult<Detection>> PostDetectionWithTracking([FromBody] ZooTrackBackend.Models.DetectionWithTrackingRequest request)
+        {
+            try
+            {
+                var detection = new Detection
+                {
+                    Confidence = request.Confidence,
+                    DeviceId = request.DeviceId,
+                    MediaId = request.MediaId,
+                    EventId = request.EventId,
+                    DetectedAt = request.DetectedAt ?? DateTime.Now
+                };
+
+                var createdDetection = await _detectionService.CreateDetectionWithTrackingAsync(
+                    detection,
+                    request.BoundingBoxX,
+                    request.BoundingBoxY,
+                    request.BoundingBoxWidth,
+                    request.BoundingBoxHeight,
+                    request.DetectedObject
+                );
+
+                return CreatedAtAction(nameof(GetDetection), new { id = createdDetection.DetectionId }, createdDetection);
+            }
+            catch (Exception ex)
+            {
+                await _logService.AddLogAsync(GetCurrentUserId(), "TrackingDetectionFailed",
+                    $"Failed to create detection with tracking: {ex.Message}", "Error");
+                return StatusCode(500, "Failed to create detection with tracking");
             }
         }
 

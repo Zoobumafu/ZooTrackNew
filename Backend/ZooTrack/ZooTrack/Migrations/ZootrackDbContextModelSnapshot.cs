@@ -202,10 +202,25 @@ namespace ZooTrackBackend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<float>("BoundingBoxHeight")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("BoundingBoxWidth")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("BoundingBoxX")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("BoundingBoxY")
+                        .HasColumnType("REAL");
+
                     b.Property<float>("Confidence")
                         .HasColumnType("REAL");
 
                     b.Property<DateTime>("DetectedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetectedObject")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("DeviceId")
@@ -214,7 +229,13 @@ namespace ZooTrackBackend.Migrations
                     b.Property<int>("EventId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("FrameNumber")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("MediaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TrackingId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("DetectionId");
@@ -231,46 +252,71 @@ namespace ZooTrackBackend.Migrations
                         new
                         {
                             DetectionId = 1,
+                            BoundingBoxHeight = 0f,
+                            BoundingBoxWidth = 0f,
+                            BoundingBoxX = 0f,
+                            BoundingBoxY = 0f,
                             Confidence = 0.92f,
                             DetectedAt = new DateTime(2025, 1, 1, 12, 0, 0, 0, DateTimeKind.Unspecified),
                             DeviceId = 1,
                             EventId = 1,
+                            FrameNumber = 0,
                             MediaId = 1
                         },
                         new
                         {
                             DetectionId = 2,
+                            BoundingBoxHeight = 0f,
+                            BoundingBoxWidth = 0f,
+                            BoundingBoxX = 0f,
+                            BoundingBoxY = 0f,
                             Confidence = 0.85f,
                             DetectedAt = new DateTime(2025, 1, 2, 14, 30, 0, 0, DateTimeKind.Unspecified),
                             DeviceId = 2,
                             EventId = 2,
+                            FrameNumber = 0,
                             MediaId = 2
                         },
                         new
                         {
                             DetectionId = 3,
+                            BoundingBoxHeight = 0f,
+                            BoundingBoxWidth = 0f,
+                            BoundingBoxX = 0f,
+                            BoundingBoxY = 0f,
                             Confidence = 0.79f,
                             DetectedAt = new DateTime(2025, 1, 3, 10, 5, 0, 0, DateTimeKind.Unspecified),
                             DeviceId = 1,
                             EventId = 3,
+                            FrameNumber = 0,
                             MediaId = 3
                         },
                         new
                         {
                             DetectionId = 4,
+                            BoundingBoxHeight = 0f,
+                            BoundingBoxWidth = 0f,
+                            BoundingBoxX = 0f,
+                            BoundingBoxY = 0f,
                             Confidence = 0.88f,
                             DetectedAt = new DateTime(2025, 1, 4, 8, 30, 0, 0, DateTimeKind.Unspecified),
                             DeviceId = 2,
                             EventId = 4,
+                            FrameNumber = 0,
                             MediaId = 4
                         },
                         new
                         {
                             DetectionId = 5,
+                            BoundingBoxHeight = 0f,
+                            BoundingBoxWidth = 0f,
+                            BoundingBoxX = 0f,
+                            BoundingBoxY = 0f,
                             Confidence = 0.75f,
                             DetectedAt = new DateTime(2025, 1, 5, 15, 15, 0, 0, DateTimeKind.Unspecified),
                             DeviceId = 4,
                             EventId = 5,
+                            FrameNumber = 0,
                             MediaId = 5
                         });
                 });
