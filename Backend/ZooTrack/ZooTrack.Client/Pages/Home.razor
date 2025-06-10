@@ -1,7 +1,184 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>ZooTrack - Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="hero-section mb-5">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 fw-bold text-primary">ZooTrack</h1>
+                <p class="lead text-muted">Advanced animal detection and monitoring system</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <i class="bi bi-camera-video display-1 text-primary opacity-25"></i>
+            </div>
+        </div>
+    </div>
+</div>
 
-Welcome to your new app.
+<div class="row g-4">
+    <!-- Camera Monitoring Section -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-camera-video-fill display-4 text-primary"></i>
+                </div>
+                <h5 class="card-title">Camera Monitoring</h5>
+                <p class="card-text text-muted">Monitor live camera feeds and control detection settings</p>
+                <div class="d-grid gap-2">
+                    <a href="/camera-test" class="btn btn-primary">
+                        <i class="bi bi-play-circle me-2"></i>Camera Test
+                    </a>
+                    <a href="/camera-dashboard" class="btn btn-outline-primary">
+                        <i class="bi bi-grid-3x3-gap me-2"></i>Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Logs Section -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-list-ul display-4 text-info"></i>
+                </div>
+                <h5 class="card-title">System Logs</h5>
+                <p class="card-text text-muted">View system activity, errors, and diagnostic information</p>
+                <div class="d-grid gap-2">
+                    <a href="/system-logs" class="btn btn-info">
+                        <i class="bi bi-journal-text me-2"></i>View Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detection History Section -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-search display-4 text-success"></i>
+                </div>
+                <h5 class="card-title">Detection History</h5>
+                <p class="card-text text-muted">Browse animal detection records and captured media</p>
+                <div class="d-grid gap-2">
+                    <a href="/detections" class="btn btn-success">
+                        <i class="bi bi-clock-history me-2"></i>View Detections
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Section -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-graph-up display-4 text-warning"></i>
+                </div>
+                <h5 class="card-title">System Status</h5>
+                <p class="card-text text-muted">View system performance and current status</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-warning" disabled>
+                        <i class="bi bi-tools me-2"></i>Coming Soon
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Section -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-gear-fill display-4 text-secondary"></i>
+                </div>
+                <h5 class="card-title">Settings</h5>
+                <p class="card-text text-muted">Configure system settings and user preferences</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-secondary" disabled>
+                        <i class="bi bi-sliders me-2"></i>Coming Soon
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help & Support Section -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-question-circle display-4 text-dark"></i>
+                </div>
+                <h5 class="card-title">Help & Support</h5>
+                <p class="card-text text-muted">Documentation, troubleshooting, and support resources</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-dark" disabled>
+                        <i class="bi bi-book me-2"></i>Coming Soon
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1), rgba(13, 202, 240, 0.1));
+        border-radius: 15px;
+        padding: 3rem 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        border: none;
+        border-radius: 12px;
+    }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+        }
+
+    .card-body {
+        padding: 2rem 1.5rem;
+    }
+
+    .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease-in-out;
+    }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+    .display-4 {
+        font-size: 2.5rem;
+    }
+
+    .bi {
+        line-height: 1;
+    }
+
+    /* Mobile responsive styles */
+    @@media (max-width: 768px) {
+        .hero-section {
+            padding: 2rem 1rem;
+            text-align: center;
+        }
+
+        .display-4 {
+            font-size: 2rem;
+        }
+    }
+</style>

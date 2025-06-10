@@ -55,8 +55,20 @@ namespace ZooTrack.Models
         public float Confidence { get; set; }
         public DateTime DetectedAt { get; set; }
 
+        // Device
         public int DeviceId { get; set; }
+        [JsonIgnore]
         public Device Device { get; set; }
+
+        // Tracking Fields
+        public int? TrackingId { get; set; }        // Links related detections of same object
+        public float BoundingBoxX { get; set; }     // Top-left X coordinate (0-1 normalized)
+        public float BoundingBoxY { get; set; }     // Top-left Y coordinate (0-1 normalized)  
+        public float BoundingBoxWidth { get; set; }  // Width (0-1 normalized)
+        public float BoundingBoxHeight { get; set; } // Height (0-1 normalized)
+        public int FrameNumber { get; set; }        // Frame sequence number
+        public string? DetectedObject { get; set; }  // What was detected (e.g., "elephant", "lion")
+
 
         // Foreign keys
         public int MediaId { get; set; }

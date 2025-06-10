@@ -8,6 +8,13 @@ namespace ZooTrack.Services
     {
         Task<Detection> CreateDetectionAsync(Detection detection);
         Task<IEnumerable<Detection>> GetDetectionsForDeviceAsync(int deviceId);
-
+        Task<Detection> CreateDetectionWithTrackingAsync(
+            Detection detection,
+            float boundingBoxX,
+            float boundingBoxY,
+            float boundingBoxWidth,
+            float boundingBoxHeight,
+            string detectedObject = null
+        );
     }
 }
