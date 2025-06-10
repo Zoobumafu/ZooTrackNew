@@ -1,0 +1,129 @@
+//OLD WORKING CLASS WITHUOT SAVING FRAMES FOR TRACKING
+/*
+public class DetectionMediaService
+{
+    
+
+    // TODO: call helper to actually extract frames
+
+    private readonly ZootrackDbContext _context;
+    private readonly IWebHostEnvironment _environment;
+    private readonly ILogService _logService;
+
+    public DetectionMediaService(ZootrackDbContext context, IWebHostEnvironment environment, ILogService logService)
+    {
+        _context = context;
+        _environment = environment;
+        _logService = logService;
+    }
+
+    public async Task ExtractFramesAsync(Detection detection)
+    {
+        try
+        {
+            // Log the start of frame extraction
+            await _logService.AddLogAsync(
+                userId: 1, // System user
+                actionType: "FrameExtractionStarted",
+                message: $"Starting frame extraction for detection {detection.DetectionId}",
+                level: "Info",
+                detectionId: detection.DetectionId
+            );
+
+            // load media related to detection
+            var media = await _context.Media.FindAsync(detection.MediaId);
+            if (media == null)
+            {
+                await _logService.AddLogAsync(
+                    userId: 1,
+                    actionType: "FrameExtractionFailed",
+                    message: $"Media with ID {detection.MediaId} not found for detection {detection.DetectionId}",
+                    level: "Error",
+                    detectionId: detection.DetectionId
+                );
+                throw new Exception($"Media with this ID {detection.MediaId} not found.");
+            }
+
+            // find full path
+            var mediaPath = Path.Combine(_environment.ContentRootPath, "MediaFiles", media.FilePath);
+            if (!File.Exists(mediaPath))
+            {
+                await _logService.AddLogAsync(
+                    userId: 1,
+                    actionType: "FrameExtractionFailed",
+                    message: $"Media file not found: {mediaPath} for detection {detection.DetectionId}",
+                    level: "Error",
+                    detectionId: detection.DetectionId
+                );
+                throw new Exception($"Media file not found: {mediaPath}.");
+            }
+
+            // create new directory
+            var outputDir = Path.Combine(_environment.ContentRootPath, "SavedDetections", detection.MediaId.ToString());
+            Directory.CreateDirectory(outputDir);
+
+            // Extract frames from video
+            await ExtractFramesFromVideoAsync(mediaPath, outputDir, detection.DetectionId);
+
+            await _context.SaveChangesAsync();
+
+            // Log successful completion
+            await _logService.AddLogAsync(
+                userId: 1,
+                actionType: "FrameExtractionCompleted",
+                message: $"Successfully extracted frames for detection {detection.DetectionId} to {outputDir}",
+                level: "Info",
+                detectionId: detection.DetectionId
+            );
+        }
+        catch (Exception ex)
+        {
+            // Log the error
+            await _logService.AddLogAsync(
+                userId: 1,
+                actionType: "FrameExtractionFailed",
+                message: $"Frame extraction failed for detection {detection.DetectionId}: {ex.Message}",
+                level: "Error",
+                detectionId: detection.DetectionId
+            );
+
+            throw; // Re-throw to handle upstream
+        }
+    }
+
+    private async Task ExtractFramesFromVideoAsync(string videoPath, string outputDir, int detectionId)
+    {
+        try
+        {
+            // For now just placeholder
+            // Later will use libraries such as: OpenCvSharp, FFmpeg wrappers, etc.
+
+            await Task.Delay(100);
+            Console.WriteLine($"[simulated] Extracting frames from {videoPath} to {outputDir}");
+
+            // Log the frame extraction process
+            await _logService.AddLogAsync(
+                userId: 1,
+                actionType: "FramesProcessed",
+                message: $"Processed video frames from {Path.GetFileName(videoPath)} for detection {detectionId}",
+                level: "Info",
+                detectionId: detectionId
+            );
+        }
+        catch (Exception ex)
+        {
+            await _logService.AddLogAsync(
+                userId: 1,
+                actionType: "FrameProcessingFailed",
+                message: $"Failed to process video frames for detection {detectionId}: {ex.Message}",
+                level: "Error",
+                detectionId: detectionId
+            );
+
+            throw;
+        }
+    }
+
+
+}
+    */

@@ -1,0 +1,300 @@
+﻿@page "/system-logs"
+@inject HttpClient Http
+@inject ILogger<SystemLogsPage> Logger
+@using System.Text.Json
+
+<PageTitle>System Logs - ZooTrack</PageTitle>
+
+<h3>System Logs</h3>
+<p class="text-muted">View system activity and error logs</p>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label for="logLevel" class="form-label">Filter by Level:</label>
+        <select class="form-select" id="logLevel" @bind="selectedLogLevel" @bind:after="LoadLogs">
+            <option value="">All Levels</option>
+            <option value="Info">Information</option>
+            <option value="Warning">Warning</option>
+            <option value="Error">Error</option>
+            <option value="Debug">Debug</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label for="dateFrom" class="form-label">From Date:</label>
+        <input type="date" class="form-control" id="dateFrom" @bind="dateFrom" @bind:after="LoadLogs" />
+    </div>
+    <div class="col-md-3">
+        <label for="dateTo" class="form-label">To Date:</label>
+        <input type="date" class="form-control" id="dateTo" @bind="dateTo" @bind:after="LoadLogs" />
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary me-2" @onclick="LoadLogs" disabled="@isLoading">
+            @if (isLoading)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+            }
+            Refresh
+        </button>
+        <button class="btn btn-outline-secondary" @onclick="ClearFilters">Clear Filters</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        @errorMessage
+    </div>
+}
+
+@if (isLoading && logs == null)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading logs...</span>
+        </div>
+    </div>
+}
+else if (logs != null)
+{
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-list-ul me-2"></i>
+                System Logs (@logs.Count records)
+            </h5>
+            <small class="text-muted">Last updated: @DateTime.Now.ToString("HH:mm:ss")</small>
+        </div>
+        <div class="card-body p-0">
+            @if (logs.Count == 0)
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                    <p class="text-muted mt-3">No logs found matching your criteria</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width: 140px;">Timestamp</th>
+                                <th style="width: 80px;">Level</th>
+                                <th style="width: 120px;">Source</th>
+                                <th>Message</th>
+                                <th style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in logs)
+                            {
+                                <tr class="@GetLogRowClass(log.Level)">
+                                    <td class="text-nowrap small">
+                                        @log.Timestamp.ToString("MM/dd HH:mm:ss")
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetLogLevelBadgeClass(log.Level)">
+                                            @log.Level
+                                        </span>
+                                    </td>
+                                    <td class="small text-truncate" style="max-width: 120px;" title="@log.Source">
+                                        @log.Source
+                                    </td>
+                                    <td class="small">
+                                        <div class="@(log.IsExpanded ? "" : "text-truncate")"
+                                             style="@(log.IsExpanded ? "" : "max-width: 400px;")"
+                                             title="@(log.IsExpanded ? "" : log.Message)">
+                                            @log.Message
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(log.Exception))
+                                        {
+                                            <div class="mt-1">
+                                                <button class="btn btn-link btn-sm p-0 text-decoration-none"
+                                                        @onclick="() => ToggleException(log)">
+                                                    <i class="bi bi-@(log.ShowException ? "chevron-up" : "chevron-down") me-1"></i>
+                                                    @(log.ShowException ? "Hide" : "Show") Exception
+                                                </button>
+                                                @if (log.ShowException)
+                                                {
+                                                    <pre class="small text-danger mt-2 p-2 bg-light border rounded">@log.Exception</pre>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                @onclick="() => ToggleExpand(log)"
+                                                title="@(log.IsExpanded ? "Collapse" : "Expand")">
+                                            <i class="bi bi-@(log.IsExpanded ? "arrows-collapse" : "arrows-expand")"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .log-error {
+        background-color: rgba(220, 53, 69, 0.05);
+        border-left: 3px solid #dc3545;
+    }
+
+    .log-warning {
+        background-color: rgba(255, 193, 7, 0.05);
+        border-left: 3px solid #ffc107;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+</style>
+
+@code {
+    private List<LogEntry>? logs;
+    private bool isLoading = false;
+    private string? errorMessage;
+    private string selectedLogLevel = "";
+    private DateOnly? dateFrom;
+    private DateOnly? dateTo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Set default date range to last 7 days
+        dateTo = DateOnly.FromDateTime(DateTime.Today);
+        dateFrom = DateOnly.FromDateTime(DateTime.Today.AddDays(-7));
+
+        await LoadLogs();
+    }
+
+    private async Task LoadLogs()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var queryParams = new List<string>();
+
+            if (!string.IsNullOrEmpty(selectedLogLevel))
+                queryParams.Add($"level={Uri.EscapeDataString(selectedLogLevel)}");
+
+            if (dateFrom.HasValue)
+                queryParams.Add($"from={dateFrom.Value:yyyy-MM-dd}");
+
+            if (dateTo.HasValue)
+                queryParams.Add($"to={dateTo.Value:yyyy-MM-dd}");
+
+            var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+
+            Logger.LogInformation("Loading logs with query: {Query}", queryString);
+
+            var response = await Http.GetAsync($"api/log{queryString}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                logs = JsonSerializer.Deserialize<List<LogEntry>>(jsonContent, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                // Sort by timestamp descending (newest first)
+                logs = logs?.OrderByDescending(l => l.Timestamp).ToList();
+
+                Logger.LogInformation("Successfully loaded {Count} logs", logs?.Count ?? 0);
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to load logs: {response.StatusCode} - {errorContent}";
+                Logger.LogError("Failed to load logs: {StatusCode} - {Error}", response.StatusCode, errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading logs: {ex.Message}";
+            Logger.LogError(ex, "Exception while loading logs");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearFilters()
+    {
+        selectedLogLevel = "";
+        dateFrom = DateOnly.FromDateTime(DateTime.Today.AddDays(-7));
+        dateTo = DateOnly.FromDateTime(DateTime.Today);
+        await LoadLogs();
+    }
+
+    private void ToggleExpand(LogEntry log)
+    {
+        log.IsExpanded = !log.IsExpanded;
+        StateHasChanged();
+    }
+
+    private void ToggleException(LogEntry log)
+    {
+        log.ShowException = !log.ShowException;
+        StateHasChanged();
+    }
+
+    private string GetLogLevelBadgeClass(string level)
+    {
+        return level?.ToLower() switch
+        {
+            "error" => "bg-danger",
+            "warning" => "bg-warning text-dark",
+            "info" => "bg-info",
+            "debug" => "bg-secondary",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    private string GetLogRowClass(string level)
+    {
+        return level?.ToLower() switch
+        {
+            "error" => "log-error",
+            "warning" => "log-warning",
+            _ => ""
+        };
+    }
+
+    public class LogEntry
+    {
+        public int Id { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string Level { get; set; } = "";
+        public string Source { get; set; } = "";
+        public string Message { get; set; } = "";
+        public string? Exception { get; set; }
+        public bool IsExpanded { get; set; } = false;
+        public bool ShowException { get; set; } = false;
+    }
+}
