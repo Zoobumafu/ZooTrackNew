@@ -2,6 +2,10 @@
 using ZooTrack.Models;
 using Microsoft.EntityFrameworkCore;
 using ZooTrackBackend.Services;
+using OpenCvSharp;
+using System;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace ZooTrack.Services
 {
@@ -29,7 +33,7 @@ namespace ZooTrack.Services
         private const int SECONDS_BEFORE_DETECTION = 10;
 
         /// Number of seconds after the detection moment to include in frame extraction
-        private const int SECONDS_AFTER_DETECTION = 30;
+        private const int SECONDS_AFTER_DETECTION = 20;
 
         /// Maximum time difference in seconds between detections to consider them as the same object
         private const double SAME_OBJECT_TIME_THRESHOLD = 15.0;
@@ -166,14 +170,8 @@ namespace ZooTrack.Services
 
         #region Private Methods - Frame Extraction
 
-        /// <summary>
-        /// Extracts frames from a video file at specified intervals around the detection time.
-        /// Creates both tracking frames and key frames for analysis.
-        /// </summary>
-        /// <param name="videoPath">Full path to the source video file</param>
-        /// <param name="outputDir">Directory where extracted frames will be saved</param>
-        /// <param name="detection">The detection event providing timing information</param>
-        /// <returns>A task representing the asynchronous frame extraction operation</returns>
+        // OLD ExtractTrackingFramesAsync
+        /*
         private async Task ExtractTrackingFramesAsync(string videoPath, string outputDir, Detection detection)
         {
             try
@@ -204,29 +202,42 @@ namespace ZooTrack.Services
                 throw;
             }
         }
+        */
 
-        /// <summary>
-        /// Calculates the time window for frame extraction based on detection time and configuration.
-        /// </summary>
-        /// <param name="detectionTime">The moment when the detection occurred</param>
-        /// <returns>A tuple containing start time, end time, and total duration</returns>
-        private (DateTime StartTime, DateTime EndTime, double Duration) CalculateExtractionTimeWindow(DateTime detectionTime)
+        private async Task ExtractTrackingFramesAsync(string videoPath, string outputDir, Detection detection)
         {
-            var startTime = detectionTime.AddSeconds(-SECONDS_BEFORE_DETECTION);
-            var endTime = detectionTime.AddSeconds(SECONDS_AFTER_DETECTION);
-            var duration = (endTime - startTime).TotalSeconds;
+            try
+            {
+                // Calculate the time window using the detection constants
+                var timeWindow = CalculateExtractionTimeWindow(detection.DetectedAt);
+                var totalFramesToExtract = (int)(timeWindow.Duration * FRAMES_PER_SECOND);
+                var frameInterval = 1.0 / FRAMES_PER_SECOND;
 
-            return (startTime, endTime, duration);
+                await _logService.AddLogAsync(1, "FrameExtractionPlan",
+                    $"Extracting {totalFramesToExtract} frames at {FRAMES_PER_SECOND} FPS for detection {detection.DetectionId}",
+                    "Info", detection.DetectionId);
+
+                // Extract frames at regular intervals using your constants
+                await ExtractRegularFrames(outputDir, timeWindow, totalFramesToExtract, frameInterval);
+
+                // Extract and save key frames
+                await SaveKeyFrames(outputDir, detection);
+
+                await _logService.AddLogAsync(1, "FramesExtracted",
+                    $"Extracted {totalFramesToExtract} tracking frames for detection {detection.DetectionId}",
+                    "Info", detection.DetectionId);
+            }
+            catch (Exception ex)
+            {
+                await _logService.AddLogAsync(1, "FrameExtractionError",
+                    $"Error extracting frames: {ex.Message}", "Error", detection.DetectionId);
+                throw;
+            }
         }
 
-        /// <summary>
-        /// Extracts frames at regular intervals within the specified time window.
-        /// </summary>
-        /// <param name="outputDir">Directory where frames will be saved</param>
-        /// <param name="timeWindow">The time window for extraction</param>
-        /// <param name="totalFrames">Total number of frames to extract</param>
-        /// <param name="frameInterval">Time interval between frames in seconds</param>
-        /// <returns>A task representing the asynchronous extraction operation</returns>
+
+        // OLD ExtractRectangularFrames
+        /*
         private async Task ExtractRegularFrames(string outputDir, (DateTime StartTime, DateTime EndTime, double Duration) timeWindow, int totalFrames, double frameInterval)
         {
             for (int i = 0; i < totalFrames; i++)
@@ -238,14 +249,82 @@ namespace ZooTrack.Services
                 await SimulateFrameExtraction(framePath, frameTime);
             }
         }
+        */
 
-        /// <summary>
-        /// Saves key frames that represent the most important moments during detection.
-        /// These include the exact detection moment and frames before/after for context.
-        /// </summary>
-        /// <param name="outputDir">Directory where key frames will be saved</param>
-        /// <param name="detection">The detection event providing timing information</param>
-        /// <returns>A task representing the asynchronous key frame saving operation</returns>
+        // calculate extraction time window based on the constants
+        private (DateTime StartTime, DateTime EndTime, double Duration) CalculateExtractionTimeWindow(DateTime detectionTime)
+        {
+            var startTime = detectionTime.AddSeconds(-SECONDS_BEFORE_DETECTION);
+            var endTime = detectionTime.AddSeconds(SECONDS_AFTER_DETECTION);
+            var duration = (endTime - startTime).TotalSeconds;
+
+            return (startTime, endTime, duration);
+        }
+
+        private async Task ExtractRegularFrames(string outputDir, (DateTime StartTime, DateTime EndTime, double Duration) timeWindow, int totalFrames, double frameInterval)
+        {
+            // Get the media/video file that contains this time window
+            var media = await FindMediaForTimeWindow(timeWindow);
+            if (media == null)
+            {
+                await _logService.AddLogAsync(1, "MediaNotFound",
+                    $"No media found for time window {timeWindow.StartTime} - {timeWindow.EndTime}", "Warning");
+                return;
+            }
+
+            string videoPath = GetMediaFilePath(media);
+            if (!File.Exists(videoPath))
+            {
+                await _logService.AddLogAsync(1, "VideoFileNotFound",
+                    $"Video file not found: {videoPath}", "Error", media.MediaId);
+                return;
+            }
+
+            using var capture = new VideoCapture(videoPath);
+            if (!capture.IsOpened())
+            {
+                await _logService.AddLogAsync(1, "VideoOpenError",
+                    $"Failed to open video file: {videoPath}", "Error", media.MediaId);
+                return;
+            }
+
+            double fps = capture.Fps > 0 ? capture.Fps : 20.0; // Fallback like your CameraService
+            DateTime videoStartTime = media.Timestamp; // Using Media.Timestamp as the video start time
+
+            await _logService.AddLogAsync(1, "FrameExtractionStarted",
+                $"Starting extraction of {totalFrames} frames from {media.FilePath} at {FRAMES_PER_SECOND} FPS",
+                "Info", media.MediaId);
+
+            for (int i = 0; i < totalFrames; i++)
+            {
+                var frameTime = timeWindow.StartTime.AddSeconds(i * frameInterval);
+                var framePath = Path.Combine(outputDir, $"frame_{i:000}.jpg");
+
+                // Calculate frame position based on time offset from video start
+                double secondsFromVideoStart = (frameTime - videoStartTime).TotalSeconds;
+                if (secondsFromVideoStart < 0)
+                {
+                    await _logService.AddLogAsync(1, "FrameSkipped",
+                        $"Skipping frame {i} - time {frameTime} is before video start", "Warning", media.MediaId);
+                    continue;
+                }
+
+                int targetFrameNumber = (int)(secondsFromVideoStart * fps);
+
+                // Extract frame using OpenCV
+                byte[] frameData = await ExtractFrameAtPosition(capture, targetFrameNumber, frameTime, media.MediaId);
+
+                if (frameData != null)
+                {
+                    await SaveFrameToFile(frameData, framePath, frameTime);
+                }
+            }
+        }
+
+
+
+        //OLD SaveKeyFrames
+        /*
         private async Task SaveKeyFrames(string outputDir, Detection detection)
         {
             var keyFrames = new[]
@@ -260,6 +339,105 @@ namespace ZooTrack.Services
                 var keyFramePath = Path.Combine(outputDir, fileName);
                 await SimulateFrameExtraction(keyFramePath, frameTime);
             }
+        }
+        */
+        private async Task SaveKeyFrames(string outputDir, Detection detection)
+        {
+            // Load the associated media for this detection
+            var media = await LoadAndValidateMediaAsync(detection.MediaId);
+            string videoPath = GetMediaFilePath(media);
+
+            if (!File.Exists(videoPath))
+            {
+                await _logService.AddLogAsync(1, "VideoFileNotFound",
+                    $"Video file not found for key frame extraction: {videoPath}", "Error", detection.DetectionId);
+                return;
+            }
+
+            using var capture = new VideoCapture(videoPath);
+            if (!capture.IsOpened())
+            {
+                await _logService.AddLogAsync(1, "VideoOpenError",
+                    $"Failed to open video file for key frames: {videoPath}", "Error", detection.DetectionId);
+                return;
+            }
+
+            double fps = capture.Fps > 0 ? capture.Fps : 20.0;
+            DateTime videoStartTime = media.Timestamp;
+
+            // Use your existing constants for key frame timing
+            var keyFrames = new[]
+            {
+        ("detection_moment.jpg", detection.DetectedAt),
+        ("before_detection.jpg", detection.DetectedAt.AddSeconds(-5)), // Keep your existing 5-second offset
+        ("after_detection.jpg", detection.DetectedAt.AddSeconds(5))
+    };
+
+            await _logService.AddLogAsync(1, "KeyFrameExtractionStarted",
+                $"Extracting key frames for detection {detection.DetectionId}", "Info", detection.DetectionId);
+
+            foreach (var (fileName, frameTime) in keyFrames)
+            {
+                var keyFramePath = Path.Combine(outputDir, fileName);
+
+                double secondsFromVideoStart = (frameTime - videoStartTime).TotalSeconds;
+                if (secondsFromVideoStart < 0)
+                {
+                    await _logService.AddLogAsync(1, "KeyFrameSkipped",
+                        $"Skipping key frame {fileName} - time {frameTime} is before video start", "Warning", detection.DetectionId);
+                    continue;
+                }
+
+                int targetFrameNumber = (int)(secondsFromVideoStart * fps);
+
+                byte[] frameData = await ExtractFrameAtPosition(capture, targetFrameNumber, frameTime, detection.DetectionId);
+
+                if (frameData != null)
+                {
+                    await SaveFrameToFile(frameData, keyFramePath, frameTime);
+                }
+            }
+        }
+
+        private async Task<byte[]> ExtractFrameAtPosition(VideoCapture capture, int frameNumber, DateTime frameTime, int? contextId = null)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    // Seek to the specific frame
+                    capture.PosFrames = frameNumber;
+
+                    using var frame = new Mat();
+                    bool readSuccess = capture.Read(frame);
+
+                    if (!readSuccess || frame.Empty())
+                    {
+                        _ = Task.Run(async () => await _logService.AddLogAsync(1, "FrameReadFailed",
+                            $"Failed to read frame {frameNumber} at {frameTime}", "Warning", contextId));
+                        return null;
+                    }
+
+                    // Use the same JPEG encoding approach as your existing system
+                    var encodingParams = new int[] { (int)ImwriteFlags.JpegQuality, 90 };
+                    bool encodeSuccess = Cv2.ImEncode(".jpg", frame, out byte[] jpegBytes, encodingParams);
+
+                    if (!encodeSuccess)
+                    {
+                        _ = Task.Run(async () => await _logService.AddLogAsync(1, "FrameEncodeFailed",
+                            $"Failed to encode frame {frameNumber} at {frameTime}", "Warning", contextId));
+                        return null;
+                    }
+
+                    return jpegBytes;
+                }
+                catch (Exception ex)
+                {
+                    _ = Task.Run(async () => await _logService.AddLogAsync(1, "FrameExtractionError",
+                        $"Error extracting frame {frameNumber} at {frameTime}: {ex.Message}", "Error", contextId));
+                    return null;
+                }
+            });
         }
 
         /// <summary>
@@ -280,6 +458,80 @@ namespace ZooTrack.Services
             await File.WriteAllTextAsync(framePath, $"Frame extracted at {frameTime:yyyy-MM-dd HH:mm:ss}");
             await Task.Delay(10); // Simulate processing time
         }
+
+        //OLD SaveFrameToFile
+        /* 
+        private async Task SaveFrameToFile(byte[] frameData, string framePath, DateTime frameTime)
+        {
+            // Example with System.IO.File for byte array
+            await File.WriteAllBytesAsync(framePath, frameData);
+            await _logService.AddLogAsync(1, "FrameSaved", $"Frame saved to {framePath} at {frameTime}", "Info");
+            // You might want to remove the Task.Delay after implementing actual saving
+            // await Task.Delay(10); // Original simulation delay 
+        }
+        */
+
+        // Updated SaveFrameToFile with your existing structure but enhanced error handling
+        private async Task SaveFrameToFile(byte[] frameData, string framePath, DateTime frameTime)
+        {
+            if (frameData == null || frameData.Length == 0)
+            {
+                await _logService.AddLogAsync(1, "SaveFrameFailed",
+                    $"Attempted to save empty frame data at {frameTime}", "Warning");
+                return;
+            }
+
+            try
+            {
+                // Ensure the directory exists (matching your CreateOutputDirectory pattern)
+                string directory = Path.GetDirectoryName(framePath);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                // Use your existing approach
+                await File.WriteAllBytesAsync(framePath, frameData);
+                await _logService.AddLogAsync(1, "FrameSaved",
+                    $"Frame saved to {framePath} at {frameTime}", "Info");
+            }
+            catch (Exception ex)
+            {
+                await _logService.AddLogAsync(1, "SaveFrameError",
+                    $"Error saving frame to {framePath} at {frameTime}: {ex.Message}", "Error");
+                throw; // Re-throw to maintain your existing error handling pattern
+            }
+        }
+
+
+        // Helper method to find media containing a specific time window
+        private async Task<Media> FindMediaForTimeWindow((DateTime StartTime, DateTime EndTime, double Duration) timeWindow)
+        {
+            // Query your database to find media that contains the time window
+            // Since Media doesn't have Duration, we'll find the media with Timestamp closest to but before the StartTime
+            var media = await _context.Media
+                .Where(m => m.Timestamp <= timeWindow.StartTime && m.Type == "video") // Assuming video type
+                .OrderByDescending(m => m.Timestamp)
+                .FirstOrDefaultAsync();
+
+            return media;
+        }
+
+        // Helper method to get the full file path for a media record
+        private string GetMediaFilePath(Media media)
+        {
+            // Use the FilePath directly from the Media record
+            if (Path.IsPathRooted(media.FilePath))
+            {
+                return media.FilePath; // Already a full path
+            }
+            else
+            {
+                // If it's a relative path, combine with ContentRootPath
+                return Path.Combine(_environment.ContentRootPath, media.FilePath);
+            }
+        }
+
 
         #endregion
 
