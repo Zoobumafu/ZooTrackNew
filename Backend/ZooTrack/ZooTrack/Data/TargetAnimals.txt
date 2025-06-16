@@ -1,0 +1,1 @@
+"person", "dog", "cow", "wolf", "tiger"

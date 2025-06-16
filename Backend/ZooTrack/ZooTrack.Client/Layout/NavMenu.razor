@@ -1,39 +1,143 @@
 ﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">ZooTrack.Client</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <a class="navbar-brand" href="">
+            <i class="bi bi-camera-video-fill me-2"></i>ZooTrack
+        </a>
     </div>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="nav flex-column">
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
+
+        <div class="nav-section-header px-3 mt-3">
+            <small class="text-muted text-uppercase fw-bold">Camera Monitoring</small>
+        </div>
+
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            <NavLink class="nav-link" href="camera-test">
+                <span class="bi bi-camera-video-nav-menu" aria-hidden="true"></span> Camera Test
             </NavLink>
         </div>
+
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            <NavLink class="nav-link" href="camera-dashboard">
+                <span class="bi bi-grid-3x3-gap-nav-menu" aria-hidden="true"></span> Camera Dashboard
             </NavLink>
         </div>
+
+        <div class="nav-section-header px-3 mt-3">
+            <small class="text-muted text-uppercase fw-bold">History & Analysis</small>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="detections">
+                <span class="bi bi-search-nav-menu" aria-hidden="true"></span> Detection History
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="system-logs">
+                <span class="bi bi-journal-text-nav-menu" aria-hidden="true"></span> System Logs
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="statistics">
+                <span class="bi bi-bar-chart-line-nav-menu" aria-hidden="true"></span> Statistics
+            </NavLink>
+        </div>
+
+        @* New Section for Administration (Example - You can adjust title and icon) *@
+        <div class="nav-section-header px-3 mt-3">
+            <small class="text-muted text-uppercase fw-bold">Administration</small>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="alerts">
+                @* Assuming an Alerts page exists or will exist *@
+                <span class="bi bi-bell-fill-nav-menu" aria-hidden="true"></span> Alerts
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="devices">
+                @* Assuming a Devices page exists or will exist *@
+                <span class="bi bi-tablet-landscape-fill-nav-menu" aria-hidden="true"></span> Devices
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="users">
+                @* Assuming a Users page exists or will exist *@
+                <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> Users
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="user-settings">
+                @* Assuming a User Settings page exists or will exist *@
+                <span class="bi bi-person-gear-fill-nav-menu" aria-hidden="true"></span> User Settings
+            </NavLink>
+        </div>
+
     </nav>
 </div>
 
-@code {
-    private bool collapseNavMenu = true;
-
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
+<style>
+    .nav-section-header {
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-}
+
+        .nav-section-header:first-of-type {
+            margin-top: 0.5rem;
+        }
+
+    .nav-link {
+        border-radius: 6px;
+        margin: 2px 0;
+        transition: all 0.2s ease-in-out;
+        display: flex;
+        align-items: center;
+    }
+
+        .nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+            transform: translateX(2px);
+        }
+
+        .nav-link.active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: 500;
+            border-left: 3px solid #fff;
+        }
+
+    .navbar-brand {
+        font-weight: 600;
+        font-size: 1.25rem;
+    }
+
+    .bi {
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+
+    /* Mobile responsiveness */
+    @@media (max-width: 640.98px) {
+        .nav-scrollable {
+            max-height: calc(100vh - 3.5rem);
+            overflow-y: auto;
+        }
+    }
+</style>

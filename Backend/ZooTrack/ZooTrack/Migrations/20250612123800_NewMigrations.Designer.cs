@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ZooTrack.Data;
 
@@ -10,9 +11,11 @@ using ZooTrack.Data;
 namespace ZooTrackBackend.Migrations
 {
     [DbContext(typeof(ZootrackDbContext))]
-    partial class ZootrackDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250612123800_NewMigrations")]
+    partial class NewMigrations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.4");
@@ -319,44 +322,6 @@ namespace ZooTrackBackend.Migrations
                             FrameNumber = 0,
                             MediaId = 5
                         });
-                });
-
-            modelBuilder.Entity("ZooTrack.Models.DetectionValidation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("DetectionId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsFalseNegative")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsFalsePositive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsTruePositive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsValidated")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("ValidatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ValidatedBy")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ValidationNotes")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DetectionId");
-
-                    b.ToTable("DetectionValidations");
                 });
 
             modelBuilder.Entity("ZooTrack.Models.Device", b =>
@@ -806,17 +771,6 @@ namespace ZooTrackBackend.Migrations
                     b.Navigation("Event");
 
                     b.Navigation("Media");
-                });
-
-            modelBuilder.Entity("ZooTrack.Models.DetectionValidation", b =>
-                {
-                    b.HasOne("ZooTrack.Models.Detection", "Detection")
-                        .WithMany()
-                        .HasForeignKey("DetectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Detection");
                 });
 
             modelBuilder.Entity("ZooTrack.Models.Log", b =>

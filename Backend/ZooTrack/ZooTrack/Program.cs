@@ -54,6 +54,22 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+
+// Get the CameraService instance from the application's service provider
+var cameraService = app.Services.GetRequiredService<CameraService>();
+// Define the list of target animals 
+List<string> myDesiredTargetAnimals = new List<string>
+{
+    "person",
+    "dog",
+    "cow",
+    "wolf",
+    "tiger"
+};
+string myHighlightSavePath = "D:\\CODE\\Zootrack\\ZooTrackNew\\Backend\\ZooTrack\\ZooTrack\\Data\\TargetAnimals.txt";
+cameraService.SetProcessingTargets(myDesiredTargetAnimals, myHighlightSavePath);
+
+
 // --- Database Initialization ---
 // Ensure database is created and seeded with required data
 using (var scope = app.Services.CreateScope())

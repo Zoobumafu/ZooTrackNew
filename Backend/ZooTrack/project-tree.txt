@@ -1,5 +1,5 @@
 ﻿ASP.NET Project Structure: ZooTrack
-Generated on: 2025-06-08 03:04:09
+Generated on: 2025-06-12 14:18:21
 Path: D:\CODE\Zootrack\ZooTrackNew\Backend\ZooTrack
 
 Included file types: *.cs, *.razor, *.blazor, *.html, *.css, *.json, *.txt, *.sln, *.csproj, *.db, *.onnx, *.js
@@ -26,10 +26,13 @@ ZooTrack/
 |   |   |-- UserController.cs
 |   |   +-- UserSettingsController.cs
 |   |-- Data
+|   |   |-- TargetAnimals.txt
 |   |   +-- ZootrackDbContext.cs
 |   |-- Migrations
 |   |   |-- 20250608000241_AddTrackingFields.cs
 |   |   |-- 20250608000241_AddTrackingFields.Designer.cs
+|   |   |-- 20250612105820_NewMigration.cs
+|   |   |-- 20250612105820_NewMigration.Designer.cs
 |   |   +-- ZootrackDbContextModelSnapshot.cs
 |   |-- Models
 |   |   |-- DetectionWithTrackingRequest.cs
@@ -59,13 +62,12 @@ ZooTrack/
 |   |   |-- NavMenu.razor
 |   |   +-- NavMenu.razor.css
 |   |-- Pages
+|   |   |-- AboutUsPage.razor
 |   |   |-- CameraTestPage.razor
-|   |   |-- Counter.razor
 |   |   |-- DetectionHistoryPage.razor
 |   |   |-- Home.razor
-|   |   |-- NavMenu.razor
-|   |   |-- SystemLogsPage.razor
-|   |   +-- Weather.razor
+|   |   |-- StatisticsPage.razor
+|   |   +-- SystemLogsPage.razor
 |   |-- Properties
 |   |   +-- launchSettings.json
 |   |-- wwwroot
@@ -99,7 +101,6 @@ ZooTrack/
 |   |   |               |-- bootstrap.js
 |   |   |               +-- bootstrap.min.js
 |   |   |-- sample-data
-|   |   |   +-- weather.json
 |   |   +-- index.html
 |   |-- _Imports.razor
 |   |-- AlertSettingViewModel.cs
@@ -110,5 +111,6 @@ ZooTrack/
 |   |-- DeviceViewModel.cs
 |   |-- Program.cs
 |   +-- ZooTrack.Client.csproj
+|-- OLD DetectionMediaService.cs.txt
 |-- project-tree.txt
 +-- ZooTrack.sln

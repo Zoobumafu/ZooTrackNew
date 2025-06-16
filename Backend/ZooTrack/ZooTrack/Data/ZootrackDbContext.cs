@@ -19,6 +19,9 @@ namespace ZooTrack.Data
         public DbSet<Event> Events { get; set; }
         public DbSet<Log> Logs { get; set; }
         public DbSet<UserSettings> UserSettings { get; set; }
+        // ADD THIS LINE: DbSet for DetectionValidation
+        public DbSet<DetectionValidation> DetectionValidations { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -124,4 +127,3 @@ namespace ZooTrack.Data
         }
     }
 }
-

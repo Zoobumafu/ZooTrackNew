@@ -87,6 +87,34 @@ namespace ZooTrack.Models
         public virtual ICollection<Alert> Alerts { get; set; }
     }
 
+    public class DetectionValidation
+    {
+        [Key]
+        public int Id { get; set; }
+        public int DetectionId { get; set; } // Foreign key to Detection
+        [ForeignKey("DetectionId")]
+        [JsonIgnore]
+        public Detection Detection { get; set; }
+        public bool IsValidated { get; set; }
+        public bool IsTruePositive { get; set; } // True if confirmed as a correct detection
+        public string? ValidationNotes { get; set; }
+        public DateTime ValidatedAt { get; set; }
+        public string ValidatedBy { get; set; }
+
+        public bool IsFalsePositive { get; set; } // True if validated as an incorrect detection (e.g., misclassification)
+        public bool IsFalseNegative { get; set; } // True if a known object was missed (requires external input or ground truth)
+    }
+
+    public class DetectionHeatmapData
+    {
+        public int CameraId { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
+        public int DetectionCount { get; set; }
+        public float AverageConfidence { get; set; }
+        public DateTime TimeWindow { get; set; }
+    }
+
     public class Animal
     {
         [Key]

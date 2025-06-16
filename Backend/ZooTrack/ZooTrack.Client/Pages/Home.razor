@@ -8,6 +8,14 @@
             <div class="col-md-8">
                 <h1 class="display-4 fw-bold text-primary">ZooTrack</h1>
                 <p class="lead text-muted">Advanced animal detection and monitoring system</p>
+                <div class="mt-3">
+                    <span class="badge bg-success me-2">
+                        <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i>System Online
+                    </span>
+                    <span class="badge bg-info">
+                        <i class="bi bi-camera-video me-1"></i>Cameras Active
+                    </span>
+                </div>
             </div>
             <div class="col-md-4 text-end">
                 <i class="bi bi-camera-video display-1 text-primary opacity-25"></i>
@@ -19,7 +27,7 @@
 <div class="row g-4">
     <!-- Camera Monitoring Section -->
     <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-primary border-opacity-25">
             <div class="card-body text-center">
                 <div class="mb-3">
                     <i class="bi bi-camera-video-fill display-4 text-primary"></i>
@@ -38,27 +46,9 @@
         </div>
     </div>
 
-    <!-- System Logs Section -->
-    <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <i class="bi bi-list-ul display-4 text-info"></i>
-                </div>
-                <h5 class="card-title">System Logs</h5>
-                <p class="card-text text-muted">View system activity, errors, and diagnostic information</p>
-                <div class="d-grid gap-2">
-                    <a href="/system-logs" class="btn btn-info">
-                        <i class="bi bi-journal-text me-2"></i>View Logs
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Detection History Section -->
     <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-success border-opacity-25">
             <div class="card-body text-center">
                 <div class="mb-3">
                     <i class="bi bi-search display-4 text-success"></i>
@@ -74,18 +64,36 @@
         </div>
     </div>
 
-    <!-- Quick Stats Section -->
+    <!-- System Logs Section -->
     <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-info border-opacity-25">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-list-ul display-4 text-info"></i>
+                </div>
+                <h5 class="card-title">System Logs</h5>
+                <p class="card-text text-muted">View system activity, errors, and diagnostic information</p>
+                <div class="d-grid gap-2">
+                    <a href="/system-logs" class="btn btn-info">
+                        <i class="bi bi-journal-text me-2"></i>View Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm border-warning border-opacity-25">
             <div class="card-body text-center">
                 <div class="mb-3">
                     <i class="bi bi-graph-up display-4 text-warning"></i>
                 </div>
-                <h5 class="card-title">System Status</h5>
-                <p class="card-text text-muted">View system performance and current status</p>
+                <h5 class="card-title">Analytics</h5>
+                <p class="card-text text-muted">View detection statistics and system performance metrics</p>
                 <div class="d-grid gap-2">
                     <button class="btn btn-warning" disabled>
-                        <i class="bi bi-tools me-2"></i>Coming Soon
+                        <i class="bi bi-bar-chart me-2"></i>Coming Soon
                     </button>
                 </div>
             </div>
@@ -94,13 +102,13 @@
 
     <!-- Settings Section -->
     <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-secondary border-opacity-25">
             <div class="card-body text-center">
                 <div class="mb-3">
                     <i class="bi bi-gear-fill display-4 text-secondary"></i>
                 </div>
                 <h5 class="card-title">Settings</h5>
-                <p class="card-text text-muted">Configure system settings and user preferences</p>
+                <p class="card-text text-muted">Configure system settings, cameras, and detection parameters</p>
                 <div class="d-grid gap-2">
                     <button class="btn btn-secondary" disabled>
                         <i class="bi bi-sliders me-2"></i>Coming Soon
@@ -112,17 +120,54 @@
 
     <!-- Help & Support Section -->
     <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-dark border-opacity-25">
             <div class="card-body text-center">
                 <div class="mb-3">
                     <i class="bi bi-question-circle display-4 text-dark"></i>
                 </div>
                 <h5 class="card-title">Help & Support</h5>
-                <p class="card-text text-muted">Documentation, troubleshooting, and support resources</p>
+                <p class="card-text text-muted">Documentation, troubleshooting guides, and support resources</p>
                 <div class="d-grid gap-2">
                     <button class="btn btn-dark" disabled>
                         <i class="bi bi-book me-2"></i>Coming Soon
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats Row -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-3">System Overview</h6>
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="d-flex flex-column">
+                            <span class="h4 text-primary mb-0">--</span>
+                            <small class="text-muted">Active Cameras</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex flex-column">
+                            <span class="h4 text-success mb-0">--</span>
+                            <small class="text-muted">Today's Detections</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex flex-column">
+                            <span class="h4 text-info mb-0">--</span>
+                            <small class="text-muted">System Uptime</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex flex-column">
+                            <span class="h4 text-warning mb-0">--</span>
+                            <small class="text-muted">Alerts</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -135,17 +180,38 @@
         border-radius: 15px;
         padding: 3rem 2rem;
         margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
     }
 
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(13,110,253,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+            z-index: 0;
+        }
+
+        .hero-section > * {
+            position: relative;
+            z-index: 1;
+        }
+
     .card {
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        transition: all 0.3s ease-in-out;
         border: none;
         border-radius: 12px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
     }
 
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+            transform: translateY(-8px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15) !important;
         }
 
     .card-body {
@@ -156,10 +222,18 @@
         border-radius: 8px;
         font-weight: 500;
         transition: all 0.2s ease-in-out;
+        position: relative;
+        overflow: hidden;
     }
 
-        .btn:hover {
-            transform: translateY(-1px);
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
     .display-4 {
@@ -170,15 +244,56 @@
         line-height: 1;
     }
 
-    /* Mobile responsive styles */
-    @@media (max-width: 768px) {
-        .hero-section {
-            padding: 2rem 1rem;
-            text-align: center;
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+    }
+
+        /* Pulse animation for online status */
+        .badge.bg-success .bi-circle-fill {
+            animation: pulse 2s infinite;
         }
 
-        .display-4 {
-            font-size: 2rem;
-        }
+    @@keyframes pulse {
+        0%
+
+    {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+
+    }
+
+    /* Mobile responsive styles */
+    @@media (max-width: 768px) {
+        .hero-section
+
+    {
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+
+    .display-4 {
+        font-size: 2rem;
+    }
+
+    .card-body {
+        padding: 1.5rem 1rem;
+    }
+
+    }
+
+    /* Subtle hover effects for icons */
+    .card:hover .bi {
+        transform: scale(1.1);
+        transition: transform 0.2s ease-in-out;
     }
 </style>

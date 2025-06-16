@@ -358,6 +358,7 @@ namespace ZooTrack.Services
                 }
 
                 // Save positive detections to database
+                //if (true)
                 if (targetFoundInFrame && mainTarget != null)
                 {
                     await WriteDetectionToDatabase(mainTarget, rawData);

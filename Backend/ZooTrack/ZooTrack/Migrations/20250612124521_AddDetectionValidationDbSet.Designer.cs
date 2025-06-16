@@ -11,8 +11,8 @@ using ZooTrack.Data;
 namespace ZooTrackBackend.Migrations
 {
     [DbContext(typeof(ZootrackDbContext))]
-    [Migration("20250608000241_AddTrackingFields")]
-    partial class AddTrackingFields
+    [Migration("20250612124521_AddDetectionValidationDbSet")]
+    partial class AddDetectionValidationDbSet
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -322,6 +322,44 @@ namespace ZooTrackBackend.Migrations
                             FrameNumber = 0,
                             MediaId = 5
                         });
+                });
+
+            modelBuilder.Entity("ZooTrack.Models.DetectionValidation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DetectionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsFalseNegative")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsFalsePositive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsTruePositive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsValidated")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ValidatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ValidatedBy")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ValidationNotes")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectionId");
+
+                    b.ToTable("DetectionValidations");
                 });
 
             modelBuilder.Entity("ZooTrack.Models.Device", b =>
@@ -771,6 +809,17 @@ namespace ZooTrackBackend.Migrations
                     b.Navigation("Event");
 
                     b.Navigation("Media");
+                });
+
+            modelBuilder.Entity("ZooTrack.Models.DetectionValidation", b =>
+                {
+                    b.HasOne("ZooTrack.Models.Detection", "Detection")
+                        .WithMany()
+                        .HasForeignKey("DetectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Detection");
                 });
 
             modelBuilder.Entity("ZooTrack.Models.Log", b =>

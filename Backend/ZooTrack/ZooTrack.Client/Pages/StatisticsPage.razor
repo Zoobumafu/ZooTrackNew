@@ -1,0 +1,297 @@
+﻿@page "/statistics"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Detection Statistics</PageTitle>
+
+<div class="p-6 bg-gray-100 min-h-screen font-sans">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Detection Statistics</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Filter Controls -->
+        <div class="bg-white p-6 rounded-lg shadow-md col-span-full">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Filters</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="cameraSelect" class="block text-sm font-medium text-gray-700 mb-1">Select Camera:</label>
+                    <select id="cameraSelect" @bind="SelectedCameraId" @bind:after="LoadStatistics"
+                            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm">
+                        <option value="0">All Cameras</option>
+                        @foreach (var camera in Cameras)
+                        {
+                            <option value="@camera.DeviceId">@camera.Location (@camera.DeviceId)</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">Start Date:</label>
+                    <input type="date" id="startDate" @bind="StartDate" @bind:after="LoadStatistics"
+                           class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm" />
+                </div>
+                <div>
+                    <label for="endDate" class="block text-sm font-medium text-gray-700 mb-1">End Date:</label>
+                    <input type="date" id="endDate" @bind="EndDate" @bind:after="LoadStatistics"
+                           class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Statistics Cards -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Overall Detection Summary</h2>
+            @if (SummaryStatistics != null)
+            {
+                <p class="text-gray-600 text-lg mb-2">True Positives: <span class="font-bold text-green-600">@SummaryStatistics.TruePositives</span></p>
+                <p class="text-gray-600 text-lg mb-2">False Positives: <span class="font-bold text-red-600">@SummaryStatistics.FalsePositives</span></p>
+                <p class="text-gray-600 text-lg">False Negatives: <span class="font-bold text-orange-600">@SummaryStatistics.FalseNegatives</span></p>
+            }
+            else if (IsLoadingSummary)
+            {
+                <p class="text-gray-500">Loading summary...</p>
+            }
+            else
+            {
+                <p class="text-gray-500">No summary data available.</p>
+            }
+        </div>
+
+        <!-- Heatmap Section -->
+        <div class="bg-white p-6 rounded-lg shadow-md col-span-full">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Detection Heatmap</h2>
+            @if (SelectedCameraId != 0 && !IsLoadingHeatmap)
+            {
+                <div class="relative w-full max-w-4xl mx-auto border border-gray-300 rounded-lg overflow-hidden">
+                    @* This is a placeholder for the camera image. Replace with a real camera feed image if available.
+                       The heatmap will be drawn on top of this. Adjust width/height as needed for aspect ratio. *@
+                    <img src="https://placehold.co/800x450/e0e0e0/555555?text=Camera+View" alt="Camera View" class="w-full h-auto rounded-lg" />
+                    <canvas id="heatmapCanvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+                </div>
+                @if (HeatmapData == null || !HeatmapData.Any())
+                {
+                    <p class="text-gray-500 mt-4 text-center">No heatmap data for the selected camera and filters.</p>
+                }
+            }
+            else if (IsLoadingHeatmap)
+            {
+                <p class="text-gray-500">Loading heatmap...</p>
+            }
+            else
+            {
+                <p class="text-gray-500 text-center">Select a camera to view its detection heatmap.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private SummaryStatisticsResponse? SummaryStatistics;
+    private List<HeatmapDetectionData>? HeatmapData;
+    private List<Device> Cameras = new List<Device>(); // To populate the camera dropdown
+    private int SelectedCameraId = 0; // 0 for "All Cameras" or no camera selected initially
+    private DateTime StartDate = DateTime.Today.AddMonths(-1); // Default to last month
+    private DateTime EndDate = DateTime.Today; // Default to today
+
+    private bool IsLoadingSummary = false;
+    private bool IsLoadingHeatmap = false;
+
+
+    // Response models for the API calls (mimicking the anonymous types returned by the controller)
+    private class SummaryStatisticsResponse
+    {
+        public int TruePositives { get; set; }
+        public int FalsePositives { get; set; }
+        public int FalseNegatives { get; set; }
+    }
+
+    private class HeatmapDetectionData
+    {
+        public float BoundingBoxX { get; set; }
+        public float BoundingBoxY { get; set; }
+        public float BoundingBoxWidth { get; set; }
+        public float BoundingBoxHeight { get; set; }
+        public float Confidence { get; set; }
+        public DateTime DetectedAt { get; set; }
+    }
+
+    // A simplified Device model to populate the dropdown
+    private class Device
+    {
+        public int DeviceId { get; set; }
+        public string Location { get; set; } = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCameras();
+        await LoadStatistics(); // Initial load of all statistics
+    }
+
+    private async Task LoadCameras()
+    {
+        try
+        {
+            // Assuming you have an API endpoint to get a list of cameras/devices
+            // If not, you'll need to create one in your DeviceController or similar.
+            Cameras = await Http.GetFromJsonAsync<List<Device>>("api/device/list") ?? new List<Device>();
+            // Add a default "All Cameras" option if needed, though 0 already serves that purpose for filtering
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading cameras: {ex.Message}");
+            // Handle error, e.g., show a message to the user
+        }
+    }
+
+
+    private async Task LoadStatistics()
+    {
+        await LoadSummaryStatistics();
+        if (SelectedCameraId != 0)
+        {
+            await LoadHeatmapData(SelectedCameraId);
+        }
+        else
+        {
+            // Clear heatmap if "All Cameras" is selected
+            HeatmapData = null;
+            await JSRuntime.InvokeVoidAsync("clearHeatmap");
+        }
+    }
+
+    private async Task LoadSummaryStatistics()
+    {
+        IsLoadingSummary = true;
+        try
+        {
+            var url = $"api/statistics/summary";
+            var queryParams = new List<string>();
+
+            if (SelectedCameraId != 0)
+            {
+                queryParams.Add($"deviceId={SelectedCameraId}");
+            }
+            if (StartDate != default(DateTime))
+            {
+                queryParams.Add($"startDate={StartDate:yyyy-MM-dd}");
+            }
+            if (EndDate != default(DateTime))
+            {
+                queryParams.Add($"endDate={EndDate:yyyy-MM-dd}");
+            }
+
+            if (queryParams.Any())
+            {
+                url += "?" + string.Join("&", queryParams);
+            }
+
+            SummaryStatistics = await Http.GetFromJsonAsync<SummaryStatisticsResponse>(url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching summary statistics: {ex.Message}");
+            SummaryStatistics = null; // Clear data on error
+        }
+        finally
+        {
+            IsLoadingSummary = false;
+        }
+    }
+
+    private async Task LoadHeatmapData(int cameraId)
+    {
+        IsLoadingHeatmap = true;
+        try
+        {
+            var url = $"api/statistics/heatmap/{cameraId}";
+            var queryParams = new List<string>();
+
+            if (StartDate != default(DateTime))
+            {
+                queryParams.Add($"startDate={StartDate:yyyy-MM-dd}");
+            }
+            if (EndDate != default(DateTime))
+            {
+                queryParams.Add($"endDate={EndDate:yyyy-MM-dd}");
+            }
+
+            if (queryParams.Any())
+            {
+                url += "?" + string.Join("&", queryParams);
+            }
+
+            HeatmapData = await Http.GetFromJsonAsync<List<HeatmapDetectionData>>(url);
+            if (HeatmapData != null)
+            {
+                await JSRuntime.InvokeVoidAsync("drawHeatmap", HeatmapData);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching heatmap data: {ex.Message}");
+            HeatmapData = null; // Clear data on error
+        }
+        finally
+        {
+            IsLoadingHeatmap = false;
+        }
+    }
+
+    // JavaScript interop to draw on canvas
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Add a simple JS function for drawing heatmap
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                window.drawHeatmap = function(detectionData) {
+                    const canvas = document.getElementById('heatmapCanvas');
+                    if (!canvas) {
+                        console.error('Heatmap canvas not found.');
+                        return;
+                    }
+                    const ctx = canvas.getContext('2d');
+
+                    // Set canvas size to match the image or its container
+                    const img = canvas.previousElementSibling; // Assuming img is the sibling before canvas
+                    if (img && img.naturalWidth && img.naturalHeight) {
+                        canvas.width = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                    } else {
+                        // Fallback if image not loaded or not found, use a default aspect ratio
+                        canvas.width = 800; // Example base width
+                        canvas.height = 450; // Example base height for 16:9
+                    }
+
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawings
+
+                    // Set drawing style for heatmap points
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Red, semi-transparent
+                    ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                    ctx.lineWidth = 1;
+
+                    detectionData.forEach(data => {
+                        // BoundingBoxX, Y, Width, Height are normalized (0 to 1)
+                        const x = data.boundingBoxX * canvas.width;
+                        const y = data.boundingBoxY * canvas.height;
+                        const width = data.boundingBoxWidth * canvas.width;
+                        const height = data.boundingBoxHeight * canvas.height;
+
+                        // Draw a rectangle for each detection.
+                        // For a 'heatmap' effect, you could draw circles or vary opacity/color based on confidence or density.
+                        ctx.fillRect(x, y, width, height);
+                        ctx.strokeRect(x, y, width, height); // Outline
+                    });
+                };
+
+                window.clearHeatmap = function() {
+                    const canvas = document.getElementById('heatmapCanvas');
+                    if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    }
+                };
+            ");
+        }
+    }
+}
