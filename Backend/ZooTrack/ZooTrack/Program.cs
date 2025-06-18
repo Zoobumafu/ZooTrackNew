@@ -25,7 +25,7 @@ builder.Services.AddScoped<NotificationService>(); // Assuming scoped lifetime i
 builder.Services.AddScoped<IDetectionService, DetectionService>(); // Use interface
 builder.Services.AddScoped<DetectionMediaService>(); // Assuming scoped is correct
 
-// --- New Services ---
+// --- Services ---
 
 // 1. Register CameraService as Singleton (important for hardware access)
 builder.Services.AddSingleton<CameraService>();
@@ -41,7 +41,6 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazorApp", policy =>
     {
-        // --- THIS LINE WAS CHANGED ---
         // List the frontend Blazor app's origins (found in its launchSettings.json)
         // as separate strings, not semicolon-separated.
         policy.WithOrigins("https://localhost:7155", "http://localhost:5119")
@@ -53,22 +52,6 @@ builder.Services.AddCors(options =>
 
 
 var app = builder.Build();
-
-
-// Get the CameraService instance from the application's service provider
-var cameraService = app.Services.GetRequiredService<CameraService>();
-// Define the list of target animals 
-List<string> myDesiredTargetAnimals = new List<string>
-{
-    "person",
-    "dog",
-    "cow",
-    "wolf",
-    "tiger"
-};
-string myHighlightSavePath = "D:\\CODE\\Zootrack\\ZooTrackNew\\Backend\\ZooTrack\\ZooTrack\\Data\\TargetAnimals.txt";
-cameraService.SetProcessingTargets(myDesiredTargetAnimals, myHighlightSavePath);
-
 
 // --- Database Initialization ---
 // Ensure database is created and seeded with required data
@@ -112,6 +95,58 @@ using (var scope = app.Services.CreateScope())
             await context.SaveChangesAsync();
 
             Console.WriteLine("Default device created successfully.");
+        }
+
+        // Check if default user settings exist, create if not
+        if (!context.UserSettings.Any(us => us.UserId == 1))
+        {
+            // Path to your TargetAnimals.json file
+            string targetAnimalsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "TargetAnimals.json");
+            string highlightSavePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Media", "HighlightFrames");
+
+            // Ensure highlight save directory exists
+            Directory.CreateDirectory(highlightSavePath);
+
+            var defaultUserSettings = new ZooTrack.Models.UserSettings
+            {
+                UserId = 1,
+                DetectionThreshold = 0.5f,
+                NotificationPreference = "Email",
+                HighlightSavePath = highlightSavePath
+            };
+
+            // Load target animals from TargetAnimals.json if it exists
+            defaultUserSettings.LoadTargetAnimalsFromFile(targetAnimalsFilePath);
+
+            // If no animals were loaded from file, set default animals
+            if (!defaultUserSettings.TargetAnimals.Any())
+            {
+                defaultUserSettings.TargetAnimals = new List<string>
+                {
+                    "person",
+                    "dog",
+                    "cow",
+                    "wolf",
+                    "tiger"
+                };
+
+                // Save these default animals to the JSON file
+                defaultUserSettings.SaveTargetAnimalsToFile(targetAnimalsFilePath);
+            }
+
+            context.UserSettings.Add(defaultUserSettings);
+            await context.SaveChangesAsync();
+
+            Console.WriteLine("Default user settings created successfully.");
+        }
+        // Initialize CameraService with user settings
+        var cameraService = app.Services.GetRequiredService<CameraService>();
+        var userSettings = await context.UserSettings.FirstOrDefaultAsync(us => us.UserId == 1);
+
+        if (userSettings != null)
+        {
+            cameraService.SetProcessingTargets(userSettings.TargetAnimals, userSettings.HighlightSavePath);
+            Console.WriteLine($"Camera service initialized with {userSettings.TargetAnimals.Count} target animals.");
         }
 
         // Log successful initialization

@@ -1,5 +1,5 @@
 ﻿ASP.NET Project Structure: ZooTrack
-Generated on: 2025-06-12 14:18:21
+Generated on: 2025-06-18 15:56:49
 Path: D:\CODE\Zootrack\ZooTrackNew\Backend\ZooTrack
 
 Included file types: *.cs, *.razor, *.blazor, *.html, *.css, *.json, *.txt, *.sln, *.csproj, *.db, *.onnx, *.js
@@ -23,16 +23,17 @@ ZooTrack/
 |   |   |-- EventController.cs
 |   |   |-- LogController.cs
 |   |   |-- MediaController.cs
+|   |   |-- StatisticsController.cs
 |   |   |-- UserController.cs
 |   |   +-- UserSettingsController.cs
 |   |-- Data
-|   |   |-- TargetAnimals.txt
+|   |   |-- TargetAnimals.json
 |   |   +-- ZootrackDbContext.cs
+|   |-- Media
+|   |   +-- HighlightFrames
 |   |-- Migrations
-|   |   |-- 20250608000241_AddTrackingFields.cs
-|   |   |-- 20250608000241_AddTrackingFields.Designer.cs
-|   |   |-- 20250612105820_NewMigration.cs
-|   |   |-- 20250612105820_NewMigration.Designer.cs
+|   |   |-- 20250616233836_AddTargetAnimalsJsonColumn.cs
+|   |   |-- 20250616233836_AddTargetAnimalsJsonColumn.Designer.cs
 |   |   +-- ZootrackDbContextModelSnapshot.cs
 |   |-- Models
 |   |   |-- DetectionWithTrackingRequest.cs

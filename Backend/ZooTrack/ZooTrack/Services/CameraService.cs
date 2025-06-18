@@ -55,7 +55,7 @@ namespace ZooTrack.Services
         private bool _isRecording = false;
         private DateTime _recordingStartTime;
         private readonly TimeSpan _highlightDuration = TimeSpan.FromSeconds(5);
-        private string _highlightSavePath = string.Empty;
+        private string _highlightSavePath = "ZooTrack\\Media\\HighlightFrames";
         private List<string> _targetAnimals = new List<string>();
 
         // Camera settings

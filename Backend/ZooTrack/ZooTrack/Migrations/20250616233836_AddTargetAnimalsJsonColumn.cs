@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ZooTrackBackend.Migrations
 {
     /// <inheritdoc />
-    public partial class NewMigrations : Migration
+    public partial class AddTargetAnimalsJsonColumn : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -85,8 +85,10 @@ namespace ZooTrackBackend.Migrations
                 columns: table => new
                 {
                     UserId = table.Column<int>(type: "INTEGER", nullable: false),
+                    DetectionThreshold = table.Column<float>(type: "REAL", nullable: false),
                     NotificationPreference = table.Column<string>(type: "TEXT", nullable: true),
-                    DetectionThreshold = table.Column<float>(type: "REAL", nullable: false)
+                    TargetAnimalsJson = table.Column<string>(type: "TEXT", nullable: false),
+                    HighlightSavePath = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -191,6 +193,32 @@ namespace ZooTrackBackend.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "DetectionValidations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    DetectionId = table.Column<int>(type: "INTEGER", nullable: false),
+                    IsValidated = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsTruePositive = table.Column<bool>(type: "INTEGER", nullable: false),
+                    ValidationNotes = table.Column<string>(type: "TEXT", nullable: true),
+                    ValidatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ValidatedBy = table.Column<string>(type: "TEXT", nullable: false),
+                    IsFalsePositive = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsFalseNegative = table.Column<bool>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DetectionValidations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DetectionValidations_Detections_DetectionId",
+                        column: x => x.DetectionId,
+                        principalTable: "Detections",
+                        principalColumn: "DetectionId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Logs",
                 columns: table => new
                 {
@@ -280,13 +308,13 @@ namespace ZooTrackBackend.Migrations
 
             migrationBuilder.InsertData(
                 table: "UserSettings",
-                columns: new[] { "UserId", "DetectionThreshold", "NotificationPreference" },
+                columns: new[] { "UserId", "DetectionThreshold", "HighlightSavePath", "NotificationPreference", "TargetAnimalsJson" },
                 values: new object[,]
                 {
-                    { 1, 0.8f, "Email" },
-                    { 2, 0.7f, "SMS" },
-                    { 3, 0.85f, "Both" },
-                    { 4, 0.6f, "None" }
+                    { 1, 0.8f, "Media/HighlightFrames/Admin", "Email", "[\"person\",\"dog\",\"cow\",\"wolf\",\"tiger\",\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\",\"leopard\",\"cheetah\"]" },
+                    { 2, 0.7f, "Media/HighlightFrames/Ranger", "SMS", "[\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\",\"leopard\",\"buffalo\"]" },
+                    { 3, 0.85f, "Media/HighlightFrames/Researcher", "Both", "[\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\",\"leopard\",\"cheetah\",\"buffalo\",\"antelope\",\"warthog\"]" },
+                    { 4, 0.6f, "Media/HighlightFrames/Guide", "None", "[\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\"]" }
                 });
 
             migrationBuilder.InsertData(
@@ -372,6 +400,11 @@ namespace ZooTrackBackend.Migrations
                 column: "MediaId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DetectionValidations_DetectionId",
+                table: "DetectionValidations",
+                column: "DetectionId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Logs_DetectionId",
                 table: "Logs",
                 column: "DetectionId");
@@ -401,6 +434,9 @@ namespace ZooTrackBackend.Migrations
 
             migrationBuilder.DropTable(
                 name: "Animals");
+
+            migrationBuilder.DropTable(
+                name: "DetectionValidations");
 
             migrationBuilder.DropTable(
                 name: "Logs");

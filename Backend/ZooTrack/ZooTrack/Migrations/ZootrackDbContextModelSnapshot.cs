@@ -717,7 +717,15 @@ namespace ZooTrackBackend.Migrations
                     b.Property<float>("DetectionThreshold")
                         .HasColumnType("REAL");
 
+                    b.Property<string>("HighlightSavePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("NotificationPreference")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetAnimalsJson")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("UserId");
@@ -729,25 +737,33 @@ namespace ZooTrackBackend.Migrations
                         {
                             UserId = 1,
                             DetectionThreshold = 0.8f,
-                            NotificationPreference = "Email"
+                            HighlightSavePath = "Media/HighlightFrames/Admin",
+                            NotificationPreference = "Email",
+                            TargetAnimalsJson = "[\"person\",\"dog\",\"cow\",\"wolf\",\"tiger\",\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\",\"leopard\",\"cheetah\"]"
                         },
                         new
                         {
                             UserId = 2,
                             DetectionThreshold = 0.7f,
-                            NotificationPreference = "SMS"
+                            HighlightSavePath = "Media/HighlightFrames/Ranger",
+                            NotificationPreference = "SMS",
+                            TargetAnimalsJson = "[\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\",\"leopard\",\"buffalo\"]"
                         },
                         new
                         {
                             UserId = 3,
                             DetectionThreshold = 0.85f,
-                            NotificationPreference = "Both"
+                            HighlightSavePath = "Media/HighlightFrames/Researcher",
+                            NotificationPreference = "Both",
+                            TargetAnimalsJson = "[\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\",\"leopard\",\"cheetah\",\"buffalo\",\"antelope\",\"warthog\"]"
                         },
                         new
                         {
                             UserId = 4,
                             DetectionThreshold = 0.6f,
-                            NotificationPreference = "None"
+                            HighlightSavePath = "Media/HighlightFrames/Guide",
+                            NotificationPreference = "None",
+                            TargetAnimalsJson = "[\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\"]"
                         });
                 });
 

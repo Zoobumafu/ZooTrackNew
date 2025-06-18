@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ZooTrack.Models;
 
-
 namespace ZooTrack.Data
 {
     public class ZootrackDbContext : DbContext
@@ -21,7 +20,6 @@ namespace ZooTrack.Data
         public DbSet<UserSettings> UserSettings { get; set; }
         // ADD THIS LINE: DbSet for DetectionValidation
         public DbSet<DetectionValidation> DetectionValidations { get; set; }
-
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -45,12 +43,66 @@ namespace ZooTrack.Data
                 new User { UserId = 4, Name = "Guide Tom", Email = "tom@zootrack.local", Role = "Guide" }
             );
 
-            // --- SEED USER SETTINGS ---
+            // --- SEED USER SETTINGS (UPDATED) ---
+            // Create default target animals JSON string
+            var defaultAnimalsJson = System.Text.Json.JsonSerializer.Serialize(new List<string>
+            {
+                "person", "dog", "cow", "wolf", "tiger", "lion", "elephant", "zebra", "giraffe", "rhino"
+            });
+
+            var adminAnimalsJson = System.Text.Json.JsonSerializer.Serialize(new List<string>
+            {
+                "person", "dog", "cow", "wolf", "tiger", "lion", "elephant", "zebra", "giraffe", "rhino", "leopard", "cheetah"
+            });
+
+            var rangerAnimalsJson = System.Text.Json.JsonSerializer.Serialize(new List<string>
+            {
+                "lion", "elephant", "zebra", "giraffe", "rhino", "leopard", "buffalo"
+            });
+
+            var researcherAnimalsJson = System.Text.Json.JsonSerializer.Serialize(new List<string>
+            {
+                "lion", "elephant", "zebra", "giraffe", "rhino", "leopard", "cheetah", "buffalo", "antelope", "warthog"
+            });
+
+            var guideAnimalsJson = System.Text.Json.JsonSerializer.Serialize(new List<string>
+            {
+                "lion", "elephant", "zebra", "giraffe", "rhino"
+            });
+
             modelBuilder.Entity<UserSettings>().HasData(
-                new UserSettings { UserId = 1, NotificationPreference = "Email", DetectionThreshold = 0.8f },
-                new UserSettings { UserId = 2, NotificationPreference = "SMS", DetectionThreshold = 0.7f },
-                new UserSettings { UserId = 3, NotificationPreference = "Both", DetectionThreshold = 0.85f },
-                new UserSettings { UserId = 4, NotificationPreference = "None", DetectionThreshold = 0.6f }
+                new UserSettings
+                {
+                    UserId = 1,
+                    NotificationPreference = "Email",
+                    DetectionThreshold = 0.8f,
+                    TargetAnimalsJson = adminAnimalsJson,
+                    HighlightSavePath = "Media/HighlightFrames/Admin"
+                },
+                new UserSettings
+                {
+                    UserId = 2,
+                    NotificationPreference = "SMS",
+                    DetectionThreshold = 0.7f,
+                    TargetAnimalsJson = rangerAnimalsJson,
+                    HighlightSavePath = "Media/HighlightFrames/Ranger"
+                },
+                new UserSettings
+                {
+                    UserId = 3,
+                    NotificationPreference = "Both",
+                    DetectionThreshold = 0.85f,
+                    TargetAnimalsJson = researcherAnimalsJson,
+                    HighlightSavePath = "Media/HighlightFrames/Researcher"
+                },
+                new UserSettings
+                {
+                    UserId = 4,
+                    NotificationPreference = "None",
+                    DetectionThreshold = 0.6f,
+                    TargetAnimalsJson = guideAnimalsJson,
+                    HighlightSavePath = "Media/HighlightFrames/Guide"
+                }
             );
 
             // --- SEED DEVICES ---

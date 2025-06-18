@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace ZooTrack.Models
 {
@@ -196,13 +197,73 @@ namespace ZooTrack.Models
     {
         [Key]
         public int UserId { get; set; }
+        public float DetectionThreshold { get; set; } // maybe add default threshold
+
         public string? NotificationPreference { get; set; }
-        public float DetectionThreshold { get; set; }
+
+        public string TargetAnimalsJson { get; set; } = "[]"; // default empty json array
+        public string HighlightSavePath { get; set; } = string.Empty;
+
+        [NotMapped]
+        public List<string> TargetAnimals
+        {
+            get
+            {
+                try
+                {
+                    return string.IsNullOrEmpty(TargetAnimalsJson)
+                        ? new List<string>()
+                        : System.Text.Json.JsonSerializer.Deserialize<List<string>>(TargetAnimalsJson) ?? new List<string>();
+                }
+                catch
+                {
+                    return new List<string>();
+                }
+            }
+            set
+            {
+                TargetAnimalsJson = System.Text.Json.JsonSerializer.Serialize(value ?? new List<string>());
+            }
+        }
 
         // Navigation properties
         [ForeignKey("UserId")]
         [JsonIgnore]
         public virtual User User { get; set; }
+
+        // Helper method to load target animals from TargetAnimals.json file
+        public void LoadTargetAnimalsFromFile(string filePath)
+        {
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    var jsonContent = File.ReadAllText(filePath);
+                    var animals = System.Text.Json.JsonSerializer.Deserialize<List<string>>(jsonContent);
+                    TargetAnimals = animals ?? new List<string>();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error if needed, but don't throw - just use empty list
+                TargetAnimals = new List<string>();
+            }
+        }
+
+        // Helper method to save target animals to TargetAnimals.json file
+        public void SaveTargetAnimalsToFile(string filePath)
+        {
+            try
+            {
+                var jsonContent = System.Text.Json.JsonSerializer.Serialize(TargetAnimals, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(filePath, jsonContent);
+            }
+            catch (Exception ex)
+            {
+                // Log error if needed
+                throw new InvalidOperationException($"Failed to save target animals to file: {ex.Message}");
+            }
+        }
     }
 
 
