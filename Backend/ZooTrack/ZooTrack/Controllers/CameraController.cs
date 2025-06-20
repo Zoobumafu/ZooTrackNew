@@ -1,12 +1,12 @@
-﻿/* 
- * About this controller:
- *  1. This controller acts as interface between client app and camera processing service.
- *  2. It allows:
- *      a. start recording and processing video when detection is positive
- *      b. stop the recording process
- *      c. check the status of the camera system
- *      
- */
+﻿/* * About this controller:
+ * 1. This controller acts as interface between client app and camera processing service.
+ * 2. It now supports discovering connected cameras and managing multiple camera streams.
+ * 3. It allows:
+ * a. discovering all available system cameras
+ * b. start recording and processing video for specific cameras
+ * c. stop the recording process for specific cameras or all cameras
+ * d. check the status of the camera system
+ * */
 
 
 using Microsoft.AspNetCore.Mvc;
@@ -15,10 +15,11 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq; // Needed for Linq Select
+using System.Threading.Tasks;
 using ZooTrack.Data;
 using ZooTrack.Services;
 
-namespace ZooTrack.Controllers
+namespace ZooTrack
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -39,9 +40,40 @@ namespace ZooTrack.Controllers
         // Class to define the expected JSON body for the start request
         public class StartRequest
         {
-            public int UserId { get; set; } = 1; // Default to system user
-            public List<string>? TargetAnimals { get; set; } // Optional - will use user settings if not provided
-            public string? HighlightSavePath { get; set; } // Optional - will use user settings if not provided
+            public List<int> CameraIds { get; set; } = new List<int>();
+            public List<string>? TargetAnimals { get; set; }
+            public string? HighlightSavePath { get; set; }
+        }
+
+        public class StopRequest
+        {
+            // If empty, stop all. Otherwise, stop specified.
+            public List<int> CameraIds { get; set; } = new List<int>();
+        }
+
+        public class CameraInfo
+        {
+            public int CameraId { get; set; }
+            public string Name { get; set; }
+            public bool IsActive { get; set; }
+        }
+
+        [HttpGet("discover")]
+        public IActionResult DiscoverCameras()
+        {
+            try
+            {
+                _logger.LogInformation("API: Received request to discover cameras.");
+                var cameras = _cameraService.DiscoverCameras();
+                var cameraInfos = cameras.Select(cam => new CameraInfo { CameraId = cam.CameraId, Name = cam.Name, IsActive = cam.IsActive }).ToList();
+                _logger.LogInformation("Discovered {Count} cameras.", cameraInfos.Count);
+                return Ok(cameraInfos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error discovering cameras.");
+                return StatusCode(500, new { message = "An error occurred while discovering cameras." });
+            }
         }
 
         [HttpPost("start")]
@@ -49,111 +81,80 @@ namespace ZooTrack.Controllers
         {
             try
             {
-                // Validate the request body
-                if (request == null)
+                if (request == null || !request.CameraIds.Any())
                 {
-                    _logger.LogWarning("Start request failed: Invalid request body.");
-                    return BadRequest(new { message = "Request body is required." });
+                    return BadRequest(new { message = "Request body is required and must contain at least one CameraId." });
                 }
 
-                // Get user settings from database
-                var userSettings = await _context.UserSettings.FirstOrDefaultAsync(us => us.UserId == request.UserId);
-
+                // For simplicity, we use a single user's settings for this batch operation.
+                // A more complex system might fetch settings per camera or user.
+                var userSettings = await _context.UserSettings.FirstOrDefaultAsync(us => us.UserId == 1); // Default to system user
                 if (userSettings == null)
                 {
-                    _logger.LogWarning($"User settings not found for UserId: {request.UserId}");
-                    return NotFound(new { message = $"User settings not found for UserId: {request.UserId}" });
+                    return NotFound(new { message = "Default user settings not found." });
                 }
 
-                // Use provided values or fall back to user settings
-                var targetAnimals = request.TargetAnimals?.Any() == true
-                    ? request.TargetAnimals
-                    : userSettings.TargetAnimals;
-
-                var highlightSavePath = !string.IsNullOrWhiteSpace(request.HighlightSavePath)
-                    ? request.HighlightSavePath
-                    : userSettings.HighlightSavePath;
+                var targetAnimals = request.TargetAnimals?.Any() == true ? request.TargetAnimals : userSettings.TargetAnimals;
+                var highlightSavePath = !string.IsNullOrWhiteSpace(request.HighlightSavePath) ? request.HighlightSavePath : userSettings.HighlightSavePath;
 
                 if (string.IsNullOrWhiteSpace(highlightSavePath))
                 {
-                    _logger.LogWarning("Start request failed: No highlight save path available.");
-                    return BadRequest(new { message = "HighlightSavePath is required in user settings or request." });
+                    return BadRequest(new { message = "HighlightSavePath is required." });
                 }
 
-                // Ensure the highlight save directory exists
-                try
-                {
-                    Directory.CreateDirectory(highlightSavePath);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Failed to create highlight save directory: {ex.Message}");
-                    return StatusCode(500, new { message = "Failed to create highlight save directory." });
-                }
+                Directory.CreateDirectory(highlightSavePath);
 
-                // Convert animal names to lower case for consistent matching
                 var targetAnimalsLower = targetAnimals?.Select(a => a.ToLowerInvariant()).ToList() ?? new List<string>();
 
-                _logger.LogInformation("API: Received request to start processing for UserId: {UserId}. Targets: {Targets}, Path: {Path}",
-                    request.UserId, string.Join(",", targetAnimalsLower), highlightSavePath);
+                _logger.LogInformation("API: Received request to start processing for CameraIds: {Ids}", string.Join(", ", request.CameraIds));
 
-                // Initialize CameraService if it hasn't been initialized yet
-                if (!_cameraService.IsInitialized)
+                foreach (var cameraId in request.CameraIds)
                 {
-                    _logger.LogInformation("API: Initializing CameraService on demand...");
-                    if (!_cameraService.InitializeCameraAndYolo())
+                    if (!_cameraService.IsCameraInitialized(cameraId))
                     {
-                        _logger.LogError("API: Initialization failed via start request.");
-                        return StatusCode(500, new { message = "Failed to initialize camera or YOLO model." });
+                        if (!_cameraService.InitializeCamera(cameraId))
+                        {
+                            _logger.LogError("API: Failed to initialize CameraId: {CameraId}", cameraId);
+                            // Decide whether to continue with other cameras or fail the whole request
+                            continue; // Continue to next camera
+                        }
                     }
+                    _cameraService.StartProcessing(cameraId, targetAnimalsLower, highlightSavePath);
                 }
 
-                // Set the target animals and save path in the CameraService
-                _cameraService.SetProcessingTargets(targetAnimalsLower, highlightSavePath);
-
-                // Signal the CameraService to start processing
-                _cameraService.StartProcessing();
-
-                // Update user settings if they were modified via the request
-                if (request.TargetAnimals?.Any() == true)
-                {
-                    userSettings.TargetAnimals = request.TargetAnimals;
-                    await _context.SaveChangesAsync();
-
-                    // Also save to TargetAnimals.json file
-                    string targetAnimalsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "TargetAnimals.json");
-                    userSettings.SaveTargetAnimalsToFile(targetAnimalsFilePath);
-                }
-
-                return Ok(new
-                {
-                    message = "Camera processing started successfully.",
-                    userId = request.UserId,
-                    targetAnimals = targetAnimalsLower,
-                    highlightSavePath = highlightSavePath
-                });
+                return Ok(new { message = $"Processing started for cameras: {string.Join(", ", request.CameraIds)}" });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error starting camera processing: {ex.Message}");
+                _logger.LogError(ex, "Error starting camera processing.");
                 return StatusCode(500, new { message = "Internal server error occurred while starting camera processing." });
             }
         }
 
-         [HttpPost("stop")]
-        public IActionResult StopProcessing()
+        [HttpPost("stop")]
+        public IActionResult StopProcessing([FromBody] StopRequest request)
         {
             try
             {
-                _logger.LogInformation("API: Received request to stop processing.");
-                
-                _cameraService.StopProcessing();
-                
-                return Ok(new { message = "Camera processing stopped successfully." });
+                if (request.CameraIds != null && request.CameraIds.Any())
+                {
+                    _logger.LogInformation("API: Received request to stop processing for CameraIds: {Ids}", string.Join(", ", request.CameraIds));
+                    foreach (var cameraId in request.CameraIds)
+                    {
+                        _cameraService.StopProcessing(cameraId);
+                    }
+                    return Ok(new { message = $"Processing stopped for cameras: {string.Join(", ", request.CameraIds)}." });
+                }
+                else
+                {
+                    _logger.LogInformation("API: Received request to stop all processing.");
+                    _cameraService.StopAllProcessing();
+                    return Ok(new { message = "All camera processing stopped successfully." });
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error stopping camera processing: {ex.Message}");
+                _logger.LogError(ex, "Error stopping camera processing.");
                 return StatusCode(500, new { message = "Internal server error occurred while stopping camera processing." });
             }
         }
@@ -163,77 +164,14 @@ namespace ZooTrack.Controllers
         {
             try
             {
-                var status = new
-                {
-                    IsInitialized = _cameraService.IsInitialized,
-                    IsProcessing = _cameraService.IsProcessing,
-                    // Add any other relevant status information
-                };
-
-                return Ok(status);
+                var statuses = _cameraService.GetAllStatuses();
+                return Ok(statuses);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error getting camera status: {ex.Message}");
+                _logger.LogError(ex, "Error getting camera status.");
                 return StatusCode(500, new { message = "Internal server error occurred while getting camera status." });
             }
         }
-
-        [HttpPut("settings/{userId}")]
-        public async Task<IActionResult> UpdateUserCameraSettings(int userId, [FromBody] UpdateSettingsRequest request)
-        {
-            try
-            {
-                var userSettings = await _context.UserSettings.FirstOrDefaultAsync(us => us.UserId == userId);
-
-                if (userSettings == null)
-                {
-                    return NotFound(new { message = $"User settings not found for UserId: {userId}" });
-                }
-
-                // Update settings
-                if (request.TargetAnimals != null)
-                {
-                    userSettings.TargetAnimals = request.TargetAnimals;
-
-                    // Save to TargetAnimals.json file
-                    string targetAnimalsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "TargetAnimals.json");
-                    userSettings.SaveTargetAnimalsToFile(targetAnimalsFilePath);
-                }
-
-                if (!string.IsNullOrWhiteSpace(request.HighlightSavePath))
-                {
-                    userSettings.HighlightSavePath = request.HighlightSavePath;
-                }
-
-                if (request.DetectionThreshold.HasValue)
-                {
-                    userSettings.DetectionThreshold = request.DetectionThreshold.Value;
-                }
-
-                if (!string.IsNullOrWhiteSpace(request.NotificationPreference))
-                {
-                    userSettings.NotificationPreference = request.NotificationPreference;
-                }
-
-                await _context.SaveChangesAsync();
-
-                return Ok(new { message = "User settings updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error updating user camera settings: {ex.Message}");
-                return StatusCode(500, new { message = "Internal server error occurred while updating user settings." });
-            }
-        }
-
-        public class UpdateSettingsRequest
-        {
-            public List<string>? TargetAnimals { get; set; }
-            public string? HighlightSavePath { get; set; }
-            public float? DetectionThreshold { get; set; }
-            public string? NotificationPreference { get; set; }
-        }
-
     }
 }

@@ -1,0 +1,56 @@
+﻿@page "/"
+@attribute [Authorize]
+
+<PageTitle>ZooTrack - Home</PageTitle>
+
+<AuthorizeView>
+    <div class="hero-section mb-5">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="display-4 fw-bold text-primary">ZooTrack</h1>
+                    <p class="lead text-muted">Welcome, @context.User.Identity?.Name!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Camera Monitoring</h5>
+                    <p class="card-text text-muted">Monitor live camera feeds and control detection settings.</p>
+                    <a href="/camera-dashboard" class="btn btn-primary">Go to Dashboard</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Detection History</h5>
+                    <p class="card-text text-muted">Browse animal detection records and captured media.</p>
+                    <a href="/detections" class="btn btn-success">View Detections</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">System Logs</h5>
+                    <p class="card-text text-muted">View system activity, errors, and diagnostic information.</p>
+                    <a href="/system-logs" class="btn btn-info">View Logs</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Settings</h5>
+                    <p class="card-text text-muted">Change your application password.</p>
+                    <a href="/settings" class="btn btn-secondary">Go to Settings</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</AuthorizeView>

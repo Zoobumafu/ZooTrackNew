@@ -1,0 +1,80 @@
+﻿@page "/signalr-test"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.SignalR.Client
+@inject IJSRuntime JSRuntime
+@inject ILogger<SignalRTestPage> Logger
+@inject NavigationManager NavManager
+
+<h3>SignalR Connection Test</h3>
+
+<div class="my-3">
+    <button class="btn btn-primary" @onclick="TestConnection" disabled="@isBusy">
+        @if (isBusy)
+        {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        Test Connection
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @statusClass">
+        <pre>@statusMessage</pre>
+    </div>
+}
+
+@code {
+    private bool isBusy = false;
+    private string statusMessage = "Click the button to test the connection.";
+    private string statusClass = "alert-info";
+
+    private async Task TestConnection()
+    {
+        isBusy = true;
+        statusMessage = "Attempting to connect...";
+        statusClass = "alert-warning";
+        StateHasChanged();
+
+        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+
+        if (string.IsNullOrEmpty(token))
+        {
+            statusMessage = "ERROR: Auth token not found in localStorage. Please log out and log back in.";
+            statusClass = "alert-danger";
+            isBusy = false;
+            StateHasChanged();
+            return;
+        }
+
+        Logger.LogInformation("Attempting to connect with token: {Token}", token);
+        statusMessage += $"\nFound token starting with: {token.Substring(0, 15)}...";
+
+        var hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavManager.ToAbsoluteUri("/cameraHub"), options =>
+            {
+                options.AccessTokenProvider = () => Task.FromResult(token);
+            })
+            .Build();
+
+        try
+        {
+            await hubConnection.StartAsync();
+            statusMessage += $"\n\nSUCCESS! Connected to hub successfully with Connection ID: {hubConnection.ConnectionId}";
+            statusClass = "alert-success";
+            Logger.LogInformation("SignalR connection successful.");
+            await hubConnection.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            statusMessage += $"\n\nFAILURE! Could not connect to hub. \nError: {ex.Message}";
+            statusClass = "alert-danger";
+            Logger.LogError(ex, "SignalR connection failed.");
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,24 +1,29 @@
-// ZooTrack.Client/Program.cs
+// TEST
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using ZooTrack.Client; // Your project's namespace
+using ZooTrack.Client;
+using Microsoft.AspNetCore.Components.Authorization;
+using ZooTrack.Client.Services;
+using System.Net.Http;
+using System;
+using Microsoft.Extensions.Logging;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// --- Configure HttpClient ---
-// IMPORTANT: Use the base address of your ZooTrack.WebAPI
-// Found in the WebAPI's launchSettings.json (e.g., https://localhost:7019)
+// Configure HttpClient to point to the backend API
 builder.Services.AddScoped(sp => new HttpClient
 {
-    // --- Ensure this line points to your BACKEND API URL ---
     BaseAddress = new Uri("https://localhost:7019")
 });
 
-// Add logging (optional but helpful)
-// Note: Default Blazor logging works without adding specific console providers here
-builder.Logging.SetMinimumLevel(LogLevel.Debug);
+// --- Add Authentication Services ---
+builder.Services.AddAuthorizationCore();
+builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
+
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
 await builder.Build().RunAsync();

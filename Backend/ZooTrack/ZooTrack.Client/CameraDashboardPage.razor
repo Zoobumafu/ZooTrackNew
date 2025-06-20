@@ -1,417 +1,315 @@
-﻿@page "/camera-dashboard"
-@using Microsoft.AspNetCore.Components.Forms
-@using ZooTrack.Client
+﻿// FINAL FIX
+@page "/camera-dashboard"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Text.Json
+@using System.Collections.Concurrent
 @inject HttpClient Http
 @inject ILogger<CameraDashboardPage> Logger
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
-<style>
-    .alert-settings {
-        background: white;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-top: 15px;
-        margin-bottom: 20px;
-    }
+<PageTitle>Camera Dashboard</PageTitle>
 
-    .alert-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        margin-bottom: 10px;
-        padding: 10px;
-        background-color: #fdfdfd;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-    }
+<h3>Camera Dashboard</h3>
+<p class="text-muted">Manage and monitor all active camera streams.</p>
 
-    .alert-left,
-    .alert-middle,
-    .alert-right {
-        display: flex;
-        align-items: center;
-    }
-
-    .alert-left {
-        gap: 5px;
-        flex-basis: 40%;
-    }
-
-    .alert-middle {
-        flex: 1;
-        gap: 10px;
-        flex-basis: 45%;
-    }
-
-    .alert-right {
-        flex-basis: 15%;
-        justify-content: flex-end;
-    }
-
-    .alert-label {
-        font-weight: bold;
-        margin-right: 5px;
-    }
-
-    .remove-alert-btn {
-        background-color: #e74c3c;
-        color: white;
-        border: none;
-        padding: 6px 10px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.8rem;
-    }
-
-        .remove-alert-btn:hover {
-            background-color: #c0392b;
+<!-- Global Controls -->
+<div class="card mb-4">
+    <div class="card-header">Global Controls</div>
+    <div class="card-body">
+        <div class="row align-items-end g-3">
+            <div class="col-md-5">
+                <label for="targetAnimals" class="form-label">Target Animals (comma-separated):</label>
+                <input type="text" class="form-control" id="targetAnimals" @bind="globalTargetAnimals" placeholder="e.g., person, cat, dog" />
+            </div>
+            <div class="col-md-4">
+                <label for="savePath" class="form-label">Base Highlight Save Path:</label>
+                <input type="text" class="form-control" id="savePath" @bind="globalSavePath" placeholder="e.g., C:\ZooTrackHighlights" />
+            </div>
+            <div class="col-md-3">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" @onclick="DiscoverCameras" disabled="@isDiscovering">
+                        @if (isDiscovering)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Discover Cameras
+                    </button>
+                    <button class="btn btn-danger" @onclick="StopAllStreams">Stop All Streams</button>
+                </div>
+            </div>
+        </div>
+        @if (!string.IsNullOrEmpty(apiError))
+        {
+            <div class="alert alert-danger mt-3 mb-0">@apiError</div>
         }
-
-    .add-alert-btn {
-        background-color: #1abc9c;
-        color: white;
-        padding: 8px 12px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        margin-top: 10px;
-    }
-
-        .add-alert-btn:hover {
-            background-color: #16a085;
-        }
-
-    .input-file-sm .custom-file-label::after {
-        content: "Browse";
-    }
-
-    .input-file-sm .form-control-file {
-        font-size: 0.875rem;
-        height: calc(1.5em + .5rem + 2px);
-        padding: .25rem .5rem;
-    }
-
-    .form-select-sm, .form-control-sm {
-        min-height: calc(1.5em + .5rem + 2px);
-    }
-</style>
-
-<h3>Multi-Camera Dashboard</h3>
-
-<div class="mb-3">
-    <button class="btn btn-primary" @onclick="AddNewStreamComponent">
-        <span class="oi oi-plus" aria-hidden="true"></span> Add Camera Stream
-    </button>
+    </div>
 </div>
 
-@if (isLoadingDevices || isLoadingAnimals)
+<!-- Camera Streams Grid -->
+@if (availableCameras == null && !isDiscovering)
 {
-    <p><em>@(isLoadingDevices ? "Loading available cameras..." : "") @(isLoadingAnimals ? "Loading available animals..." : "")</em></p>
+    <div class="text-center p-4">
+        <p>Click "Discover Cameras" to find connected devices.</p>
+    </div>
 }
-else if ((availableDevices == null || !availableDevices.Any()))
+else if (availableCameras != null && !availableCameras.Any() && !isDiscovering)
 {
-    <p class="text-warning">No camera devices found or failed to load. Please ensure devices are configured in the backend and the API is accessible.</p>
+    <div class="text-center p-4">
+        <p class="text-warning">No cameras were found. Ensure they are connected and drivers are installed.</p>
+    </div>
 }
-
-@if (activeStreamConfigs.Any())
+else if (availableCameras != null)
 {
     <div class="row">
-        @foreach (var config in activeStreamConfigs)
+        @foreach (var cam in availableCameras)
         {
-            <div class="col-md-6 col-lg-4 mb-3" @key="config.InstanceId">
-                <div class="card">
-                    <div class="card-header">
-                        Camera Stream: @(string.IsNullOrEmpty(config.UserGivenName)
-                ? $"Instance {config.InstanceId}"
-                : config.UserGivenName)
-                        <button class="btn btn-sm btn-danger float-end"
-                                @onclick="() => RemoveStreamComponent(config.InstanceId)">
-                            <span class="oi oi-trash" aria-hidden="true"></span>
-                        </button>
+            <div class="col-md-6 col-xl-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header d-flex justify-content-between">
+                        <strong>@cam.Name</strong>
+                        @{
+                            var status = streamData.TryGetValue(cam.CameraId, out var data) ? data : new StreamData();
+                        }
+                        <span class="badge @(status.IsConnected ? "bg-success" : "bg-secondary")">
+                            @(status.IsConnected ? "Connected" : "Offline")
+                        </span>
                     </div>
                     <div class="card-body">
-                        <div class="mb-2">
-                            <label for=@($"cameraSelect_{config.InstanceId}") class="form-label">Select Camera:</label>
-                            <select id=@($"cameraSelect_{config.InstanceId}")
-                                    class="form-select form-select-sm"
-                                    @bind="config.SelectedDeviceId">
-                                <option value="0">-- Select a Camera --</option>
-                                @foreach (var device in availableDevices ?? Enumerable.Empty<DeviceViewModel>())
-                                {
-                                    <option value="@device.DeviceId">
-                                        @($"{device.DeviceId}: {device.Name} ({device.Location ?? "N/A"})")
-                                    </option>
-                                }
-                            </select>
-                        </div>
-
-                        <div class="mb-2">
-                            <label for=@($"streamName_{config.InstanceId}") class="form-label">Stream Name (Optional):</label>
-                            <input type="text"
-                                   id=@($"streamName_{config.InstanceId}")
-                                   class="form-control form-control-sm"
-                                   @bind="config.UserGivenName"
-                                   placeholder="E.g., Entrance Cam" />
-                        </div>
-
-                        @if (config.SelectedDeviceId > 0)
+                        @if (!string.IsNullOrEmpty(status.FrameSrc))
                         {
-                            <CameraStreamConfigurable CameraId="config.SelectedDeviceId" />
-
-                            <div class="mt-2">
-                                <h6 class="small">Controls for Camera ID: @config.SelectedDeviceId</h6>
-                                <div class="mb-2">
-                                    <label for=@($"targetAnimals_{config.InstanceId}") class="form-label small">Target Animals:</label>
-                                    <input type="text"
-                                           id=@($"targetAnimals_{config.InstanceId}")
-                                           class="form-control form-control-sm"
-                                           @bind="config.TargetAnimals"
-                                           placeholder="lion,tiger" />
-                                </div>
-                                <div class="mb-2">
-                                    <label for=@($"savePath_{config.InstanceId}") class="form-label small">Highlight Save Path:</label>
-                                    <input type="text"
-                                           id=@($"savePath_{config.InstanceId}")
-                                           class="form-control form-control-sm"
-                                           @bind="config.HighlightSavePath"
-                                           placeholder=@($"highlights/cam{config.SelectedDeviceId}") />
-                                </div>
-                                <button class="btn btn-sm btn-success me-2"
-                                        @onclick="() => StartProcessing(config)"
-                                        disabled="config.IsProcessing || config.SelectedDeviceId == 0">
-                                    <span class="oi oi-media-play" aria-hidden="true"></span> Start
-                                </button>
-                                <button class="btn btn-sm btn-warning"
-                                        @onclick="() => StopProcessing(config)"
-                                        disabled="!config.IsProcessing || config.SelectedDeviceId == 0">
-                                    <span class="oi oi-media-stop" aria-hidden="true"></span> Stop
-                                </button>
-                                @if (!string.IsNullOrEmpty(config.ApiStatusMessage))
-                                {
-                                    <p class="small mt-1"
-                                       style="color: @(config.ApiStatusMessage.Contains("Error") ? "red" : "blue")">
-                                        API: @config.ApiStatusMessage
-                                    </p>
-                                }
-                            </div>
-
-                            <div class="alert-settings">
-                                <h6>Alert Sounds for Camera ID: @config.SelectedDeviceId</h6>
-                                @if (config.AlertSettings.Any())
-                                {
-                                    @foreach (var alertSetting in config.AlertSettings)
-                                    {
-                                        <div class="alert-row" @key="alertSetting.Id">
-                                            <div class="alert-left">
-                                                <label for=@($"animalAlertSelect_{alertSetting.Id}")
-                                                       class="alert-label small">Animal:</label>
-                                                <select id=@($"animalAlertSelect_{alertSetting.Id}")
-                                                        class="form-select form-select-sm"
-                                                        @bind="alertSetting.AnimalId"
-                                                        @bind:after="() => OnAlertAnimalChanged(alertSetting)">
-                                                    <option value="0">-- Select Animal --</option>
-                                                    @foreach (var animal in availableAnimals ?? Enumerable.Empty<AnimalViewModel>())
-                                                    {
-                                                        <option value="@animal.AnimalId">@animal.Name</option>
-                                                    }
-                                                </select>
-                                            </div>
-                                            <div class="alert-middle">
-                                                <label for=@($"mp3File_{alertSetting.Id}") class="alert-label small">Sound:</label>
-                                                <InputFile id=@($"mp3File_{alertSetting.Id}")
-                                                           OnChange="(e) => OnMp3FileSelected(e, alertSetting)"
-                                                           accept=".mp3"
-                                                           class="form-control form-control-file input-file-sm" />
-                                                @if (!string.IsNullOrEmpty(alertSetting.Mp3FileName))
-                                                {
-                                                    <span class="small text-muted">(@alertSetting.Mp3FileName)</span>
-                                                }
-                                            </div>
-                                            <div class="alert-right">
-                                                <button class="remove-alert-btn"
-                                                        @onclick="() => RemoveAlertSetting(config, alertSetting.Id)">
-                                                    <span class="oi oi-x" aria-hidden="true"></span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    }
-                                }
-                                else
-                                {
-                                    <p class="small text-muted">No alert sounds configured for this camera.</p>
-                                }
-                                <button class="add-alert-btn"
-                                        @onclick="() => AddNewAlertSetting(config)">
-                                    <span class="oi oi-plus" aria-hidden="true"></span> Add Alert Sound
-                                </button>
-                            </div>
+                            <img src="@status.FrameSrc" class="img-fluid rounded mb-2" alt="Stream from @cam.Name" />
                         }
                         else
                         {
-                            <p class="text-muted"><em>Select a camera to enable stream, controls, and alerts.</em></p>
+                            <div class="bg-dark text-white d-flex align-items-center justify-content-center rounded mb-2" style="height: 200px;">
+                                <i class="bi bi-camera-video-off fs-1"></i>
+                            </div>
                         }
+
+                        <p class="text-muted small mb-2" style="min-height: 20px;">Status: <em>@status.StatusMessage</em></p>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-sm btn-success" @onclick="() => StartStream(cam.CameraId)" disabled="@status.IsProcessing || !status.IsConnected">
+                                <i class="bi bi-play-fill"></i> Start Stream
+                            </button>
+                            <button class="btn btn-sm btn-warning" @onclick="() => StopStream(cam.CameraId)" disabled="@(!status.IsProcessing)">
+                                <i class="bi bi-stop-fill"></i> Stop Stream
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         }
     </div>
 }
-else
-{
-    <p>No camera streams added yet. Click "Add Camera Stream" to begin.</p>
-}
 
 @code {
-    private List<StreamComponentConfig> activeStreamConfigs = new();
-    private List<DeviceViewModel>? availableDevices;
-    private List<AnimalViewModel>? availableAnimals;
-    private bool isLoadingDevices = true;
-    private bool isLoadingAnimals = true;
+    private List<CameraInfo> availableCameras = new List<CameraInfo>();
+    private ConcurrentDictionary<int, StreamData> streamData = new();
+    private ConcurrentDictionary<int, HubConnection> hubConnections = new();
 
-    protected override async Task OnInitializedAsync()
+    private string globalTargetAnimals = "person,cat,dog,bird";
+    private string globalSavePath = "C:/ZooTrackHighlights";
+    private string? apiError;
+    private bool isDiscovering = false;
+
+    private class StreamData
     {
-        var loadDevices = LoadAvailableDevices();
-        var loadAnimals = LoadAvailableAnimals();
-        await Task.WhenAll(loadDevices, loadAnimals);
+        public string FrameSrc { get; set; } = "";
+        public string StatusMessage { get; set; } = "Idle";
+        public bool IsConnected { get; set; } = false;
+        public bool IsProcessing { get; set; } = false;
     }
 
-    private async Task LoadAvailableDevices()
+    public class CameraInfo
     {
+        public int CameraId { get; set; }
+        public string Name { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    private async Task DiscoverCameras()
+    {
+        isDiscovering = true;
+        apiError = null;
+        await InvokeAsync(StateHasChanged);
+
         try
         {
-            availableDevices = await Http.GetFromJsonAsync<List<DeviceViewModel>>("api/Device")
-                               ?? new();
+            var cameras = await Http.GetFromJsonAsync<List<CameraInfo>>("api/camera/discover");
+            availableCameras = cameras ?? new List<CameraInfo>();
+
+            foreach (var cam in availableCameras)
+            {
+                streamData.TryAdd(cam.CameraId, new StreamData());
+                if (!hubConnections.ContainsKey(cam.CameraId))
+                {
+                    await ConnectToHub(cam.CameraId);
+                }
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            availableDevices = new();
+            apiError = $"Failed to discover cameras: {ex.Message}";
+            Logger.LogError(ex, apiError);
         }
         finally
         {
-            isLoadingDevices = false;
-            StateHasChanged();
+            isDiscovering = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
-    private async Task LoadAvailableAnimals()
+    private async Task ConnectToHub(int cameraId)
     {
-        try
+        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+        if (string.IsNullOrEmpty(token))
         {
-            availableAnimals = await Http.GetFromJsonAsync<List<AnimalViewModel>>("api/Animal")
-                               ?? new();
+            HandleDisconnection(cameraId, "Auth token not found.");
+            return;
         }
-        catch
+
+        var hubConnection = new HubConnectionBuilder()
+            .WithUrl(new Uri(Http.BaseAddress, "cameraHub"), options =>
+            {
+                options.AccessTokenProvider = () => Task.FromResult(token);
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        if (!hubConnections.TryAdd(cameraId, hubConnection))
         {
-            availableAnimals = new();
+            await hubConnection.DisposeAsync();
+            return;
         }
-        finally
+
+        hubConnection.On<byte[]>("ReceiveFrame", (frameData) =>
         {
-            isLoadingAnimals = false;
-            StateHasChanged();
-        }
-    }
+            if (streamData.TryGetValue(cameraId, out var data))
+            {
+                data.FrameSrc = $"data:image/jpeg;base64,{Convert.ToBase64String(frameData)}";
+                InvokeAsync(StateHasChanged);
+            }
+        });
 
-    private void AddNewStreamComponent()
-    {
-        activeStreamConfigs.Add(new StreamComponentConfig { ParentPage = this });
-        StateHasChanged();
-    }
-
-    private void RemoveStreamComponent(Guid instanceId)
-    {
-        var cfg = activeStreamConfigs.FirstOrDefault(c => c.InstanceId == instanceId);
-        if (cfg != null)
+        hubConnection.On<string>("ReceiveStatus", (status) =>
         {
-            activeStreamConfigs.Remove(cfg);
-            StateHasChanged();
-        }
-    }
+            if (streamData.TryGetValue(cameraId, out var data))
+            {
+                data.StatusMessage = status;
+                InvokeAsync(StateHasChanged);
+            }
+        });
 
-    private void AddNewAlertSetting(StreamComponentConfig config)
-    {
-        config.AlertSettings.Add(new AlertSettingViewModel());
-        StateHasChanged();
-    }
+        hubConnection.Closed += (error) => HandleDisconnection(cameraId, "Disconnected. Please refresh.");
+        hubConnection.Reconnecting += (error) => HandleDisconnection(cameraId, "Reconnecting...");
 
-    private void RemoveAlertSetting(StreamComponentConfig config, Guid alertId)
-    {
-        var item = config.AlertSettings.FirstOrDefault(a => a.Id == alertId);
-        if (item != null)
+        hubConnection.Reconnected += async (connectionId) =>
         {
-            config.AlertSettings.Remove(item);
-            StateHasChanged();
-        }
-    }
-
-    private async Task OnMp3FileSelected(InputFileChangeEventArgs e, AlertSettingViewModel alertSetting)
-    {
-        var file = e.File;
-        if (file != null)
-        {
-            alertSetting.Mp3FileName = file.Name;
-            StateHasChanged();
-        }
-    }
-
-    private void OnAlertAnimalChanged(AlertSettingViewModel alertSetting)
-    {
-        var ani = availableAnimals?.FirstOrDefault(a => a.AnimalId == alertSetting.AnimalId);
-        alertSetting.AnimalName = ani?.Name ?? "";
-        StateHasChanged();
-    }
-
-    private async Task StartProcessing(StreamComponentConfig cfg)
-    {
-        if (cfg.SelectedDeviceId == 0) return;
-        var payload = new
-        {
-            CameraId = cfg.SelectedDeviceId,
-            TargetAnimals = cfg.TargetAnimals.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList(),
-            HighlightSavePath = cfg.HighlightSavePath
+            await hubConnection.InvokeAsync("SubscribeToCamera", cameraId);
+            if (streamData.TryGetValue(cameraId, out var data))
+            {
+                data.IsConnected = true;
+                data.StatusMessage = "Reconnected";
+                await InvokeAsync(StateHasChanged);
+            }
         };
-        var resp = await Http.PostAsJsonAsync("api/camera/start", payload);
-        cfg.IsProcessing = resp.IsSuccessStatusCode;
-        cfg.ApiStatusMessage = resp.IsSuccessStatusCode
-            ? "Started"
-            : $"Error: {resp.StatusCode}";
-        StateHasChanged();
+
+        try
+        {
+            await hubConnection.StartAsync();
+            await hubConnection.InvokeAsync("SubscribeToCamera", cameraId);
+            if (streamData.TryGetValue(cameraId, out var data))
+            {
+                data.IsConnected = true;
+                data.StatusMessage = "Connected";
+            }
+        }
+        catch (Exception ex)
+        {
+            HandleDisconnection(cameraId, $"Connection failed: {ex.Message}");
+            Logger.LogError(ex, "Failed to connect hub for Camera {CameraId}", cameraId);
+        }
+        await InvokeAsync(StateHasChanged);
     }
 
-    private async Task StopProcessing(StreamComponentConfig cfg)
+    private Task HandleDisconnection(int cameraId, string message)
     {
-        if (cfg.SelectedDeviceId == 0) return;
-        var resp = await Http.PostAsJsonAsync("api/camera/stop", new { CameraId = cfg.SelectedDeviceId });
-        cfg.IsProcessing = !resp.IsSuccessStatusCode;
-        cfg.ApiStatusMessage = resp.IsSuccessStatusCode
-            ? "Stopped"
-            : $"Error: {resp.StatusCode}";
-        StateHasChanged();
+        if (streamData.TryGetValue(cameraId, out var data))
+        {
+            data.IsConnected = false;
+            data.IsProcessing = false;
+            data.StatusMessage = message;
+            data.FrameSrc = "";
+        }
+        return InvokeAsync(StateHasChanged);
     }
 
-    public class StreamComponentConfig
+    private async Task StartStream(int cameraId)
     {
-        public Guid InstanceId { get; set; } = Guid.NewGuid();
-        public int SelectedDeviceId { get; set; }
-        public string UserGivenName { get; set; } = "";
-        public string TargetAnimals { get; set; } = "";
-        public string HighlightSavePath { get; set; } = "";
-        public bool IsProcessing { get; set; }
-        public string ApiStatusMessage { get; set; } = "";
-        public List<AlertSettingViewModel> AlertSettings { get; set; } = new();
-        public CameraDashboardPage? ParentPage { get; set; }
+        apiError = null;
+        if (string.IsNullOrWhiteSpace(globalSavePath))
+        {
+            apiError = "Base highlight save path cannot be empty.";
+            return;
+        }
+
+        var request = new
+        {
+            CameraIds = new List<int> { cameraId },
+            TargetAnimals = globalTargetAnimals.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+            HighlightSavePath = globalSavePath
+        };
+
+        var response = await Http.PostAsJsonAsync("api/camera/start", request);
+        if (response.IsSuccessStatusCode)
+        {
+            if (streamData.TryGetValue(cameraId, out var data)) data.IsProcessing = true;
+        }
+        else
+        {
+            apiError = $"Failed to start camera {cameraId}: {await response.Content.ReadAsStringAsync()}";
+        }
+        await InvokeAsync(StateHasChanged);
     }
 
-    public class DeviceViewModel
+    private async Task StopStream(int cameraId)
     {
-        public int DeviceId { get; set; }
-        public string Name { get; set; } = "";
-        public string? Location { get; set; }
+        var response = await Http.PostAsJsonAsync("api/camera/stop", new { CameraIds = new List<int> { cameraId } });
+        if (response.IsSuccessStatusCode)
+        {
+            if (streamData.TryGetValue(cameraId, out var data)) data.IsProcessing = false;
+        }
+        else
+        {
+            apiError = $"Failed to stop camera {cameraId}: {await response.Content.ReadAsStringAsync()}";
+        }
+        await InvokeAsync(StateHasChanged);
     }
 
-    public class AnimalViewModel
+    private async Task StopAllStreams()
     {
-        public int AnimalId { get; set; }
-        public string Name { get; set; } = "";
+        var response = await Http.PostAsJsonAsync("api/camera/stop", new { CameraIds = new List<int>() });
+        if (response.IsSuccessStatusCode)
+        {
+            foreach (var data in streamData.Values)
+            {
+                data.IsProcessing = false;
+            }
+        }
+        else
+        {
+            apiError = $"Failed to stop all streams: {await response.Content.ReadAsStringAsync()}";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        var tasks = hubConnections.Values.Select(conn => conn.DisposeAsync().AsTask());
+        await Task.WhenAll(tasks);
+        hubConnections.Clear();
     }
 }

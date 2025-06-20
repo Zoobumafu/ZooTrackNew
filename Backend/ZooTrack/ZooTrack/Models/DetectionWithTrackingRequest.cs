@@ -1,4 +1,6 @@
-﻿namespace ZooTrackBackend.Models
+﻿using System;
+
+namespace ZooTrack.Models
 {
     public class DetectionWithTrackingRequest
     {

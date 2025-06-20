@@ -1,4 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+
 <div class="page">
     <div class="sidebar">
         <NavMenu />
@@ -6,7 +9,15 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="aboutus" target="_blank">About Us</a>
+            <AuthorizeView>
+                <Authorized>
+                    <span>Hello, @context.User.Identity?.Name</span>
+                    <a href="#" @onclick="Logout" @onclick:preventDefault class="ms-3">Log out</a>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="login">Log in</a>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
 
         <article class="content px-4">
@@ -14,3 +25,11 @@
         </article>
     </main>
 </div>
+
+@code {
+    private async Task Logout()
+    {
+        await AuthService.Logout();
+        NavigationManager.NavigateTo("/login");
+    }
+}

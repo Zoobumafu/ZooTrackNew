@@ -7,7 +7,7 @@ using ZooTrack.Data;
 using ZooTrack.Models;
 using ZooTrackBackend.Services;
 
-namespace ZooTrack.Services
+namespace ZooTrack.Services // Corrected Namespace
 {
     public class LogService : ILogService
     {

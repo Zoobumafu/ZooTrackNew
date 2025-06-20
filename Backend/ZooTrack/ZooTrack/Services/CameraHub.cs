@@ -1,49 +1,45 @@
-﻿// ZooTrack.WebAPI/Hubs/CameraHub.cs
+﻿// FINAL FIX
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Threading.Tasks;
 
 namespace ZooTrack.Hubs
 {
+    [Authorize] // Let the middleware handle authorization for the whole hub.
     public class CameraHub : Hub
     {
-        // Method for clients to potentially call (optional for now)
-        // public async Task SendCommandToServer(string command)
-        // {
-        //     // Process command if needed
-        //     await Clients.All.SendAsync("ReceiveLog", $"Command received: {command}");
-        // }
+        private readonly ILogger<CameraHub> _logger;
 
-        // Server will call this method on clients
-        // Clients will register a handler for "ReceiveFrame"
-        public async Task SendFrameToClients(byte[] frameData)
+        public CameraHub(ILogger<CameraHub> logger)
         {
-            if (Clients != null)
-            { // Ensure Clients is not null
-                await Clients.All.SendAsync("ReceiveFrame", frameData);
-            }
+            _logger = logger;
         }
 
-        public async Task SendStatusUpdate(string status)
+        public async Task SubscribeToCamera(int cameraId)
         {
-            if (Clients != null)
-            {
-                await Clients.All.SendAsync("ReceiveStatus", status);
-            }
+            var groupName = $"camera-{cameraId}";
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            _logger.LogInformation("Authenticated client {ConnectionId} subscribed to {GroupName}", Context.ConnectionId, groupName);
+        }
+
+        public async Task UnsubscribeFromCamera(int cameraId)
+        {
+            var groupName = $"camera-{cameraId}";
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+            _logger.LogInformation("Client {ConnectionId} unsubscribed from {GroupName}", Context.ConnectionId, groupName);
         }
 
         public override async Task OnConnectedAsync()
         {
-            // Optional: Log connection
-            Context.GetHttpContext()?.RequestServices.GetService<ILogger<CameraHub>>()?.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
+            _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
             await base.OnConnectedAsync();
-            // Maybe send initial status?
-            // await SendStatusUpdate("Connected to hub.");
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            // Optional: Log disconnection
-            Context.GetHttpContext()?.RequestServices.GetService<ILogger<CameraHub>>()?.LogWarning(exception, "Client disconnected: {ConnectionId}", Context.ConnectionId);
+            _logger.LogWarning(exception, "Client disconnected: {ConnectionId}", Context.ConnectionId);
             await base.OnDisconnectedAsync(exception);
         }
     }

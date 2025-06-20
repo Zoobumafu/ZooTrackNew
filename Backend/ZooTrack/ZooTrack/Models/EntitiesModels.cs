@@ -2,6 +2,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Collections.Generic;
+using System;
 
 namespace ZooTrack.Models
 {
@@ -10,8 +12,17 @@ namespace ZooTrack.Models
         [Key]
         public int UserId { get; set; }
         public string Name { get; set; }
+        [Required]
         public string Email { get; set; }
+        [Required]
         public string Role { get; set; }
+
+        // --- These properties are required for authentication ---
+        [JsonIgnore]
+        public string PasswordHash { get; set; }
+        [JsonIgnore]
+        public string PasswordSalt { get; set; }
+
 
         // Navigation properties
         public virtual UserSettings UserSettings { get; set; }
@@ -19,6 +30,7 @@ namespace ZooTrack.Models
         public virtual ICollection<Log> Logs { get; set; }
     }
 
+    // Other models remain the same...
     public class Device
     {
         [Key]
@@ -26,8 +38,6 @@ namespace ZooTrack.Models
         public string Location { get; set; }
         public string Status { get; set; }
         public DateTime LastActive { get; set; }
-
-        // Navigation properties
         public virtual ICollection<Media> Media { get; set; }
     }
 
@@ -38,11 +48,7 @@ namespace ZooTrack.Models
         public string Type { get; set; }
         public string FilePath { get; set; }
         public DateTime Timestamp { get; set; }
-
-        // Foreign keys
         public int DeviceId { get; set; }
-
-        // Navigation properties
         [ForeignKey("DeviceId")]
         [JsonIgnore]
         public virtual Device Device { get; set; }
@@ -55,35 +61,24 @@ namespace ZooTrack.Models
         public int DetectionId { get; set; }
         public float Confidence { get; set; }
         public DateTime DetectedAt { get; set; }
-
-        // Device
         public int DeviceId { get; set; }
         [JsonIgnore]
         public Device Device { get; set; }
-
-        // Tracking Fields
-        public int? TrackingId { get; set; }        // Links related detections of same object
-        public float BoundingBoxX { get; set; }     // Top-left X coordinate (0-1 normalized)
-        public float BoundingBoxY { get; set; }     // Top-left Y coordinate (0-1 normalized)  
-        public float BoundingBoxWidth { get; set; }  // Width (0-1 normalized)
-        public float BoundingBoxHeight { get; set; } // Height (0-1 normalized)
-        public int FrameNumber { get; set; }        // Frame sequence number
-        public string? DetectedObject { get; set; }  // What was detected (e.g., "elephant", "lion")
-
-
-        // Foreign keys
+        public int? TrackingId { get; set; }
+        public float BoundingBoxX { get; set; }
+        public float BoundingBoxY { get; set; }
+        public float BoundingBoxWidth { get; set; }
+        public float BoundingBoxHeight { get; set; }
+        public int FrameNumber { get; set; }
+        public string? DetectedObject { get; set; }
         public int MediaId { get; set; }
         public int EventId { get; set; }
-
-        // Navigation properties
         [ForeignKey("MediaId")]
         [JsonIgnore]
         public virtual Media Media { get; set; }
-
         [ForeignKey("EventId")]
         [JsonIgnore]
         public virtual Event Event { get; set; }
-
         public virtual ICollection<Animal> Animals { get; set; }
         public virtual ICollection<Alert> Alerts { get; set; }
     }
@@ -92,28 +87,17 @@ namespace ZooTrack.Models
     {
         [Key]
         public int Id { get; set; }
-        public int DetectionId { get; set; } // Foreign key to Detection
+        public int DetectionId { get; set; }
         [ForeignKey("DetectionId")]
         [JsonIgnore]
         public Detection Detection { get; set; }
         public bool IsValidated { get; set; }
-        public bool IsTruePositive { get; set; } // True if confirmed as a correct detection
+        public bool IsTruePositive { get; set; }
         public string? ValidationNotes { get; set; }
         public DateTime ValidatedAt { get; set; }
         public string ValidatedBy { get; set; }
-
-        public bool IsFalsePositive { get; set; } // True if validated as an incorrect detection (e.g., misclassification)
-        public bool IsFalseNegative { get; set; } // True if a known object was missed (requires external input or ground truth)
-    }
-
-    public class DetectionHeatmapData
-    {
-        public int CameraId { get; set; }
-        public float X { get; set; }
-        public float Y { get; set; }
-        public int DetectionCount { get; set; }
-        public float AverageConfidence { get; set; }
-        public DateTime TimeWindow { get; set; }
+        public bool IsFalsePositive { get; set; }
+        public bool IsFalseNegative { get; set; }
     }
 
     public class Animal
@@ -122,11 +106,7 @@ namespace ZooTrack.Models
         public int AnimalId { get; set; }
         public string Species { get; set; }
         public float ConfidenceLevel { get; set; }
-
-        // Foreign keys
         public int DetectionId { get; set; }
-
-        // Navigation properties
         [ForeignKey("DetectionId")]
         [JsonIgnore]
         public virtual Detection Detection { get; set; }
@@ -138,16 +118,11 @@ namespace ZooTrack.Models
         public int AlertId { get; set; }
         public string Message { get; set; }
         public DateTime CreatedAt { get; set; }
-
-        // Foreign keys
         public int DetectionId { get; set; }
         public int UserId { get; set; }
-
-        // Navigation properties
         [ForeignKey("DetectionId")]
         [JsonIgnore]
         public virtual Detection Detection { get; set; }
-
         [ForeignKey("UserId")]
         [JsonIgnore]
         public virtual User User { get; set; }
@@ -160,8 +135,6 @@ namespace ZooTrack.Models
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
         public string Status { get; set; }
-
-        // Navigation properties
         public virtual ICollection<Detection> Detections { get; set; }
     }
 
@@ -176,18 +149,14 @@ namespace ZooTrack.Models
         public string ActionType { get; set; }
         [Required]
         public DateTime Timestamp { get; set; }
-
         [MaxLength(500)]
         public string Message { get; set; }
         [MaxLength(20)]
         public string Level { get; set; } = "Info";
         public int? DetectionId { get; set; }
-
-        // Navigation properties
         [ForeignKey("UserId")]
         [JsonIgnore]
         public virtual User User { get; set; }
-
         [ForeignKey("DetectionId")]
         [JsonIgnore]
         public virtual Detection? Detection { get; set; }
@@ -197,74 +166,18 @@ namespace ZooTrack.Models
     {
         [Key]
         public int UserId { get; set; }
-        public float DetectionThreshold { get; set; } // maybe add default threshold
-
+        public float DetectionThreshold { get; set; }
         public string? NotificationPreference { get; set; }
-
-        public string TargetAnimalsJson { get; set; } = "[]"; // default empty json array
+        public string TargetAnimalsJson { get; set; } = "[]";
         public string HighlightSavePath { get; set; } = string.Empty;
-
         [NotMapped]
         public List<string> TargetAnimals
         {
-            get
-            {
-                try
-                {
-                    return string.IsNullOrEmpty(TargetAnimalsJson)
-                        ? new List<string>()
-                        : System.Text.Json.JsonSerializer.Deserialize<List<string>>(TargetAnimalsJson) ?? new List<string>();
-                }
-                catch
-                {
-                    return new List<string>();
-                }
-            }
-            set
-            {
-                TargetAnimalsJson = System.Text.Json.JsonSerializer.Serialize(value ?? new List<string>());
-            }
+            get => string.IsNullOrEmpty(TargetAnimalsJson) ? new List<string>() : JsonSerializer.Deserialize<List<string>>(TargetAnimalsJson) ?? new List<string>();
+            set => TargetAnimalsJson = JsonSerializer.Serialize(value ?? new List<string>());
         }
-
-        // Navigation properties
         [ForeignKey("UserId")]
         [JsonIgnore]
         public virtual User User { get; set; }
-
-        // Helper method to load target animals from TargetAnimals.json file
-        public void LoadTargetAnimalsFromFile(string filePath)
-        {
-            try
-            {
-                if (File.Exists(filePath))
-                {
-                    var jsonContent = File.ReadAllText(filePath);
-                    var animals = System.Text.Json.JsonSerializer.Deserialize<List<string>>(jsonContent);
-                    TargetAnimals = animals ?? new List<string>();
-                }
-            }
-            catch (Exception ex)
-            {
-                // Log error if needed, but don't throw - just use empty list
-                TargetAnimals = new List<string>();
-            }
-        }
-
-        // Helper method to save target animals to TargetAnimals.json file
-        public void SaveTargetAnimalsToFile(string filePath)
-        {
-            try
-            {
-                var jsonContent = System.Text.Json.JsonSerializer.Serialize(TargetAnimals, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(filePath, jsonContent);
-            }
-            catch (Exception ex)
-            {
-                // Log error if needed
-                throw new InvalidOperationException($"Failed to save target animals to file: {ex.Message}");
-            }
-        }
     }
-
-
 }
