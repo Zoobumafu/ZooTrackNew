@@ -3,12 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
-
 namespace ZooTrackBackend.Migrations
 {
     /// <inheritdoc />
-    public partial class AddTargetAnimalsJsonColumn : Migration
+    public partial class NewMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -44,6 +42,24 @@ namespace ZooTrackBackend.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "TrackingRoutes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    TrackingId = table.Column<int>(type: "INTEGER", nullable: false),
+                    DeviceId = table.Column<int>(type: "INTEGER", nullable: false),
+                    DetectedObject = table.Column<string>(type: "TEXT", nullable: true),
+                    StartTime = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    EndTime = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    PathJson = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TrackingRoutes", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
@@ -51,7 +67,9 @@ namespace ZooTrackBackend.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     Email = table.Column<string>(type: "TEXT", nullable: false),
-                    Role = table.Column<string>(type: "TEXT", nullable: false)
+                    Role = table.Column<string>(type: "TEXT", nullable: false),
+                    PasswordHash = table.Column<string>(type: "TEXT", nullable: false),
+                    PasswordSalt = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -250,124 +268,17 @@ namespace ZooTrackBackend.Migrations
             migrationBuilder.InsertData(
                 table: "Devices",
                 columns: new[] { "DeviceId", "LastActive", "Location", "Status" },
-                values: new object[,]
-                {
-                    { 1, new DateTime(2025, 1, 1, 12, 0, 0, 0, DateTimeKind.Unspecified), "North Zone - Watering Hole", "Online" },
-                    { 2, new DateTime(2025, 1, 1, 11, 30, 0, 0, DateTimeKind.Unspecified), "South Zone - Savanna", "Online" },
-                    { 3, new DateTime(2024, 12, 30, 9, 0, 0, 0, DateTimeKind.Unspecified), "East Zone - Forest Edge", "Offline" },
-                    { 4, new DateTime(2025, 1, 1, 12, 0, 0, 0, DateTimeKind.Unspecified), "West Zone - River Crossing", "Maintenance" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Events",
-                columns: new[] { "EventId", "EndTime", "StartTime", "Status" },
-                values: new object[,]
-                {
-                    { 1, new DateTime(2025, 1, 1, 12, 45, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 1, 1, 12, 0, 0, 0, DateTimeKind.Unspecified), "Completed" },
-                    { 2, new DateTime(2025, 1, 2, 16, 0, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 1, 2, 14, 0, 0, 0, DateTimeKind.Unspecified), "Completed" },
-                    { 3, new DateTime(2025, 1, 3, 10, 20, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 1, 3, 10, 0, 0, 0, DateTimeKind.Unspecified), "Completed" },
-                    { 4, new DateTime(2025, 1, 4, 9, 0, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 1, 4, 8, 0, 0, 0, DateTimeKind.Unspecified), "Completed" },
-                    { 5, new DateTime(2025, 1, 5, 15, 30, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 1, 5, 15, 0, 0, 0, DateTimeKind.Unspecified), "Active" }
-                });
+                values: new object[] { 1, new DateTime(2025, 6, 18, 18, 18, 18, 0, DateTimeKind.Unspecified), "North Zone", "Online" });
 
             migrationBuilder.InsertData(
                 table: "Users",
-                columns: new[] { "UserId", "Email", "Name", "Role" },
-                values: new object[,]
-                {
-                    { 1, "admin@zootrack.local", "Admin", "Admin" },
-                    { 2, "ranger@zootrack.local", "Ranger Rick", "Ranger" },
-                    { 3, "sarah@zootrack.local", "Zoologist Sarah", "Researcher" },
-                    { 4, "tom@zootrack.local", "Guide Tom", "Guide" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Logs",
-                columns: new[] { "LogId", "ActionType", "DetectionId", "Level", "Message", "Timestamp", "UserId" },
-                values: new object[,]
-                {
-                    { 1, "System Start", null, "Info", "System initialization complete", new DateTime(2024, 12, 22, 9, 0, 0, 0, DateTimeKind.Unspecified), 1 },
-                    { 2, "User Login", null, "Info", "Admin logged in", new DateTime(2024, 12, 25, 8, 0, 0, 0, DateTimeKind.Unspecified), 1 },
-                    { 4, "Settings Change", null, "Warning", "Detection threshold updated to 0.85", new DateTime(2025, 1, 1, 13, 0, 0, 0, DateTimeKind.Unspecified), 3 },
-                    { 5, "Device Status", null, "Error", "Device East Zone went offline", new DateTime(2025, 1, 3, 10, 0, 0, 0, DateTimeKind.Unspecified), 1 },
-                    { 7, "Alert Configuration", null, "Info", "Added new alert for endangered species", new DateTime(2025, 1, 5, 10, 0, 0, 0, DateTimeKind.Unspecified), 2 },
-                    { 8, "System Maintenance", null, "Info", "Database backup completed", new DateTime(2025, 1, 5, 11, 0, 0, 0, DateTimeKind.Unspecified), 1 }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Media",
-                columns: new[] { "MediaId", "DeviceId", "FilePath", "Timestamp", "Type" },
-                values: new object[,]
-                {
-                    { 1, 1, "/storage/images/elephant_group_20250423.jpg", new DateTime(2025, 1, 1, 12, 0, 0, 0, DateTimeKind.Unspecified), "Image" },
-                    { 2, 2, "/storage/videos/lion_pride_20250424.mp4", new DateTime(2025, 1, 2, 14, 0, 0, 0, DateTimeKind.Unspecified), "Video" },
-                    { 3, 1, "/storage/images/rhino_watering_20250426.jpg", new DateTime(2025, 1, 3, 10, 0, 0, 0, DateTimeKind.Unspecified), "Image" },
-                    { 4, 2, "/storage/images/giraffe_family_20250427.jpg", new DateTime(2025, 1, 4, 8, 0, 0, 0, DateTimeKind.Unspecified), "Image" },
-                    { 5, 4, "/storage/videos/zebra_crossing_20250428.mp4", new DateTime(2025, 1, 5, 15, 0, 0, 0, DateTimeKind.Unspecified), "Video" }
-                });
+                columns: new[] { "UserId", "Email", "Name", "PasswordHash", "PasswordSalt", "Role" },
+                values: new object[] { 1, "Admin", "Admin", "bB2TTnNRRZ9k2XWi/fCI8uuClNIRhH+gkMW3NhN36MOXLY3lw+sqBG8/1TnB/3nDn6KD4ql0HpJcTNnJVVEn4A==", "CA9rAkLyiGymgdYpXebKix5r0Vs880qC34NDWQkoaDjU6zO4PHuarx5fga6ALbL3cz0c6Iu8YXBbx+Bkv7nvclzEJ5JPlgDJggpb/ExZJvGPtcse73VkAmxKu/NkOC7yXVgujGABOeJL08+uqexYCKLqAY1/NO3qPO0Z8Ib+SvY=", "Admin" });
 
             migrationBuilder.InsertData(
                 table: "UserSettings",
                 columns: new[] { "UserId", "DetectionThreshold", "HighlightSavePath", "NotificationPreference", "TargetAnimalsJson" },
-                values: new object[,]
-                {
-                    { 1, 0.8f, "Media/HighlightFrames/Admin", "Email", "[\"person\",\"dog\",\"cow\",\"wolf\",\"tiger\",\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\",\"leopard\",\"cheetah\"]" },
-                    { 2, 0.7f, "Media/HighlightFrames/Ranger", "SMS", "[\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\",\"leopard\",\"buffalo\"]" },
-                    { 3, 0.85f, "Media/HighlightFrames/Researcher", "Both", "[\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\",\"leopard\",\"cheetah\",\"buffalo\",\"antelope\",\"warthog\"]" },
-                    { 4, 0.6f, "Media/HighlightFrames/Guide", "None", "[\"lion\",\"elephant\",\"zebra\",\"giraffe\",\"rhino\"]" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Detections",
-                columns: new[] { "DetectionId", "BoundingBoxHeight", "BoundingBoxWidth", "BoundingBoxX", "BoundingBoxY", "Confidence", "DetectedAt", "DetectedObject", "DeviceId", "EventId", "FrameNumber", "MediaId", "TrackingId" },
-                values: new object[,]
-                {
-                    { 1, 0f, 0f, 0f, 0f, 0.92f, new DateTime(2025, 1, 1, 12, 0, 0, 0, DateTimeKind.Unspecified), null, 1, 1, 0, 1, null },
-                    { 2, 0f, 0f, 0f, 0f, 0.85f, new DateTime(2025, 1, 2, 14, 30, 0, 0, DateTimeKind.Unspecified), null, 2, 2, 0, 2, null },
-                    { 3, 0f, 0f, 0f, 0f, 0.79f, new DateTime(2025, 1, 3, 10, 5, 0, 0, DateTimeKind.Unspecified), null, 1, 3, 0, 3, null },
-                    { 4, 0f, 0f, 0f, 0f, 0.88f, new DateTime(2025, 1, 4, 8, 30, 0, 0, DateTimeKind.Unspecified), null, 2, 4, 0, 4, null },
-                    { 5, 0f, 0f, 0f, 0f, 0.75f, new DateTime(2025, 1, 5, 15, 15, 0, 0, DateTimeKind.Unspecified), null, 4, 5, 0, 5, null }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Alerts",
-                columns: new[] { "AlertId", "CreatedAt", "DetectionId", "Message", "UserId" },
-                values: new object[,]
-                {
-                    { 1, new DateTime(2025, 1, 1, 12, 10, 0, 0, DateTimeKind.Unspecified), 1, "Elephant herd detected at North Zone watering hole", 2 },
-                    { 2, new DateTime(2025, 1, 2, 14, 45, 0, 0, DateTimeKind.Unspecified), 2, "Lion pride spotted in South Zone", 1 },
-                    { 3, new DateTime(2025, 1, 3, 10, 15, 0, 0, DateTimeKind.Unspecified), 3, "Rhino sighting at North Zone watering hole", 3 },
-                    { 4, new DateTime(2025, 1, 4, 8, 45, 0, 0, DateTimeKind.Unspecified), 4, "Giraffe family detected in South Zone", 2 },
-                    { 5, new DateTime(2025, 1, 5, 15, 25, 0, 0, DateTimeKind.Unspecified), 5, "Zebra crossing detected at West Zone river", 3 }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Animals",
-                columns: new[] { "AnimalId", "ConfidenceLevel", "DetectionId", "Species" },
-                values: new object[,]
-                {
-                    { 1, 0.93f, 1, "African Elephant" },
-                    { 2, 0.89f, 1, "African Elephant" },
-                    { 3, 0.87f, 2, "Lion" },
-                    { 4, 0.82f, 2, "Lion" },
-                    { 5, 0.79f, 2, "Lion" },
-                    { 6, 0.91f, 3, "White Rhino" },
-                    { 7, 0.94f, 4, "Giraffe" },
-                    { 8, 0.92f, 4, "Giraffe" },
-                    { 9, 0.88f, 5, "Zebra" },
-                    { 10, 0.86f, 5, "Zebra" },
-                    { 11, 0.84f, 5, "Zebra" },
-                    { 12, 0.79f, 5, "Zebra" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Logs",
-                columns: new[] { "LogId", "ActionType", "DetectionId", "Level", "Message", "Timestamp", "UserId" },
-                values: new object[,]
-                {
-                    { 3, "Detection Review", 1, "Info", "Ranger Rick reviewed elephant detection", new DateTime(2025, 1, 1, 12, 15, 0, 0, DateTimeKind.Unspecified), 2 },
-                    { 6, "Media View", 3, "Info", "Guide Tom accessed rhino sighting media", new DateTime(2025, 1, 3, 11, 0, 0, 0, DateTimeKind.Unspecified), 4 }
-                });
+                values: new object[] { 1, 0.8f, "Media/HighlightFrames/Admin", "Email", "[\"person\",\"dog\",\"cow\",\"wolf\",\"tiger\",\"lion\"]" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Alerts_DetectionId",
@@ -440,6 +351,9 @@ namespace ZooTrackBackend.Migrations
 
             migrationBuilder.DropTable(
                 name: "Logs");
+
+            migrationBuilder.DropTable(
+                name: "TrackingRoutes");
 
             migrationBuilder.DropTable(
                 name: "UserSettings");

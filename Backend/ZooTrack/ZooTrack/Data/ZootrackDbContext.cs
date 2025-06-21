@@ -19,6 +19,7 @@ namespace ZooTrack.Data
         public DbSet<Device> Devices { get; set; }
         public DbSet<Media> Media { get; set; }
         public DbSet<Detection> Detections { get; set; }
+        public DbSet<TrackingRoute> TrackingRoutes { get; set; }
         public DbSet<Animal> Animals { get; set; }
         public DbSet<Alert> Alerts { get; set; }
         public DbSet<Event> Events { get; set; }
@@ -68,7 +69,7 @@ namespace ZooTrack.Data
             );
 
             modelBuilder.Entity<Device>().HasData(
-                new Device { DeviceId = 1, Location = "North Zone", Status = "Online", LastActive = DateTime.UtcNow }
+                new Device { DeviceId = 1, Location = "North Zone", Status = "Online", LastActive = new DateTime(2025, 6, 18, 18, 18, 18) }
             );
         }
     }

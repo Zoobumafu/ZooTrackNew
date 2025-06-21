@@ -100,6 +100,20 @@ namespace ZooTrack.Models
         public bool IsFalseNegative { get; set; }
     }
 
+    public class TrackingRoute
+    {
+        [Key]
+        public int Id { get; set; }
+        public int TrackingId { get; set; }
+        public int DeviceId { get; set; }
+        public string? DetectedObject { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+
+        // JSON string of X,Y points per frame like: [[0.12, 0.45], [0.13, 0.46], ...]
+        public string PathJson { get; set; }
+    }
+
     public class Animal
     {
         [Key]

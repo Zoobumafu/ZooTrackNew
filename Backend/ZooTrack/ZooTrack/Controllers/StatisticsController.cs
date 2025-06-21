@@ -134,5 +134,64 @@ namespace ZooTrack.Controllers
                 return StatusCode(500, "Internal server error while retrieving heatmap data.");
             }
         }
+
+        /// <summary>
+        /// Retrieves saved movement routes (tracking paths) for a given device (camera).
+        /// Optionally filters by object type or time window.
+        /// </summary>
+        /// <param name="deviceId">The ID of the camera/device.</param>
+        /// <param name="detectedObject">Optional: filter by detected object type (e.g. "lion")</param>
+        /// <param name="startDate">Optional: Filter by start of route window</param>
+        /// <param name="endDate">Optional: Filter by end of route window</param>
+        /// <returns>A list of TrackingRoutes with their paths</returns>
+        [HttpGet("routes/{deviceId}")]
+        public async Task<IActionResult> GetTrackingRoutes(
+            int deviceId,
+            [FromQuery] string? detectedObject = null,
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
+        {
+            try
+            {
+                var query = _context.TrackingRoutes
+                    .Where(r => r.DeviceId == deviceId)
+                    .AsQueryable();
+
+                if (!string.IsNullOrEmpty(detectedObject))
+                    query = query.Where(r => r.DetectedObject == detectedObject);
+
+                if (startDate.HasValue)
+                    query = query.Where(r => r.StartTime >= startDate.Value);
+
+                if (endDate.HasValue)
+                    query = query.Where(r => r.EndTime <= endDate.Value);
+
+                var routes = await query
+                    .OrderByDescending(r => r.StartTime)
+                    .Select(r => new
+                    {
+                        r.TrackingId,
+                        r.DetectedObject,
+                        r.StartTime,
+                        r.EndTime,
+                        r.PathJson
+                    })
+                    .ToListAsync();
+
+                return Ok(routes);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error retrieving tracking routes: {ex.Message}");
+                return StatusCode(500, "Internal server error while retrieving tracking routes.");
+            }
+        }
+
+
+
+
+
+
+
     }
 }

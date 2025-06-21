@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ZooTrack.Data;
 
@@ -10,9 +11,11 @@ using ZooTrack.Data;
 namespace ZooTrackBackend.Migrations
 {
     [DbContext(typeof(ZootrackDbContext))]
-    partial class ZootrackDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250621140848_NewMigration")]
+    partial class NewMigration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.4");

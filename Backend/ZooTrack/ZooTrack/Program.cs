@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
@@ -19,7 +20,12 @@ var builder = WebApplication.CreateBuilder(args);
 // --- Service Registration ---
 builder.Services.AddControllers();
 builder.Services.AddDbContext<ZootrackDbContext>(options =>
-   options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.ConfigureWarnings(warnings =>
+       warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
+}
+   );
 
 builder.Services.AddScoped<ILogService, LogService>();
 builder.Services.AddScoped<NotificationService>();

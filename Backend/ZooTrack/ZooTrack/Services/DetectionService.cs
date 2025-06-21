@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using ZooTrack.Data;
 using ZooTrack.Models;
@@ -136,8 +137,8 @@ namespace ZooTrack.Services
         /// <returns>The created detection with tracking information and frame extraction initiated</returns>
         /// <exception cref="ArgumentNullException">Thrown when detection parameter is null</exception>
         public async Task<Detection> CreateDetectionWithTrackingAsync(Detection detection,
-            float boundingBoxX, float boundingBoxY, float boundingBoxWidth, float boundingBoxHeight,
-            string detectedObject = null)
+    float boundingBoxX, float boundingBoxY, float boundingBoxWidth, float boundingBoxHeight,
+    string detectedObject = null)
         {
             if (detection == null)
                 throw new ArgumentNullException(nameof(detection));
@@ -150,6 +151,14 @@ namespace ZooTrack.Services
 
                 // Create the detection using standard creation process
                 var createdDetection = await CreateDetectionAsync(detection);
+
+                // NEW: Try generating the route based on the tracking ID
+                if (createdDetection.TrackingId.HasValue)
+                {
+                    await TryGenerateTrackingRouteAsync(
+                        createdDetection.TrackingId.Value,
+                        createdDetection.DeviceId);
+                }
 
                 // Initiate frame extraction for tracking analysis (non-blocking)
                 await InitiateFrameExtraction(createdDetection);
@@ -426,6 +435,42 @@ namespace ZooTrack.Services
 
             await Task.CompletedTask;
         }
+
+        private async Task TryGenerateTrackingRouteAsync(int trackingId, int deviceId)
+        {
+            var existingRoute = await _context.TrackingRoutes.FirstOrDefaultAsync(r => r.TrackingId == trackingId);
+            if (existingRoute != null)
+                return;
+
+            var detections = await _context.Detections
+                .Where(d => d.TrackingId == trackingId && d.DeviceId == deviceId)
+                .OrderBy(d => d.FrameNumber)
+                .ToListAsync();
+
+            if (detections.Count < 2)
+                return;
+
+            var path = detections
+                .Select(d => new float[] {
+            d.BoundingBoxX + d.BoundingBoxWidth / 2,
+            d.BoundingBoxY + d.BoundingBoxHeight / 2
+                })
+                .ToList();
+
+            var route = new TrackingRoute
+            {
+                TrackingId = trackingId,
+                DeviceId = deviceId,
+                StartTime = detections.First().DetectedAt,
+                EndTime = detections.Last().DetectedAt,
+                DetectedObject = detections.First().DetectedObject,
+                PathJson = JsonSerializer.Serialize(path)
+            };
+
+            _context.TrackingRoutes.Add(route);
+            await _context.SaveChangesAsync();
+        }
+
 
         #endregion
 
