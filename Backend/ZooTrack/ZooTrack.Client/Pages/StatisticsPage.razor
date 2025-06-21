@@ -94,6 +94,16 @@
     private bool IsLoadingSummary = false;
     private bool IsLoadingHeatmap = false;
 
+    private List<TrackingRouteData>? RouteData;
+
+    private class TrackingRouteData
+    {
+        public int TrackingId { get; set; }
+        public string? DetectedObject { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public string PathJson { get; set; }
+    }
 
     // Response models for the API calls (mimicking the anonymous types returned by the controller)
     private class SummaryStatisticsResponse
@@ -145,6 +155,7 @@
 
     private async Task LoadStatistics()
     {
+        await LoadRouteData(SelectedCameraId);
         await LoadSummaryStatistics();
         if (SelectedCameraId != 0)
         {
@@ -157,6 +168,38 @@
             await JSRuntime.InvokeVoidAsync("clearHeatmap");
         }
     }
+
+    private async Task LoadRouteData(int cameraId)
+    {
+        try
+        {
+            var url = $"api/statistics/routes/{cameraId}";
+            var queryParams = new List<string>();
+
+            if (StartDate != default)
+                queryParams.Add($"startDate={StartDate:yyyy-MM-dd}");
+
+            if (EndDate != default)
+                queryParams.Add($"endDate={EndDate:yyyy-MM-dd}");
+
+            if (queryParams.Any())
+                url += "?" + string.Join("&", queryParams);
+
+            RouteData = await Http.GetFromJsonAsync<List<TrackingRouteData>>(url);
+
+            // Call JavaScript to draw the movement paths
+            if (RouteData is not null)
+            {
+                await JSRuntime.InvokeVoidAsync("drawRoutes", RouteData);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading tracking routes: {ex.Message}");
+            RouteData = null;
+        }
+    }
+
 
     private async Task LoadSummaryStatistics()
     {
@@ -291,6 +334,41 @@
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                     }
                 };
+
+                window.drawRoutes = function(routeData) {
+                    const canvas = document.getElementById('heatmapCanvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return;
+
+                    const img = canvas.previousElementSibling;
+                    canvas.width = img?.naturalWidth || 800;
+                    canvas.height = img?.naturalHeight || 450;
+
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = 'rgba(0, 0, 255, 0.6)'; // Blue path
+
+                    routeData.forEach(route => {
+                        try {
+                            const path = JSON.parse(route.pathJson); // [[x1,y1],[x2,y2],...]
+                            if (Array.isArray(path) && path.length > 1) {
+                                ctx.beginPath();
+                                ctx.moveTo(path[0][0] * canvas.width, path[0][1] * canvas.height);
+
+                                for (let i = 1; i < path.length; i++) {
+                                    const [x, y] = path[i];
+                                    ctx.lineTo(x * canvas.width, y * canvas.height);
+                                }
+
+                                ctx.stroke();
+                            }
+                        } catch (err) {
+                            console.error('Invalid pathJson in route:', route, err);
+                        }
+                    });
+                };
+
+                
             ");
         }
     }

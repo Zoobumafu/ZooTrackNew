@@ -22,8 +22,8 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<ZootrackDbContext>(options =>
 {
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
-    options.ConfigureWarnings(warnings =>
-       warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
+   // options.ConfigureWarnings(warnings =>
+   //    warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
 }
    );
 
