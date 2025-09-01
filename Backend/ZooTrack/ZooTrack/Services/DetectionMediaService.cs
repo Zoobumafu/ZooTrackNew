@@ -170,40 +170,6 @@ namespace ZooTrack.Services
 
         #region Private Methods - Frame Extraction
 
-        // OLD ExtractTrackingFramesAsync
-        /*
-        private async Task ExtractTrackingFramesAsync(string videoPath, string outputDir, Detection detection)
-        {
-            try
-            {
-                // Calculate the time window for frame extraction
-                var timeWindow = CalculateExtractionTimeWindow(detection.DetectedAt);
-                var totalFramesToExtract = (int)(timeWindow.Duration * FRAMES_PER_SECOND);
-                var frameInterval = 1.0 / FRAMES_PER_SECOND;
-
-                await _logService.AddLogAsync(1, "FrameExtractionPlan",
-                    $"Extracting {totalFramesToExtract} frames at {FRAMES_PER_SECOND} FPS for detection {detection.DetectionId}",
-                    "Info", detection.DetectionId);
-
-                // Extract frames at regular intervals
-                await ExtractRegularFrames(outputDir, timeWindow, totalFramesToExtract, frameInterval);
-
-                // Extract and save key frames (most important moments)
-                await SaveKeyFrames(outputDir, detection);
-
-                await _logService.AddLogAsync(1, "FramesExtracted",
-                    $"Extracted {totalFramesToExtract} tracking frames for detection {detection.DetectionId}",
-                    "Info", detection.DetectionId);
-            }
-            catch (Exception ex)
-            {
-                await _logService.AddLogAsync(1, "FrameExtractionError",
-                    $"Error extracting frames: {ex.Message}", "Error", detection.DetectionId);
-                throw;
-            }
-        }
-        */
-
         private async Task ExtractTrackingFramesAsync(string videoPath, string outputDir, Detection detection)
         {
             try
@@ -235,21 +201,6 @@ namespace ZooTrack.Services
             }
         }
 
-
-        // OLD ExtractRectangularFrames
-        /*
-        private async Task ExtractRegularFrames(string outputDir, (DateTime StartTime, DateTime EndTime, double Duration) timeWindow, int totalFrames, double frameInterval)
-        {
-            for (int i = 0; i < totalFrames; i++)
-            {
-                var frameTime = timeWindow.StartTime.AddSeconds(i * frameInterval);
-                var framePath = Path.Combine(outputDir, $"frame_{i:000}.jpg");
-
-                // TODO: Replace with actual frame extraction using FFmpeg or OpenCV
-                await SimulateFrameExtraction(framePath, frameTime);
-            }
-        }
-        */
 
         // calculate extraction time window based on the constants
         private (DateTime StartTime, DateTime EndTime, double Duration) CalculateExtractionTimeWindow(DateTime detectionTime)
@@ -322,25 +273,6 @@ namespace ZooTrack.Services
         }
 
 
-
-        //OLD SaveKeyFrames
-        /*
-        private async Task SaveKeyFrames(string outputDir, Detection detection)
-        {
-            var keyFrames = new[]
-            {
-                ("detection_moment.jpg", detection.DetectedAt),
-                ("before_detection.jpg", detection.DetectedAt.AddSeconds(-5)),
-                ("after_detection.jpg", detection.DetectedAt.AddSeconds(5))
-            };
-
-            foreach (var (fileName, frameTime) in keyFrames)
-            {
-                var keyFramePath = Path.Combine(outputDir, fileName);
-                await SimulateFrameExtraction(keyFramePath, frameTime);
-            }
-        }
-        */
         private async Task SaveKeyFrames(string outputDir, Detection detection)
         {
             // Load the associated media for this detection
@@ -368,10 +300,10 @@ namespace ZooTrack.Services
             // Use your existing constants for key frame timing
             var keyFrames = new[]
             {
-        ("detection_moment.jpg", detection.DetectedAt),
-        ("before_detection.jpg", detection.DetectedAt.AddSeconds(-5)), // Keep your existing 5-second offset
-        ("after_detection.jpg", detection.DetectedAt.AddSeconds(5))
-    };
+                ("detection_moment.jpg", detection.DetectedAt),
+                ("before_detection.jpg", detection.DetectedAt.AddSeconds(-5)), // Keep your existing 5-second offset
+                ("after_detection.jpg", detection.DetectedAt.AddSeconds(5))
+            };
 
             await _logService.AddLogAsync(1, "KeyFrameExtractionStarted",
                 $"Extracting key frames for detection {detection.DetectionId}", "Info", detection.DetectionId);
@@ -407,15 +339,12 @@ namespace ZooTrack.Services
                 {
                     // Seek to the specific frame
                     capture.PosFrames = frameNumber;
-
                     using var frame = new Mat();
                     bool readSuccess = capture.Read(frame);
 
                     if (!readSuccess || frame.Empty())
                     {
-                        _ = Task.Run(async () => await _logService.AddLogAsync(1, "FrameReadFailed",
-                            $"Failed to read frame {frameNumber} at {frameTime}", "Warning", contextId));
-                        return null;
+                        throw new InvalidOperationException($"Failed to read frame {frameNumber} at {frameTime}");
                     }
 
                     // Use the same JPEG encoding approach as your existing system
@@ -424,18 +353,17 @@ namespace ZooTrack.Services
 
                     if (!encodeSuccess)
                     {
-                        _ = Task.Run(async () => await _logService.AddLogAsync(1, "FrameEncodeFailed",
-                            $"Failed to encode frame {frameNumber} at {frameTime}", "Warning", contextId));
-                        return null;
+                        throw new InvalidOperationException($"Failed to encode frame {frameNumber} at {frameTime}");
                     }
 
                     return jpegBytes;
                 }
                 catch (Exception ex)
                 {
+                    // Log in background, don't wait
                     _ = Task.Run(async () => await _logService.AddLogAsync(1, "FrameExtractionError",
                         $"Error extracting frame {frameNumber} at {frameTime}: {ex.Message}", "Error", contextId));
-                    return null;
+                    throw;
                 }
             });
         }

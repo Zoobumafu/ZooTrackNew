@@ -5,57 +5,137 @@
 @using System.ComponentModel.DataAnnotations
 @using ZooTrack.Client.Services
 
-<PageTitle>Login - ZooTrack</PageTitle>
+<PageTitle>@(isLoginMode ? "Login" : "Register") - ZooTrack</PageTitle>
 
 <div class="card shadow-lg">
     <div class="card-body p-5">
         <div class="text-center mb-4">
             <i class="bi bi-camera-video-fill display-4 text-primary"></i>
-            <h1 class="h3 mb-3 fw-normal">Welcome to ZooTrack</h1>
+            <h1 class="h3 mb-3 fw-normal">
+                @(isLoginMode ? "Welcome to ZooTrack" : "Join ZooTrack")
+            </h1>
         </div>
 
-        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
-            <DataAnnotationsValidator />
+        @if (isLoginMode)
+        {
+            <!-- Login Form -->
+            <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger" role="alert">
-                    @errorMessage
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+                }
+
+                <div class="form-floating mb-3">
+                    <InputText id="email" class="form-control" @bind-Value="loginModel.Email" placeholder="name@example.com" />
+                    <label for="email">Username</label>
+                    <ValidationMessage For="@(() => loginModel.Email)" />
                 </div>
-            }
+                <div class="form-floating mb-3">
+                    <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password" placeholder="Password" />
+                    <label for="password">Password</label>
+                    <ValidationMessage For="@(() => loginModel.Password)" />
+                </div>
 
-            <div class="form-floating mb-3">
-                <InputText id="email" class="form-control" @bind-Value="loginModel.Email" placeholder="name@example.com" />
-                <label for="email">Username</label>
-                <ValidationMessage For="@(() => loginModel.Email)" />
-            </div>
-            <div class="form-floating mb-3">
-                <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password" placeholder="Password" />
-                <label for="password">Password</label>
-                <ValidationMessage For="@(() => loginModel.Password)" />
-            </div>
+                <button class="w-100 btn btn-lg btn-primary" type="submit" disabled="@isBusy">
+                    @if (isBusy)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    }
+                    else
+                    {
+                        <text>Sign in</text>
+                    }
+                </button>
+            </EditForm>
 
-            <button class="w-100 btn btn-lg btn-primary" type="submit" disabled="@isBusy">
-                @if (isBusy)
+            <div class="mt-3 text-center">
+                <p class="text-muted small">Default Credentials: Admin / Admin</p>
+            </div>
+        }
+        else
+        {
+            <!-- Register Form -->
+            <EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
+                <DataAnnotationsValidator />
+
+                @if (!string.IsNullOrEmpty(errorMessage))
                 {
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
                 }
-                else
+
+                @if (!string.IsNullOrEmpty(successMessage))
                 {
-                    <text>Sign in</text>
+                    <div class="alert alert-success" role="alert">
+                        @successMessage
+                    </div>
                 }
+
+                <div class="form-floating mb-3">
+                    <InputText id="username" class="form-control" @bind-Value="registerModel.Username" placeholder="Username" />
+                    <label for="username">Username (English only)</label>
+                    <ValidationMessage For="@(() => registerModel.Username)" />
+                </div>
+
+                <div class="form-floating mb-3">
+                    <InputText id="email-register" class="form-control" @bind-Value="registerModel.Email" placeholder="name@example.com" />
+                    <label for="email-register">Email</label>
+                    <ValidationMessage For="@(() => registerModel.Email)" />
+                </div>
+
+                <div class="form-floating mb-3">
+                    <InputText id="password-register" type="password" class="form-control" @bind-Value="registerModel.Password" placeholder="Password" />
+                    <label for="password-register">Password</label>
+                    <ValidationMessage For="@(() => registerModel.Password)" />
+                </div>
+
+                <div class="form-floating mb-3">
+                    <InputText id="confirm-password" type="password" class="form-control" @bind-Value="registerModel.ConfirmPassword" placeholder="Confirm Password" />
+                    <label for="confirm-password">Confirm Password</label>
+                    <ValidationMessage For="@(() => registerModel.ConfirmPassword)" />
+                </div>
+
+                <button class="w-100 btn btn-lg btn-success" type="submit" disabled="@isBusy">
+                    @if (isBusy)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    }
+                    else
+                    {
+                        <text>Register</text>
+                    }
+                </button>
+            </EditForm>
+        }
+
+        <!-- Toggle between Login and Register -->
+        <div class="mt-4 text-center">
+            <button class="btn btn-link text-decoration-none" @onclick="ToggleMode">
+                @(isLoginMode ? "Don't have an account? Register here" : "Already have an account? Sign in")
             </button>
-        </EditForm>
-        <div class="mt-3 text-center">
-            <p class="text-muted small">Default Credentials: Admin / Admin</p>
         </div>
     </div>
 </div>
 
 @code {
+    private bool isLoginMode = true;
     private LoginModel loginModel = new LoginModel();
+    private RegisterModel registerModel = new RegisterModel();
     private string errorMessage;
+    private string successMessage;
     private bool isBusy = false;
+
+    private void ToggleMode()
+    {
+        isLoginMode = !isLoginMode;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+    }
 
     private async Task HandleLogin()
     {
@@ -74,4 +154,41 @@
             isBusy = false;
         }
     }
+
+    private async Task HandleRegister()
+    {
+        isBusy = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var success = await AuthService.Register(registerModel);
+
+            if (success)
+            {
+                successMessage = "Registration successful! You can now sign in.";
+                registerModel = new RegisterModel(); // Clear form
+
+                // Switch to login mode after successful registration
+                await Task.Delay(2000); // Show success message for 2 seconds
+                isLoginMode = true;
+                successMessage = string.Empty;
+            }
+            else
+            {
+                errorMessage = "Registration failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Registration error: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+
 }

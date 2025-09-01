@@ -36,6 +36,52 @@ namespace ZooTrack.Services
             return CreateToken(user);
         }
 
+        public async Task<bool> Register(string username, string email, string password)
+        {
+            try
+            {
+                // Check if username already exists
+                var existingUserByUsername = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Name.ToLower() == username.ToLower());
+
+                if (existingUserByUsername != null)
+                {
+                    return false; // Username already exists
+                }
+
+                // Check if email already exists
+                var existingUserByEmail = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+
+                if (existingUserByEmail != null)
+                {
+                    return false; // Email already exists
+                }
+
+                // Create password hash and salt
+                CreatePasswordHash(password, out var passwordHash, out var passwordSalt);
+
+                // Create new user
+                var user = new User
+                {
+                    Name = username,
+                    Email = email.ToLower(),
+                    PasswordHash = passwordHash,
+                    PasswordSalt = passwordSalt,
+                    Role = "User" // Default role - adjust as needed
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public async Task<bool> ChangePassword(int userId, string oldPassword, string newPassword)
         {
             var user = await _context.Users.FindAsync(userId);
