@@ -1,56 +1,301 @@
 ﻿@page "/"
 @attribute [Authorize]
+@using System.ComponentModel.DataAnnotations
 
-<PageTitle>ZooTrack - Home</PageTitle>
+<PageTitle>ZooTrack - Dashboard</PageTitle>
 
 <AuthorizeView>
-    <div class="hero-section mb-5">
+    <div class="hero-section mb-4">
         <div class="container-fluid">
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h1 class="display-4 fw-bold text-primary">ZooTrack</h1>
-                    <p class="lead text-muted">Welcome, @context.User.Identity?.Name!</p>
+                    <h1 class="display-5 fw-bold text-primary mb-2">ZooTrack Dashboard</h1>
+                    <p class="lead text-muted mb-0">Welcome back, @context.User.Identity?.Name</p>
+                    <small class="text-muted">Last updated: @DateTime.Now.ToString("MMM dd, yyyy - HH:mm")</small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex align-items-center justify-content-end">
+                        <span class="badge bg-success me-2">
+                            <i class="fas fa-circle me-1"></i>System Online
+                        </span>
+                        <button class="btn btn-outline-primary btn-sm" onclick="location.reload()">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- System Overview Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-video fa-2x mb-3"></i>
+                    <h3 class="card-title fw-bold mb-1">@GetActiveDevicesCount()</h3>
+                    <p class="card-text small mb-0">Active Devices</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-paw fa-2x mb-3"></i>
+                    <h3 class="card-title fw-bold mb-1">@GetTodayDetections()</h3>
+                    <p class="card-text small mb-0">Detections (24h)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                    <h3 class="card-title fw-bold mb-1">@GetCriticalAlerts()</h3>
+                    <p class="card-text small mb-0">Critical Alerts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-3"></i>
+                    <h3 class="card-title fw-bold mb-1">@GetSystemUptime()</h3>
+                    <p class="card-text small mb-0">System Uptime</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
     <div class="row g-4">
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Camera Monitoring</h5>
-                    <p class="card-text text-muted">Monitor live camera feeds and control detection settings.</p>
-                    <a href="/camera-dashboard" class="btn btn-primary">Go to Dashboard</a>
+        <!-- Device Status Section -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-camera me-2 text-primary"></i>Device Status
+                    </h5>
+                    <a href="/camera-dashboard" class="btn btn-sm btn-outline-primary">
+                        View All Devices <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        @foreach (var device in GetDeviceStatus())
+                        {
+                            <div class="col-md-6">
+                                <div class="border rounded p-3 @GetDeviceCardClass(device.Status)">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="fw-bold mb-1">@device.Name</h6>
+                                            <small class="text-muted">@device.Location</small>
+                                        </div>
+                                        <span class="badge @GetStatusBadgeClass(device.Status)">
+                                            <i class="fas @GetStatusIcon(device.Status) me-1"></i>
+                                            @device.Status
+                                        </span>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            Last seen: @device.LastSeen.ToString("HH:mm")
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Detection History</h5>
-                    <p class="card-text text-muted">Browse animal detection records and captured media.</p>
-                    <a href="/detections" class="btn btn-success">View Detections</a>
+
+        <!-- Recent Alerts Section -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bell me-2 text-warning"></i>Recent Alerts
+                    </h5>
+                    <a href="/system-logs" class="btn btn-sm btn-outline-primary">
+                        View All <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        @foreach (var alert in GetRecentAlerts().Take(5))
+                        {
+                            <div class="list-group-item border-0 py-3">
+                                <div class="d-flex align-items-start">
+                                    <span class="badge @GetAlertBadgeClass(alert.Severity) me-3 mt-1">
+                                        <i class="fas @GetAlertIcon(alert.Severity)"></i>
+                                    </span>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1 fw-bold">@alert.Title</h6>
+                                        <p class="mb-1 small text-muted">@alert.Message</p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i>
+                                            @alert.Timestamp.ToString("MMM dd, HH:mm")
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    @if (!GetRecentAlerts().Any())
+                    {
+                        <div class="text-center py-4">
+                            <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                            <p class="text-muted mb-0">No recent alerts</p>
+                            <small class="text-muted">All systems are running normally</small>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body text-center">
-                    <h5 class="card-title">System Logs</h5>
-                    <p class="card-text text-muted">View system activity, errors, and diagnostic information.</p>
-                    <a href="/system-logs" class="btn btn-info">View Logs</a>
+    </div>
+
+    <!-- Quick Actions Section -->
+    <div class="row g-4 mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-rocket me-2 text-primary"></i>Quick Actions
+                    </h5>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Settings</h5>
-                    <p class="card-text text-muted">Change your application password.</p>
-                    <a href="/settings" class="btn btn-secondary">Go to Settings</a>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <a href="/camera-dashboard" class="btn btn-outline-primary w-100 py-3">
+                                <i class="fas fa-video fa-2x mb-2 d-block"></i>
+                                Camera Dashboard
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="/detections" class="btn btn-outline-success w-100 py-3">
+                                <i class="fas fa-search fa-2x mb-2 d-block"></i>
+                                Detection History
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="/system-logs" class="btn btn-outline-info w-100 py-3">
+                                <i class="fas fa-list-alt fa-2x mb-2 d-block"></i>
+                                System Logs
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="/settings" class="btn btn-outline-secondary w-100 py-3">
+                                <i class="fas fa-cog fa-2x mb-2 d-block"></i>
+                                Settings
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </AuthorizeView>
+
+@code {
+    // Sample data - replace with actual service calls
+    private int GetActiveDevicesCount() => 8;
+    private int GetTodayDetections() => 47;
+    private int GetCriticalAlerts() => 2;
+    private string GetSystemUptime() => "99.8%";
+
+    private List<DeviceInfo> GetDeviceStatus()
+    {
+        return new List<DeviceInfo>
+        {
+            new DeviceInfo { Name = "Camera 01", Location = "Main Entrance", Status = "Online", LastSeen = DateTime.Now.AddMinutes(-2) },
+            new DeviceInfo { Name = "Camera 02", Location = "Elephant Enclosure", Status = "Online", LastSeen = DateTime.Now.AddMinutes(-1) },
+            new DeviceInfo { Name = "Camera 03", Location = "Lion Habitat", Status = "Offline", LastSeen = DateTime.Now.AddHours(-2) },
+            new DeviceInfo { Name = "Camera 04", Location = "Bird Sanctuary", Status = "Online", LastSeen = DateTime.Now.AddMinutes(-3) },
+            new DeviceInfo { Name = "Camera 05", Location = "Reptile House", Status = "Warning", LastSeen = DateTime.Now.AddMinutes(-15) },
+            new DeviceInfo { Name = "Camera 06", Location = "Aquarium", Status = "Online", LastSeen = DateTime.Now.AddMinutes(-1) }
+        };
+    }
+
+    private List<AlertInfo> GetRecentAlerts()
+    {
+        return new List<AlertInfo>
+        {
+            new AlertInfo { Title = "Device Offline", Message = "Camera 03 (Lion Habitat) lost connection", Severity = "Critical", Timestamp = DateTime.Now.AddHours(-1) },
+            new AlertInfo { Title = "Low Battery", Message = "Camera 05 battery level below 20%", Severity = "Warning", Timestamp = DateTime.Now.AddHours(-2) },
+            new AlertInfo { Title = "Motion Detected", Message = "Unusual activity in Elephant Enclosure", Severity = "Info", Timestamp = DateTime.Now.AddHours(-3) },
+            new AlertInfo { Title = "System Update", Message = "Security patches installed successfully", Severity = "Info", Timestamp = DateTime.Now.AddHours(-5) },
+            new AlertInfo { Title = "Storage Warning", Message = "Storage usage above 85%", Severity = "Warning", Timestamp = DateTime.Now.AddHours(-6) }
+        };
+    }
+
+    private string GetDeviceCardClass(string status)
+    {
+        return status switch
+        {
+            "Online" => "border-success",
+            "Offline" => "border-danger",
+            "Warning" => "border-warning",
+            _ => "border-secondary"
+        };
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Online" => "bg-success",
+            "Offline" => "bg-danger",
+            "Warning" => "bg-warning",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetStatusIcon(string status)
+    {
+        return status switch
+        {
+            "Online" => "fa-check-circle",
+            "Offline" => "fa-times-circle",
+            "Warning" => "fa-exclamation-triangle",
+            _ => "fa-question-circle"
+        };
+    }
+
+    private string GetAlertBadgeClass(string severity)
+    {
+        return severity switch
+        {
+            "Critical" => "bg-danger",
+            "Warning" => "bg-warning",
+            "Info" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetAlertIcon(string severity)
+    {
+        return severity switch
+        {
+            "Critical" => "fa-exclamation-triangle",
+            "Warning" => "fa-exclamation-circle",
+            "Info" => "fa-info-circle",
+            _ => "fa-bell"
+        };
+    }
+
+    public class DeviceInfo
+    {
+        public string Name { get; set; } = "";
+        public string Location { get; set; } = "";
+        public string Status { get; set; } = "";
+        public DateTime LastSeen { get; set; }
+    }
+
+    public class AlertInfo
+    {
+        public string Title { get; set; } = "";
+        public string Message { get; set; } = "";
+        public string Severity { get; set; } = "";
+        public DateTime Timestamp { get; set; }
+    }
+}
