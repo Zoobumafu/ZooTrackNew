@@ -104,7 +104,14 @@ namespace ZooTrack.Services
 
                 // Save detection to database
                 _context.Detections.Add(detection);
-                await _context.SaveChangesAsync();
+                var changesCount = await _context.SaveChangesAsync();
+
+                if (changesCount == 0)
+                {
+                    await _logService.AddLogAsync(SYSTEM_USER_ID, "DetectionSaveFailed",
+                "SaveChangesAsync returned 0 - detection may not have been saved", "Error");
+                    throw new InvalidOperationException("Detection was not saved to the database");
+                }
 
                 // Log detection creation with appropriate severity level
                 await LogDetectionCreation(detection);

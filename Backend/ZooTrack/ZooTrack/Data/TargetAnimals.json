@@ -1,10 +1,12 @@
 {
   "person",
   "man",
-  "bottle",
+  "giraffe",
   "sheep",
   "dog",
   "cow",
   "wolf",
-  "tiger"
+  "zebra",
+  "tiger",
+  "other"
 }

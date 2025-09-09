@@ -5,212 +5,299 @@
 
 <PageTitle>Detection History - ZooTrack</PageTitle>
 
-<h3>Detection History</h3>
-<p class="text-muted">Browse animal detection records and captured media</p>
-
-<div class="row mb-3">
-    <div class="col-md-3">
-        <label for="animalType" class="form-label">Filter by Animal:</label>
-        <select class="form-select" id="animalType" @bind="selectedAnimalType" @bind:after="LoadDetections">
-            <option value="">All Animals</option>
-            <option value="Lion">Lion</option>
-            <option value="Elephant">Elephant</option>
-            <option value="Giraffe">Giraffe</option>
-            <option value="Zebra">Zebra</option>
-            <option value="Monkey">Monkey</option>
-            <option value="Bird">Bird</option>
-            <option value="Other">Other</option>
-        </select>
-    </div>
-    <div class="col-md-2">
-        <label for="cameraSource" class="form-label">Camera:</label>
-        <select class="form-select" id="cameraSource" @bind="selectedCamera" @bind:after="LoadDetections">
-            <option value="">All Cameras</option>
-            <option value="Camera-01">Camera 01</option>
-            <option value="Camera-02">Camera 02</option>
-            <option value="Camera-03">Camera 03</option>
-            <option value="Camera-04">Camera 04</option>
-        </select>
-    </div>
-    <div class="col-md-2">
-        <label for="dateFrom" class="form-label">From Date:</label>
-        <input type="date" class="form-control" id="dateFrom" @bind="dateFrom" @bind:after="LoadDetections" />
-    </div>
-    <div class="col-md-2">
-        <label for="dateTo" class="form-label">To Date:</label>
-        <input type="date" class="form-control" id="dateTo" @bind="dateTo" @bind:after="LoadDetections" />
-    </div>
-    <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-primary me-2" @onclick="LoadDetections" disabled="@isLoading">
-            @if (isLoading)
-            {
-                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-            }
-            Refresh
-        </button>
-        <button class="btn btn-outline-secondary" @onclick="ClearFilters">Clear Filters</button>
-    </div>
-</div>
-
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <div class="alert alert-danger" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-        @errorMessage
-    </div>
-}
-
-@if (isLoading && detections == null)
-{
-    <div class="d-flex justify-content-center my-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading detections...</span>
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-2">
+                <i class="bi bi-search me-2 text-primary"></i>
+                Detection History
+            </h2>
+            <p class="text-muted">Browse and manage animal detection records</p>
         </div>
     </div>
-}
-else if (detections != null)
-{
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+
+    <!-- Filters Section -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-light">
             <h5 class="mb-0">
-                <i class="bi bi-search me-2"></i>
-                Detection Records (@detections.Count detections)
+                <i class="bi bi-funnel me-2"></i>
+                Filters
             </h5>
-            <small class="text-muted">Last updated: @DateTime.Now.ToString("HH:mm:ss")</small>
         </div>
-        <div class="card-body p-0">
-            @if (detections.Count == 0)
-            {
-                <div class="text-center py-5">
-                    <i class="bi bi-camera display-1 text-muted"></i>
-                    <p class="text-muted mt-3">No detections found matching your criteria</p>
-                </div>
-            }
-            else
-            {
-                <div class="detection-grid p-3">
-                    @foreach (var detection in detections)
-                    {
-                        <div class="detection-card card h-100 shadow-sm @(detection.IsExpanded ? "expanded" : "")">
-                            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                                <div class="d-flex align-items-center">
-                                    <span class="badge @GetAnimalBadgeClass(detection.AnimalType) me-2">
-                                        @detection.AnimalType
-                                    </span>
-                                    <small class="text-muted">@detection.CameraName</small>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <small class="text-muted me-2">@detection.DetectedAt.ToString("MM/dd HH:mm:ss")</small>
-                                    <button class="btn btn-sm btn-outline-primary"
-                                            @onclick="() => ToggleExpand(detection)"
-                                            title="@(detection.IsExpanded ? "Collapse" : "Expand")">
-                                        <i class="bi bi-@(detection.IsExpanded ? "chevron-up" : "chevron-down")"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            @if (!string.IsNullOrEmpty(detection.ImagePath))
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="animalType" class="form-label">Animal Type:</label>
+                    <select class="form-select" id="animalType" @bind="selectedAnimalType" @bind:after="LoadDetections">
+                        <option value="">All Animals</option>
+                        @if (targetAnimals != null)
+                        {
+                            @foreach (var animal in targetAnimals)
                             {
-                                <div class="detection-image-container">
-                                    <img src="@detection.ImagePath"
-                                         alt="Detection of @detection.AnimalType"
-                                         class="detection-image"
-                                         @onclick="() => ShowImageModal(detection)" />
-                                    <div class="confidence-overlay">
-                                        <span class="badge bg-success">@detection.Confidence.ToString("P1")</span>
-                                    </div>
-                                </div>
+                                <option value="@animal">@CapitalizeFirstLetter(animal)</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="deviceId" class="form-label">Device:</label>
+                    <select class="form-select" id="deviceId" @bind="selectedDevice" @bind:after="LoadDetections">
+                        <option value="">All Devices</option>
+                        <option value="1">Device 1</option>
+                        <option value="2">Device 2</option>
+                        <option value="3">Device 3</option>
+                        <option value="4">Device 4</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="dateFrom" class="form-label">From Date:</label>
+                    <input type="date" class="form-control" id="dateFrom" @bind="dateFrom" @bind:after="LoadDetections" />
+                </div>
+                <div class="col-md-2">
+                    <label for="dateTo" class="form-label">To Date:</label>
+                    <input type="date" class="form-control" id="dateTo" @bind="dateTo" @bind:after="LoadDetections" />
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="LoadDetections" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        <i class="bi bi-arrow-clockwise me-1"></i>
+                        Refresh
+                    </button>
+                    <button class="btn btn-outline-secondary" @onclick="ClearFilters">
+                        <i class="bi bi-x-circle me-1"></i>
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Message -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    <!-- Loading State -->
+    @if (isLoading && allDetections == null)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading detections...</span>
+            </div>
+            <p class="text-muted">Loading detection records...</p>
+        </div>
+    }
+    else if (allDetections != null)
+    {
+        <!-- Results Summary -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <span class="badge bg-primary fs-6">
+                    @filteredDetections.Count Detection@(filteredDetections.Count != 1 ? "s" : "") Found
+                    @if (totalDetections > filteredDetections.Count)
+                    {
+                        <text> (of @totalDetections total)</text>
+                    }
+                </span>
+            </div>
+            <small class="text-muted">
+                <i class="bi bi-clock me-1"></i>
+                Last updated: @DateTime.Now.ToString("HH:mm:ss")
+            </small>
+        </div>
+
+        <!-- Detections Table -->
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                @if (currentPageDetections.Count == 0)
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-search display-1 text-muted mb-3"></i>
+                        <h5 class="text-muted">No detections found</h5>
+                        <p class="text-muted">Try adjusting your filter criteria</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
+                                                @onclick="() => SortTable(nameof(DetectionRecord.Id))">
+                                            Detection ID
+                                            <i class="bi bi-arrow-down-up ms-1"></i>
+                                        </button>
+                                    </th>
+                                    <th scope="col">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
+                                                @onclick="() => SortTable(nameof(DetectionRecord.DetectedAt))">
+                                            Date
+                                            <i class="bi bi-arrow-down-up ms-1"></i>
+                                        </button>
+                                    </th>
+                                    <th scope="col">Time</th>
+                                    <th scope="col">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
+                                                @onclick="() => SortTable(nameof(DetectionRecord.AnimalType))">
+                                            Detected Object
+                                            <i class="bi bi-arrow-down-up ms-1"></i>
+                                        </button>
+                                    </th>
+                                    <th scope="col">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
+                                                @onclick="() => SortTable(nameof(DetectionRecord.DeviceId))">
+                                            Device ID
+                                            <i class="bi bi-arrow-down-up ms-1"></i>
+                                        </button>
+                                    </th>
+                                    <th scope="col">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
+                                                @onclick="() => SortTable(nameof(DetectionRecord.Confidence))">
+                                            Confidence
+                                            <i class="bi bi-arrow-down-up ms-1"></i>
+                                        </button>
+                                    </th>
+                                    <th scope="col">Media ID</th>
+                                    <th scope="col" style="width: 120px;">Thumbnail</th>
+                                    <th scope="col" style="width: 100px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var detection in currentPageDetections)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-secondary">#@detection.Id</span>
+                                        </td>
+                                        <td>
+                                            <strong>@detection.DetectedAt.ToString("MMM dd, yyyy")</strong>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">@detection.DetectedAt.ToString("HH:mm:ss")</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge @GetAnimalBadgeClass(detection.AnimalType) fs-6">
+                                                @CapitalizeFirstLetter(detection.AnimalType)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info text-dark">@detection.DeviceId</span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress me-2" style="width: 60px; height: 8px;">
+                                                    <div class="progress-bar @GetConfidenceColor(detection.Confidence)"
+                                                         style="width: @(detection.Confidence * 100)%"></div>
+                                                </div>
+                                                <small class="text-muted">@detection.Confidence.ToString("P1")</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">#@detection.MediaId</span>
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(detection.ImagePath))
+                                            {
+                                                <img src="@detection.ImagePath"
+                                                     alt="Detection thumbnail"
+                                                     class="thumbnail-image"
+                                                     @onclick="() => ShowImageModal(detection)"
+                                                     title="Click to view full image" />
+                                            }
+                                            else
+                                            {
+                                                <div class="thumbnail-placeholder">
+                                                    <i class="bi bi-image text-muted"></i>
+                                                </div>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary"
+                                                        @onclick="() => ShowDetails(detection)"
+                                                        title="View Details">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-success"
+                                                        @onclick="() => DownloadImage(detection)"
+                                                        disabled="@string.IsNullOrEmpty(detection.ImagePath)"
+                                                        title="Download Image">
+                                                    <i class="bi bi-download"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        @if (filteredDetections.Count > 0)
+        {
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <div>
+                    <small class="text-muted">
+                        Showing @((currentPage - 1) * pageSize + 1) - @Math.Min(currentPage * pageSize, filteredDetections.Count)
+                        of @filteredDetections.Count detection@(filteredDetections.Count != 1 ? "s" : "")
+                    </small>
+                </div>
+
+                @if (totalPages > 1)
+                {
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(1)" disabled="@(currentPage == 1)">
+                                    <i class="bi bi-chevron-double-left"></i>
+                                </button>
+                            </li>
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(currentPage - 1)" disabled="@(currentPage == 1)">
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                            </li>
+
+                            @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                            {
+                                var pageNumber = i;
+                                <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                                    <button class="page-link" @onclick="() => GoToPage(pageNumber)">
+                                        @pageNumber
+                                    </button>
+                                </li>
                             }
 
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <h6 class="card-title mb-2">
-                                            <i class="bi bi-@GetAnimalIcon(detection.AnimalType) me-2 text-primary"></i>
-                                            @detection.AnimalType Detection
-                                        </h6>
-                                        <p class="card-text small text-muted mb-2">
-                                            <i class="bi bi-geo-alt me-1"></i>
-                                            Location: @detection.DetectionArea
-                                        </p>
-                                        <p class="card-text small text-muted mb-2">
-                                            <i class="bi bi-bullseye me-1"></i>
-                                            Confidence: @detection.Confidence.ToString("P1")
-                                        </p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <p class="card-text small text-muted mb-2">
-                                            <i class="bi bi-camera-video me-1"></i>
-                                            Camera: @detection.CameraName
-                                        </p>
-                                        <p class="card-text small text-muted mb-2">
-                                            <i class="bi bi-clock me-1"></i>
-                                            @detection.DetectedAt.ToString("MMM dd, yyyy HH:mm:ss")
-                                        </p>
-                                        @if (detection.AlertTriggered)
-                                        {
-                                            <p class="card-text small mb-2">
-                                                <span class="badge bg-warning text-dark">
-                                                    <i class="bi bi-bell-fill me-1"></i>Alert Triggered
-                                                </span>
-                                            </p>
-                                        }
-                                    </div>
-                                </div>
-
-                                @if (detection.IsExpanded)
-                                {
-                                    <hr class="my-3">
-                                    <div class="expanded-details">
-                                        <h6 class="mb-2">Detection Details</h6>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <p class="small mb-1"><strong>Bounding Box:</strong></p>
-                                                <p class="small text-muted">
-                                                    X: @detection.BoundingBox.X, Y: @detection.BoundingBox.Y<br>
-                                                    Width: @detection.BoundingBox.Width, Height: @detection.BoundingBox.Height
-                                                </p>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <p class="small mb-1"><strong>Processing Time:</strong></p>
-                                                <p class="small text-muted">@detection.ProcessingTimeMs ms</p>
-
-                                                @if (!string.IsNullOrEmpty(detection.Notes))
-                                                {
-                                                    <p class="small mb-1"><strong>Notes:</strong></p>
-                                                    <p class="small text-muted">@detection.Notes</p>
-                                                }
-                                            </div>
-                                        </div>
-
-                                        <div class="mt-3">
-                                            <button class="btn btn-sm btn-outline-primary me-2"
-                                                    @onclick="() => DownloadImage(detection)"
-                                                    disabled="@string.IsNullOrEmpty(detection.ImagePath)">
-                                                <i class="bi bi-download me-1"></i>Download Image
-                                            </button>
-                                            @if (!string.IsNullOrEmpty(detection.VideoPath))
-                                            {
-                                                <button class="btn btn-sm btn-outline-success me-2"
-                                                        @onclick="() => PlayVideo(detection)">
-                                                    <i class="bi bi-play-circle me-1"></i>Play Video
-                                                </button>
-                                            }
-                                            <button class="btn btn-sm btn-outline-info"
-                                                    @onclick="() => ShowDetails(detection)">
-                                                <i class="bi bi-info-circle me-1"></i>Full Details
-                                            </button>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-    </div>
-}
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(currentPage + 1)" disabled="@(currentPage == totalPages)">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </li>
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(totalPages)" disabled="@(currentPage == totalPages)">
+                                    <i class="bi bi-chevron-double-right"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            </div>
+        }
+    }
+</div>
 
 <!-- Image Modal -->
 @if (selectedDetection != null)
@@ -220,24 +307,51 @@ else if (detections != null)
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        @selectedDetection.AnimalType Detection - @selectedDetection.DetectedAt.ToString("MMM dd, yyyy HH:mm:ss")
+                        <i class="bi bi-@GetAnimalIcon(selectedDetection.AnimalType) me-2 text-primary"></i>
+                        @CapitalizeFirstLetter(selectedDetection.AnimalType) Detection
                     </h5>
                     <button type="button" class="btn-close" @onclick="CloseImageModal"></button>
                 </div>
-                <div class="modal-body text-center">
-                    <img src="@selectedDetection.ImagePath"
-                         alt="Detection of @selectedDetection.AnimalType"
-                         class="img-fluid rounded"
-                         style="max-height: 70vh;" />
-                    <div class="mt-3">
-                        <span class="badge bg-primary me-2">@selectedDetection.AnimalType</span>
-                        <span class="badge bg-success me-2">@selectedDetection.Confidence.ToString("P1")</span>
-                        <span class="badge bg-info">@selectedDetection.CameraName</span>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <img src="@selectedDetection.ImagePath"
+                             alt="Detection of @selectedDetection.AnimalType"
+                             class="img-fluid rounded shadow"
+                             style="max-height: 60vh;" />
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Detection Details</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>ID:</strong> #@selectedDetection.Id</li>
+                                <li><strong>Date & Time:</strong> @selectedDetection.DetectedAt.ToString("MMM dd, yyyy HH:mm:ss")</li>
+                                <li><strong>Device:</strong> @selectedDetection.DeviceId</li>
+                                <li><strong>Media ID:</strong> @selectedDetection.MediaId</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Detection Metrics</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Confidence:</strong> @selectedDetection.Confidence.ToString("P1")</li>
+                                <li><strong>Processing Time:</strong> @selectedDetection.ProcessingTimeMs ms</li>
+                                <li>
+                                    <strong>Alert Status:</strong>
+                                    @if (selectedDetection.AlertTriggered)
+                                    {
+                                        <span class="badge bg-warning text-dark">Alert Triggered</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">Normal</span>
+                                    }
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-primary" @onclick="() => DownloadImage(selectedDetection)">
-                        <i class="bi bi-download me-1"></i>Download
+                        <i class="bi bi-download me-1"></i>Download Image
                     </button>
                     <button class="btn btn-secondary" @onclick="CloseImageModal">Close</button>
                 </div>
@@ -247,87 +361,129 @@ else if (detections != null)
 }
 
 <style>
-    .detection-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-        gap: 1rem;
-        max-height: 80vh;
-        overflow-y: auto;
-    }
-
-    .detection-card {
-        transition: all 0.3s ease;
-        border: none;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-        .detection-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-        }
-
-        .detection-card.expanded {
-            grid-column: span 1;
-        }
-
-    .detection-image-container {
-        position: relative;
-        overflow: hidden;
-    }
-
-    .detection-image {
-        width: 100%;
-        height: 200px;
+    .thumbnail-image {
+        width: 60px;
+        height: 40px;
         object-fit: cover;
+        border-radius: 6px;
         cursor: pointer;
-        transition: transform 0.3s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 2px solid #dee2e6;
     }
 
-        .detection-image:hover {
-            transform: scale(1.05);
+        .thumbnail-image:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border-color: #007bff;
         }
 
-    .confidence-overlay {
-        position: absolute;
-        top: 10px;
-        right: 10px;
+    .thumbnail-placeholder {
+        width: 60px;
+        height: 40px;
+        background-color: #f8f9fa;
+        border: 2px dashed #dee2e6;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    .expanded-details {
-        background-color: rgba(0,0,0,0.02);
-        padding: 1rem;
-        border-radius: 8px;
+    .table th {
+        background-color: #495057 !important;
+        border: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+        .table th button {
+            font-weight: 600 !important;
+        }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1rem 0.75rem;
+        border-color: #dee2e6;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(0,123,255,0.05);
+    }
+
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
     }
 
     .badge {
         font-size: 0.75rem;
     }
 
-    @@media (max-width: 768px) {
-        .detection-grid
-
-    {
-        grid-template-columns: 1fr;
-        max-height: none;
+    .card {
+        border: none;
+        border-radius: 12px;
     }
 
-    .detection-image {
-        height: 150px;
+    .card-header {
+        border-radius: 12px 12px 0 0 !important;
+        border: none;
+    }
+
+    .btn-group-sm > .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .pagination .page-link {
+        border: 1px solid #dee2e6;
+        color: #007bff;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+
+    @@media (max-width: 768px) {
+        .table-responsive
+
+    {
+        font-size: 0.85rem;
+    }
+
+    .thumbnail-image, .thumbnail-placeholder {
+        width: 40px;
+        height: 30px;
+    }
+
+    .btn-group-sm > .btn {
+        padding: 0.125rem 0.25rem;
+        font-size: 0.75rem;
     }
 
     }</style>
 
-
 @code {
-    private List<DetectionRecord>? detections;
+    private List<DetectionRecord>? allDetections;
+    private List<DetectionRecord> filteredDetections = new();
+    private List<DetectionRecord> currentPageDetections = new();
+    private List<string>? targetAnimals;
     private bool isLoading = false;
     private string? errorMessage;
     private string selectedAnimalType = "";
-    private string selectedCamera = "";
+    private string selectedDevice = "";
     private DateOnly? dateFrom;
     private DateOnly? dateTo;
     private DetectionRecord? selectedDetection;
+
+    // Pagination
+    private int currentPage = 1;
+    private int pageSize = 50;
+    private int totalPages = 1;
+    private int totalDetections = 0;
+
+    // Sorting
+    private string currentSortField = nameof(DetectionRecord.DetectedAt);
+    private bool sortDescending = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -335,7 +491,44 @@ else if (detections != null)
         dateTo = DateOnly.FromDateTime(DateTime.Today);
         dateFrom = DateOnly.FromDateTime(DateTime.Today.AddDays(-7));
 
+        await LoadTargetAnimals();
         await LoadDetections();
+    }
+
+    private async Task LoadTargetAnimals()
+    {
+        try
+        {
+            var response = await Http.GetAsync("Data/TargetAnimals.json");
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                targetAnimals = JsonSerializer.Deserialize<List<string>>(jsonContent, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                Logger.LogInformation("Successfully loaded {Count} target animals", targetAnimals?.Count ?? 0);
+            }
+            else
+            {
+                Logger.LogWarning("Failed to load target animals file: {StatusCode}", response.StatusCode);
+                // Fallback to default animals if file not found
+                targetAnimals = new List<string> { "giraffe", "sheep", "dog", "cow", "wolf", "zebra", "tiger", "lion", "person","other" };
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading target animals");
+            // Fallback to default animals
+            targetAnimals = new List<string> { "giraffe", "sheep", "dog", "cow", "wolf", "zebra", "tiger", "lion", "person", "other" };
+        }
+    }
+
+    private string CapitalizeFirstLetter(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        return char.ToUpper(input[0]) + input.Substring(1).ToLower();
     }
 
     private async Task LoadDetections()
@@ -347,12 +540,6 @@ else if (detections != null)
         try
         {
             var queryParams = new List<string>();
-
-            if (!string.IsNullOrEmpty(selectedAnimalType))
-                queryParams.Add($"animal={Uri.EscapeDataString(selectedAnimalType)}");
-
-            if (!string.IsNullOrEmpty(selectedCamera))
-                queryParams.Add($"camera={Uri.EscapeDataString(selectedCamera)}");
 
             if (dateFrom.HasValue)
                 queryParams.Add($"from={dateFrom.Value:yyyy-MM-dd}");
@@ -369,20 +556,20 @@ else if (detections != null)
             if (response.IsSuccessStatusCode)
             {
                 var jsonContent = await response.Content.ReadAsStringAsync();
-                detections = JsonSerializer.Deserialize<List<DetectionRecord>>(jsonContent, new JsonSerializerOptions
+                allDetections = JsonSerializer.Deserialize<List<DetectionRecord>>(jsonContent, new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     });
 
-                // Sort by detection time descending (newest first)
-                detections = detections?.OrderByDescending(d => d.DetectedAt).ToList();
+                totalDetections = allDetections?.Count ?? 0;
+                ApplyFiltersAndPagination();
 
-                Logger.LogInformation("Successfully loaded {Count} detections", detections?.Count ?? 0);
+                Logger.LogInformation("Successfully loaded {Count} detections", allDetections?.Count ?? 0);
             }
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                errorMessage = $"Failed to load detections: {response.StatusCode} - {errorContent}";
+                errorMessage = $"Failed to load detections: {response.StatusCode}";
                 Logger.LogError("Failed to load detections: {StatusCode} - {Error}", response.StatusCode, errorContent);
             }
         }
@@ -398,19 +585,90 @@ else if (detections != null)
         }
     }
 
+    private void ApplyFiltersAndPagination()
+    {
+        if (allDetections == null)
+        {
+            filteredDetections = new();
+            currentPageDetections = new();
+            return;
+        }
+
+        // Apply filters
+        filteredDetections = allDetections.Where(d =>
+            (string.IsNullOrEmpty(selectedAnimalType) || d.AnimalType.Equals(selectedAnimalType, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(selectedDevice) || d.DeviceId.ToString() == selectedDevice)
+        ).ToList();
+
+        // Apply sorting
+        filteredDetections = GetSortedDetections().ToList();
+
+        // Calculate pagination
+        totalPages = (int)Math.Ceiling((double)filteredDetections.Count / pageSize);
+        if (currentPage > totalPages) currentPage = Math.Max(1, totalPages);
+
+        // Get current page data
+        var skip = (currentPage - 1) * pageSize;
+        currentPageDetections = filteredDetections.Skip(skip).Take(pageSize).ToList();
+    }
+
     private async Task ClearFilters()
     {
         selectedAnimalType = "";
-        selectedCamera = "";
+        selectedDevice = "";
         dateFrom = DateOnly.FromDateTime(DateTime.Today.AddDays(-7));
         dateTo = DateOnly.FromDateTime(DateTime.Today);
+        currentPage = 1;
         await LoadDetections();
     }
 
-    private void ToggleExpand(DetectionRecord detection)
+    private void SortTable(string fieldName)
     {
-        detection.IsExpanded = !detection.IsExpanded;
-        StateHasChanged();
+        if (currentSortField == fieldName)
+        {
+            sortDescending = !sortDescending;
+        }
+        else
+        {
+            currentSortField = fieldName;
+            sortDescending = true;
+        }
+        currentPage = 1; // Reset to first page when sorting
+        ApplyFiltersAndPagination();
+    }
+
+    private IEnumerable<DetectionRecord> GetSortedDetections()
+    {
+        if (filteredDetections == null) return new List<DetectionRecord>();
+
+        return currentSortField switch
+        {
+            nameof(DetectionRecord.Id) => sortDescending
+                ? filteredDetections.OrderByDescending(d => d.Id)
+                : filteredDetections.OrderBy(d => d.Id),
+            nameof(DetectionRecord.DetectedAt) => sortDescending
+                ? filteredDetections.OrderByDescending(d => d.DetectedAt)
+                : filteredDetections.OrderBy(d => d.DetectedAt),
+            nameof(DetectionRecord.AnimalType) => sortDescending
+                ? filteredDetections.OrderByDescending(d => d.AnimalType)
+                : filteredDetections.OrderBy(d => d.AnimalType),
+            nameof(DetectionRecord.DeviceId) => sortDescending
+                ? filteredDetections.OrderByDescending(d => d.DeviceId)
+                : filteredDetections.OrderBy(d => d.DeviceId),
+            nameof(DetectionRecord.Confidence) => sortDescending
+                ? filteredDetections.OrderByDescending(d => d.Confidence)
+                : filteredDetections.OrderBy(d => d.Confidence),
+            _ => filteredDetections.OrderByDescending(d => d.DetectedAt)
+        };
+    }
+
+    private void GoToPage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+            ApplyFiltersAndPagination();
+        }
     }
 
     private void ShowImageModal(DetectionRecord detection)
@@ -435,9 +693,9 @@ else if (detections != null)
 
         try
         {
-            // Implement image download logic
             Logger.LogInformation("Downloading image for detection {Id}", detection.Id);
-            // You can implement actual download logic here
+            // Implement actual download logic here
+            // You can use JavaScript interop to trigger download
         }
         catch (Exception ex)
         {
@@ -445,33 +703,12 @@ else if (detections != null)
         }
     }
 
-    private void PlayVideo(DetectionRecord detection)
-    {
-        if (string.IsNullOrEmpty(detection.VideoPath))
-        {
-            Logger.LogWarning("No video path available for detection {Id}", detection.Id);
-            return;
-        }
-
-        try
-        {
-            // Implement video playback logic
-            Logger.LogInformation("Playing video for detection {Id}", detection.Id);
-            // You can implement actual video playback logic here
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error playing video for detection {Id}", detection.Id);
-        }
-    }
-
     private void ShowDetails(DetectionRecord detection)
     {
         try
         {
-            // Implement detailed view logic
             Logger.LogInformation("Showing details for detection {Id}", detection.Id);
-            // You can implement navigation to a detailed view page here
+            // Navigate to detailed view or show additional modal
         }
         catch (Exception ex)
         {
@@ -484,12 +721,15 @@ else if (detections != null)
         return animalType?.ToLower() switch
         {
             "lion" => "bg-warning text-dark",
-            "elephant" => "bg-secondary",
-            "giraffe" => "bg-info",
+            "tiger" => "bg-warning text-dark",
+            "person" or "man" => "bg-danger",
+            "giraffe" => "bg-info text-dark",
             "zebra" => "bg-dark",
-            "monkey" => "bg-success",
-            "bird" => "bg-primary",
-            _ => "bg-light text-dark"
+            "sheep" => "bg-light text-dark",
+            "dog" => "bg-success",
+            "cow" => "bg-secondary",
+            "wolf" => "bg-dark",
+            _ => "bg-primary"
         };
     }
 
@@ -497,13 +737,25 @@ else if (detections != null)
     {
         return animalType?.ToLower() switch
         {
-            "lion" => "badge-fill",
-            "elephant" => "circle-fill",
+            "lion" or "tiger" => "star-fill",
+            "person" or "man" => "person-fill",
             "giraffe" => "triangle-fill",
             "zebra" => "square-fill",
-            "monkey" => "diamond-fill",
-            "bird" => "star-fill",
+            "sheep" => "circle-fill",
+            "dog" => "heart-fill",
+            "cow" => "square-fill",
+            "wolf" => "diamond-fill",
             _ => "question-circle-fill"
+        };
+    }
+
+    private string GetConfidenceColor(double confidence)
+    {
+        return confidence switch
+        {
+            >= 0.8 => "bg-success",
+            >= 0.6 => "bg-warning",
+            _ => "bg-danger"
         };
     }
 
@@ -513,8 +765,8 @@ else if (detections != null)
         public DateTime DetectedAt { get; set; }
         public string AnimalType { get; set; } = "";
         public double Confidence { get; set; }
-        public string CameraName { get; set; } = "";
-        public string DetectionArea { get; set; } = "";
+        public int DeviceId { get; set; }
+        public int MediaId { get; set; }
         public string? ImagePath { get; set; }
         public string? VideoPath { get; set; }
         public BoundingBox BoundingBox { get; set; } = new();
