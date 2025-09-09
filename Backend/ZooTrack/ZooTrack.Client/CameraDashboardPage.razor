@@ -1,9 +1,9 @@
-﻿// FINAL FIX
-@page "/camera-dashboard"
-@attribute [Authorize]
+﻿@page "/camera-dashboard"
+@* @attribute [Authorize] <-- REMOVED THIS LINE *@
 @using Microsoft.AspNetCore.SignalR.Client
 @using System.Text.Json
 @using System.Collections.Concurrent
+@using System.Diagnostics
 @inject HttpClient Http
 @inject ILogger<CameraDashboardPage> Logger
 @inject IJSRuntime JSRuntime
@@ -14,7 +14,6 @@
 <h3>Camera Dashboard</h3>
 <p class="text-muted">Manage and monitor all active camera streams.</p>
 
-<!-- Global Controls -->
 <div class="card mb-4">
     <div class="card-header">Global Controls</div>
     <div class="card-body">
@@ -40,14 +39,17 @@
                 </div>
             </div>
         </div>
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="showFpsSwitch" @bind="showFpsCounter">
+            <label class="form-check-label" for="showFpsSwitch">Show FPS Counter</label>
+        </div>
         @if (!string.IsNullOrEmpty(apiError))
         {
-            <div class="alert alert-danger mt-3 mb-0">@apiError</div>
+            <div class="alert alert-danger mt-3 mb-0">@((MarkupString)apiError)</div>
         }
     </div>
 </div>
 
-<!-- Camera Streams Grid -->
 @if (availableCameras == null && !isDiscovering)
 {
     <div class="text-center p-4">
@@ -77,21 +79,27 @@ else if (availableCameras != null)
                         </span>
                     </div>
                     <div class="card-body">
-                        @if (!string.IsNullOrEmpty(status.FrameSrc))
-                        {
-                            <img src="@status.FrameSrc" class="img-fluid rounded mb-2" alt="Stream from @cam.Name" />
-                        }
-                        else
-                        {
-                            <div class="bg-dark text-white d-flex align-items-center justify-content-center rounded mb-2" style="height: 200px;">
-                                <i class="bi bi-camera-video-off fs-1"></i>
-                            </div>
-                        }
+                        <div class="position-relative">
+                            @if (!string.IsNullOrEmpty(status.FrameSrc))
+                            {
+                                <img src="@status.FrameSrc" class="img-fluid rounded mb-2" alt="Stream from @cam.Name" />
+                                @if (showFpsCounter)
+                                {
+                                    <span class="badge bg-dark position-absolute top-0 start-0 m-2">@status.Fps.ToString("F1") FPS</span>
+                                }
+                            }
+                            else
+                            {
+                                <div class="bg-dark text-white d-flex align-items-center justify-content-center rounded mb-2" style="height: 200px;">
+                                    <i class="bi bi-camera-video-off fs-1"></i>
+                                </div>
+                            }
+                        </div>
 
                         <p class="text-muted small mb-2" style="min-height: 20px;">Status: <em>@status.StatusMessage</em></p>
 
                         <div class="d-grid gap-2">
-                            <button class="btn btn-sm btn-success" @onclick="() => StartStream(cam.CameraId)" disabled="@status.IsProcessing || !status.IsConnected">
+                            <button class="btn btn-sm btn-success" @onclick="() => StartStream(cam.CameraId)" disabled="@status.IsProcessing">
                                 <i class="bi bi-play-fill"></i> Start Stream
                             </button>
                             <button class="btn btn-sm btn-warning" @onclick="() => StopStream(cam.CameraId)" disabled="@(!status.IsProcessing)">
@@ -105,6 +113,7 @@ else if (availableCameras != null)
     </div>
 }
 
+
 @code {
     private List<CameraInfo> availableCameras = new List<CameraInfo>();
     private ConcurrentDictionary<int, StreamData> streamData = new();
@@ -114,6 +123,7 @@ else if (availableCameras != null)
     private string globalSavePath = "C:/ZooTrackHighlights";
     private string? apiError;
     private bool isDiscovering = false;
+    private bool showFpsCounter = false;
 
     private class StreamData
     {
@@ -121,12 +131,15 @@ else if (availableCameras != null)
         public string StatusMessage { get; set; } = "Idle";
         public bool IsConnected { get; set; } = false;
         public bool IsProcessing { get; set; } = false;
+        public int FrameCount { get; set; } = 0;
+        public Stopwatch FpsStopwatch { get; set; } = new Stopwatch();
+        public double Fps { get; set; } = 0.0;
     }
 
     public class CameraInfo
     {
         public int CameraId { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public bool IsActive { get; set; }
     }
 
@@ -143,7 +156,8 @@ else if (availableCameras != null)
 
             foreach (var cam in availableCameras)
             {
-                streamData.TryAdd(cam.CameraId, new StreamData());
+                var data = streamData.GetOrAdd(cam.CameraId, new StreamData());
+                data.FpsStopwatch.Start();
                 if (!hubConnections.ContainsKey(cam.CameraId))
                 {
                     await ConnectToHub(cam.CameraId);
@@ -152,8 +166,13 @@ else if (availableCameras != null)
         }
         catch (Exception ex)
         {
-            apiError = $"Failed to discover cameras: {ex.Message}";
-            Logger.LogError(ex, apiError);
+            apiError = $"<strong>Failed to discover cameras.</strong> Please check the following:<br/>" +
+                       "<ul>" +
+                       "<li>Is the backend application running? (Check the console window)</li>" +
+                       "<li>Is a camera connected to the server and powered on?</li>" +
+                       "</ul>" +
+                       $"<small>Error details: {ex.Message}</small>";
+            Logger.LogError(ex, "Failed to discover cameras");
         }
         finally
         {
@@ -164,18 +183,9 @@ else if (availableCameras != null)
 
     private async Task ConnectToHub(int cameraId)
     {
-        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
-        if (string.IsNullOrEmpty(token))
-        {
-            HandleDisconnection(cameraId, "Auth token not found.");
-            return;
-        }
-
+        // *** MAJOR FIX: REMOVED TOKEN LOGIC ***
         var hubConnection = new HubConnectionBuilder()
-            .WithUrl(new Uri(Http.BaseAddress, "cameraHub"), options =>
-            {
-                options.AccessTokenProvider = () => Task.FromResult(token);
-            })
+            .WithUrl(new Uri(Http.BaseAddress!, "cameraHub")) // Removed options with AccessTokenProvider
             .WithAutomaticReconnect()
             .Build();
 
@@ -190,6 +200,16 @@ else if (availableCameras != null)
             if (streamData.TryGetValue(cameraId, out var data))
             {
                 data.FrameSrc = $"data:image/jpeg;base64,{Convert.ToBase64String(frameData)}";
+
+                // FPS Calculation Logic
+                data.FrameCount++;
+                if (data.FpsStopwatch.ElapsedMilliseconds >= 1000)
+                {
+                    data.Fps = data.FrameCount / (data.FpsStopwatch.ElapsedMilliseconds / 1000.0);
+                    data.FrameCount = 0;
+                    data.FpsStopwatch.Restart();
+                }
+
                 InvokeAsync(StateHasChanged);
             }
         });
@@ -203,8 +223,8 @@ else if (availableCameras != null)
             }
         });
 
-        hubConnection.Closed += (error) => HandleDisconnection(cameraId, "Disconnected. Please refresh.");
-        hubConnection.Reconnecting += (error) => HandleDisconnection(cameraId, "Reconnecting...");
+        hubConnection.Closed += (error) => HandleDisconnection(cameraId, "Connection closed. Please refresh the page.");
+        hubConnection.Reconnecting += (error) => HandleDisconnection(cameraId, "Connection lost. Reconnecting...");
 
         hubConnection.Reconnected += async (connectionId) =>
         {
@@ -235,6 +255,7 @@ else if (availableCameras != null)
         await InvokeAsync(StateHasChanged);
     }
 
+    // The rest of the @code block is unchanged...
     private Task HandleDisconnection(int cameraId, string message)
     {
         if (streamData.TryGetValue(cameraId, out var data))
@@ -243,6 +264,8 @@ else if (availableCameras != null)
             data.IsProcessing = false;
             data.StatusMessage = message;
             data.FrameSrc = "";
+            data.Fps = 0;
+            data.FpsStopwatch.Reset();
         }
         return InvokeAsync(StateHasChanged);
     }
@@ -280,7 +303,13 @@ else if (availableCameras != null)
         var response = await Http.PostAsJsonAsync("api/camera/stop", new { CameraIds = new List<int> { cameraId } });
         if (response.IsSuccessStatusCode)
         {
-            if (streamData.TryGetValue(cameraId, out var data)) data.IsProcessing = false;
+            if (streamData.TryGetValue(cameraId, out var data))
+            {
+                data.IsProcessing = false;
+                data.Fps = 0;
+                data.FrameCount = 0;
+                data.FpsStopwatch.Reset();
+            }
         }
         else
         {
@@ -297,6 +326,9 @@ else if (availableCameras != null)
             foreach (var data in streamData.Values)
             {
                 data.IsProcessing = false;
+                data.Fps = 0;
+                data.FrameCount = 0;
+                data.FpsStopwatch.Reset();
             }
         }
         else
