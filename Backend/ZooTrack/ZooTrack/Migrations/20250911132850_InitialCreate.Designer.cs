@@ -11,8 +11,8 @@ using ZooTrack.Data;
 namespace ZooTrackBackend.Migrations
 {
     [DbContext(typeof(ZootrackDbContext))]
-    [Migration("20250621152013_SeedDataMigration")]
-    partial class SeedDataMigration
+    [Migration("20250911132850_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -351,6 +351,198 @@ namespace ZooTrackBackend.Migrations
                             FrameNumber = 135,
                             MediaId = 7,
                             TrackingId = 1002
+                        },
+                        new
+                        {
+                            DetectionId = 9,
+                            BoundingBoxHeight = 0.25f,
+                            BoundingBoxWidth = 0.15f,
+                            BoundingBoxX = 0.2f,
+                            BoundingBoxY = 0.3f,
+                            Confidence = 0.76f,
+                            DetectedAt = new DateTime(2025, 6, 18, 14, 20, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "tiger",
+                            DeviceId = 1,
+                            EventId = 1,
+                            FrameNumber = 200,
+                            MediaId = 1,
+                            TrackingId = 1003
+                        },
+                        new
+                        {
+                            DetectionId = 10,
+                            BoundingBoxHeight = 0.18f,
+                            BoundingBoxWidth = 0.12f,
+                            BoundingBoxX = 0.6f,
+                            BoundingBoxY = 0.1f,
+                            Confidence = 0.45f,
+                            DetectedAt = new DateTime(2025, 6, 18, 16, 45, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "deer",
+                            DeviceId = 1,
+                            EventId = 1,
+                            FrameNumber = 300,
+                            MediaId = 1,
+                            TrackingId = 1004
+                        },
+                        new
+                        {
+                            DetectionId = 11,
+                            BoundingBoxHeight = 0.3f,
+                            BoundingBoxWidth = 0.2f,
+                            BoundingBoxX = 0.4f,
+                            BoundingBoxY = 0.5f,
+                            Confidence = 0.92f,
+                            DetectedAt = new DateTime(2025, 6, 17, 10, 30, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "lion",
+                            DeviceId = 1,
+                            EventId = 1,
+                            FrameNumber = 150,
+                            MediaId = 1,
+                            TrackingId = 1005
+                        },
+                        new
+                        {
+                            DetectionId = 12,
+                            BoundingBoxHeight = 0.12f,
+                            BoundingBoxWidth = 0.08f,
+                            BoundingBoxX = 0.1f,
+                            BoundingBoxY = 0.2f,
+                            Confidence = 0.38f,
+                            DetectedAt = new DateTime(2025, 6, 18, 11, 15, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "bird",
+                            DeviceId = 2,
+                            EventId = 2,
+                            FrameNumber = 100,
+                            MediaId = 3,
+                            TrackingId = 2003
+                        },
+                        new
+                        {
+                            DetectionId = 13,
+                            BoundingBoxHeight = 0.35f,
+                            BoundingBoxWidth = 0.25f,
+                            BoundingBoxX = 0.3f,
+                            BoundingBoxY = 0.4f,
+                            Confidence = 0.89f,
+                            DetectedAt = new DateTime(2025, 6, 17, 15, 20, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "elephant",
+                            DeviceId = 2,
+                            EventId = 2,
+                            FrameNumber = 250,
+                            MediaId = 3,
+                            TrackingId = 2004
+                        },
+                        new
+                        {
+                            DetectionId = 14,
+                            BoundingBoxHeight = 0.15f,
+                            BoundingBoxWidth = 0.1f,
+                            BoundingBoxX = 0.7f,
+                            BoundingBoxY = 0.6f,
+                            Confidence = 0.55f,
+                            DetectedAt = new DateTime(2025, 6, 16, 13, 45, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "wolf",
+                            DeviceId = 2,
+                            EventId = 2,
+                            FrameNumber = 180,
+                            MediaId = 3,
+                            TrackingId = 2005
+                        },
+                        new
+                        {
+                            DetectionId = 15,
+                            BoundingBoxHeight = 0.28f,
+                            BoundingBoxWidth = 0.18f,
+                            BoundingBoxX = 0.5f,
+                            BoundingBoxY = 0.3f,
+                            Confidence = 0.91f,
+                            DetectedAt = new DateTime(2025, 6, 15, 9, 30, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "bear",
+                            DeviceId = 3,
+                            EventId = 1,
+                            FrameNumber = 120,
+                            MediaId = 1,
+                            TrackingId = 3001
+                        },
+                        new
+                        {
+                            DetectionId = 16,
+                            BoundingBoxHeight = 0.1f,
+                            BoundingBoxWidth = 0.06f,
+                            BoundingBoxX = 0.2f,
+                            BoundingBoxY = 0.7f,
+                            Confidence = 0.42f,
+                            DetectedAt = new DateTime(2025, 6, 15, 14, 20, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "rabbit",
+                            DeviceId = 3,
+                            EventId = 1,
+                            FrameNumber = 90,
+                            MediaId = 1,
+                            TrackingId = 3002
+                        },
+                        new
+                        {
+                            DetectionId = 17,
+                            BoundingBoxHeight = 0.2f,
+                            BoundingBoxWidth = 0.15f,
+                            BoundingBoxX = 0.8f,
+                            BoundingBoxY = 0.2f,
+                            Confidence = 0.67f,
+                            DetectedAt = new DateTime(2025, 6, 19, 8, 45, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "fox",
+                            DeviceId = 4,
+                            EventId = 3,
+                            FrameNumber = 75,
+                            MediaId = 5,
+                            TrackingId = 4003
+                        },
+                        new
+                        {
+                            DetectionId = 18,
+                            BoundingBoxHeight = 0.08f,
+                            BoundingBoxWidth = 0.05f,
+                            BoundingBoxX = 0.1f,
+                            BoundingBoxY = 0.8f,
+                            Confidence = 0.29f,
+                            DetectedAt = new DateTime(2025, 6, 18, 17, 30, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "bird",
+                            DeviceId = 4,
+                            EventId = 3,
+                            FrameNumber = 45,
+                            MediaId = 5,
+                            TrackingId = 4004
+                        },
+                        new
+                        {
+                            DetectionId = 19,
+                            BoundingBoxHeight = 0.3f,
+                            BoundingBoxWidth = 0.2f,
+                            BoundingBoxX = 0.45f,
+                            BoundingBoxY = 0.35f,
+                            Confidence = 0.84f,
+                            DetectedAt = new DateTime(2025, 6, 19, 16, 10, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "deer",
+                            DeviceId = 5,
+                            EventId = 4,
+                            FrameNumber = 220,
+                            MediaId = 6,
+                            TrackingId = 5002
+                        },
+                        new
+                        {
+                            DetectionId = 20,
+                            BoundingBoxHeight = 0.32f,
+                            BoundingBoxWidth = 0.22f,
+                            BoundingBoxX = 0.6f,
+                            BoundingBoxY = 0.4f,
+                            Confidence = 0.95f,
+                            DetectedAt = new DateTime(2025, 6, 20, 11, 5, 0, 0, DateTimeKind.Unspecified),
+                            DetectedObject = "tiger",
+                            DeviceId = 5,
+                            EventId = 4,
+                            FrameNumber = 280,
+                            MediaId = 6,
+                            TrackingId = 5003
                         });
                 });
 
@@ -451,6 +643,174 @@ namespace ZooTrackBackend.Migrations
                             ValidatedAt = new DateTime(2025, 6, 20, 13, 0, 0, 0, DateTimeKind.Unspecified),
                             ValidatedBy = "Wildlife Observer",
                             ValidationNotes = "False positive - was a large log"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            DetectionId = 9,
+                            IsFalseNegative = false,
+                            IsFalsePositive = false,
+                            IsTruePositive = true,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 18, 15, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Admin",
+                            ValidationNotes = "Tiger confirmed in North Zone"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            DetectionId = 11,
+                            IsFalseNegative = false,
+                            IsFalsePositive = false,
+                            IsTruePositive = true,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 17, 11, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Zoo Manager",
+                            ValidationNotes = "Lion sighting verified"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            DetectionId = 13,
+                            IsFalseNegative = false,
+                            IsFalsePositive = false,
+                            IsTruePositive = true,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 17, 16, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Wildlife Observer",
+                            ValidationNotes = "Elephant behavior normal"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            DetectionId = 15,
+                            IsFalseNegative = false,
+                            IsFalsePositive = false,
+                            IsTruePositive = true,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 15, 10, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Admin",
+                            ValidationNotes = "Bear spotted in East Zone"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            DetectionId = 19,
+                            IsFalseNegative = false,
+                            IsFalsePositive = false,
+                            IsTruePositive = true,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 19, 17, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Wildlife Observer",
+                            ValidationNotes = "Deer grazing - normal behavior"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            DetectionId = 20,
+                            IsFalseNegative = false,
+                            IsFalsePositive = false,
+                            IsTruePositive = true,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 20, 12, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Zoo Manager",
+                            ValidationNotes = "High confidence tiger detection"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            DetectionId = 10,
+                            IsFalseNegative = false,
+                            IsFalsePositive = true,
+                            IsTruePositive = false,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 18, 17, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Admin",
+                            ValidationNotes = "Shadow mistaken for deer"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            DetectionId = 12,
+                            IsFalseNegative = false,
+                            IsFalsePositive = true,
+                            IsTruePositive = false,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 18, 12, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Wildlife Observer",
+                            ValidationNotes = "Leaf movement, not a bird"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            DetectionId = 14,
+                            IsFalseNegative = false,
+                            IsFalsePositive = true,
+                            IsTruePositive = false,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 16, 14, 30, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Zoo Manager",
+                            ValidationNotes = "Rock formation misidentified as wolf"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            DetectionId = 16,
+                            IsFalseNegative = false,
+                            IsFalsePositive = true,
+                            IsTruePositive = false,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 15, 15, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Admin",
+                            ValidationNotes = "Small debris, not rabbit"
+                        },
+                        new
+                        {
+                            Id = 16,
+                            DetectionId = 17,
+                            IsFalseNegative = false,
+                            IsFalsePositive = true,
+                            IsTruePositive = false,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 19, 9, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Wildlife Observer",
+                            ValidationNotes = "Bush movement mistaken for fox"
+                        },
+                        new
+                        {
+                            Id = 17,
+                            DetectionId = 18,
+                            IsFalseNegative = false,
+                            IsFalsePositive = true,
+                            IsTruePositive = false,
+                            IsValidated = true,
+                            ValidatedAt = new DateTime(2025, 6, 18, 18, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "Zoo Manager",
+                            ValidationNotes = "Flying plastic bag, not bird"
+                        },
+                        new
+                        {
+                            Id = 18,
+                            DetectionId = 6,
+                            IsFalseNegative = false,
+                            IsFalsePositive = false,
+                            IsTruePositive = false,
+                            IsValidated = false,
+                            ValidatedAt = new DateTime(2025, 6, 20, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "",
+                            ValidationNotes = ""
+                        },
+                        new
+                        {
+                            Id = 19,
+                            DetectionId = 8,
+                            IsFalseNegative = false,
+                            IsFalsePositive = false,
+                            IsTruePositive = false,
+                            IsValidated = false,
+                            ValidatedAt = new DateTime(2025, 6, 20, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            ValidatedBy = "",
+                            ValidationNotes = ""
                         });
                 });
 
@@ -852,6 +1212,66 @@ namespace ZooTrackBackend.Migrations
                             PathJson = "[[220.0, 180.0], [225.0, 185.0], [230.0, 190.0]]",
                             StartTime = new DateTime(2025, 6, 20, 15, 2, 15, 0, DateTimeKind.Unspecified),
                             TrackingId = 1002
+                        },
+                        new
+                        {
+                            Id = 6,
+                            DetectedObject = "tiger",
+                            DeviceId = 1,
+                            EndTime = new DateTime(2025, 6, 18, 14, 25, 0, 0, DateTimeKind.Unspecified),
+                            PathJson = "[[0.2, 0.3], [0.22, 0.32], [0.25, 0.35], [0.28, 0.38]]",
+                            StartTime = new DateTime(2025, 6, 18, 14, 20, 0, 0, DateTimeKind.Unspecified),
+                            TrackingId = 1003
+                        },
+                        new
+                        {
+                            Id = 7,
+                            DetectedObject = "lion",
+                            DeviceId = 1,
+                            EndTime = new DateTime(2025, 6, 17, 10, 35, 0, 0, DateTimeKind.Unspecified),
+                            PathJson = "[[0.4, 0.5], [0.42, 0.48], [0.45, 0.46], [0.48, 0.44]]",
+                            StartTime = new DateTime(2025, 6, 17, 10, 30, 0, 0, DateTimeKind.Unspecified),
+                            TrackingId = 1005
+                        },
+                        new
+                        {
+                            Id = 8,
+                            DetectedObject = "elephant",
+                            DeviceId = 2,
+                            EndTime = new DateTime(2025, 6, 17, 15, 30, 0, 0, DateTimeKind.Unspecified),
+                            PathJson = "[[0.3, 0.4], [0.32, 0.42], [0.34, 0.44], [0.36, 0.46], [0.38, 0.48]]",
+                            StartTime = new DateTime(2025, 6, 17, 15, 20, 0, 0, DateTimeKind.Unspecified),
+                            TrackingId = 2004
+                        },
+                        new
+                        {
+                            Id = 9,
+                            DetectedObject = "bear",
+                            DeviceId = 3,
+                            EndTime = new DateTime(2025, 6, 15, 9, 40, 0, 0, DateTimeKind.Unspecified),
+                            PathJson = "[[0.5, 0.3], [0.52, 0.32], [0.54, 0.34], [0.56, 0.36]]",
+                            StartTime = new DateTime(2025, 6, 15, 9, 30, 0, 0, DateTimeKind.Unspecified),
+                            TrackingId = 3001
+                        },
+                        new
+                        {
+                            Id = 10,
+                            DetectedObject = "deer",
+                            DeviceId = 5,
+                            EndTime = new DateTime(2025, 6, 19, 16, 15, 0, 0, DateTimeKind.Unspecified),
+                            PathJson = "[[0.45, 0.35], [0.47, 0.37], [0.49, 0.39], [0.51, 0.41]]",
+                            StartTime = new DateTime(2025, 6, 19, 16, 10, 0, 0, DateTimeKind.Unspecified),
+                            TrackingId = 5002
+                        },
+                        new
+                        {
+                            Id = 11,
+                            DetectedObject = "tiger",
+                            DeviceId = 5,
+                            EndTime = new DateTime(2025, 6, 20, 11, 12, 0, 0, DateTimeKind.Unspecified),
+                            PathJson = "[[0.6, 0.4], [0.58, 0.42], [0.56, 0.44], [0.54, 0.46], [0.52, 0.48]]",
+                            StartTime = new DateTime(2025, 6, 20, 11, 5, 0, 0, DateTimeKind.Unspecified),
+                            TrackingId = 5003
                         });
                 });
 
@@ -894,8 +1314,8 @@ namespace ZooTrackBackend.Migrations
                             UserId = 1,
                             Email = "Admin",
                             Name = "Admin",
-                            PasswordHash = "5SRIlSCJibQf71QS5CoWdj1fRi+9RNSbsB6dmH3RpXAgsfCxVNrIoZAiIIo5ygMVXgq3VkjslqIToO9c9Wrq+A==",
-                            PasswordSalt = "dO62kXPqRC+Br7iiLDTj7liUAKzJV6psJtVa7AAzQERcdYsBl7aeY5jLS701BD7ow71+KoEZpY+ZUw+NypASzfhUX2zSLo0iAH0S3ohgAY7puhoaoXktEeCjxcwBmdZJvViGCYzfPoZVP1rH5KGb9JvCdE47T5c3YTwMN4Cr5Dw=",
+                            PasswordHash = "ERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAx",
+                            PasswordSalt = "AQIDBAUEDF+CAQIDBAUGCQ0ODw==",
                             Role = "Admin"
                         },
                         new
@@ -903,8 +1323,8 @@ namespace ZooTrackBackend.Migrations
                             UserId = 2,
                             Email = "manager@zootrack.com",
                             Name = "Zoo Manager",
-                            PasswordHash = "TDMQsNtlgSKrOuK5JxO23OhxCeZPyWvFor3zSSbyQbzLDCh7vyqpx/RNp3odbD6Oc90OkgGHsqaAv4p9Q8oSNQ==",
-                            PasswordSalt = "hV+3uIzB4lcAO/GDHBREIQuJYVIOcwER1detdnr0s+xkxQGBjiNsyeV0JLGrtUIZZU34W/JnA4ArcQ+5nRALa85KaKv+l18vOl2uuTyOGMHjTPuRyjzkYu5pngHf0V1gijOT4HjC91WbdWbre0paaCKdJk3JMr6oVzdqEcEjawg=",
+                            PasswordHash = "UVJTVFVWVxhZWltcXV5fYGFiY2RlZmdoaWprbG1ub3A=",
+                            PasswordSalt = "ITIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1A=",
                             Role = "Manager"
                         },
                         new
@@ -912,8 +1332,8 @@ namespace ZooTrackBackend.Migrations
                             UserId = 3,
                             Email = "observer@zootrack.com",
                             Name = "Wildlife Observer",
-                            PasswordHash = "vJL4KhlWxS3YVRJVe8VskeABobBxNN+xC0YUbZbrFDv/3xkGw2jskpZxGwTcwU0N/K4ZSOCzCwFLFE/cf6bUPA==",
-                            PasswordSalt = "Ubrp6HNkb+z+r9ItolR9JI+iQlyn2t8wR6uogk46AQeTAqHMcLQYb/9NgHfuwBKNZFzqzPO9R2zS0nu4T0jLvK8GUwBMZoI8BoQ5DeXwp1sVO0mkItIOLiIrtiLo/JXW1VM2PJH4W0knHbjiFTBANkueEMqV5ez/yx2sqaa+mFY=",
+                            PasswordHash = "kZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7A=",
+                            PasswordSalt = "cXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5A=",
                             Role = "User"
                         });
                 });

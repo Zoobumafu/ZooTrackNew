@@ -8,7 +8,7 @@ namespace ZooTrack.Client
         /// <summary>
         /// A unique identifier for this specific alert setting instance on the client.
         /// </summary>
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public Guid Id { get; set; }
 
         /// <summary>
         /// The ID of the animal selected for this alert.
@@ -26,6 +26,14 @@ namespace ZooTrack.Client
         /// The name of the MP3 file selected by the user.
         /// </summary>
         public string? Mp3FileName { get; set; }
+
+        /// <summary>
+        /// Constructor that initializes the Id with a new Guid
+        /// </summary>
+        public AlertSettingViewModel()
+        {
+            Id = Guid.NewGuid();
+        }
 
         /// <summary>
         /// Optional: To store the MP3 file content as a byte array.

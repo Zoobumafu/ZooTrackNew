@@ -41,9 +41,17 @@ namespace ZooTrack.Data
                 .HasForeignKey<UserSettings>(us => us.UserId);
 
             // === USERS SEED DATA ===
-            AuthService.CreatePasswordHash("Admin", out var adminHash, out var adminSalt);
-            AuthService.CreatePasswordHash("manager123", out var managerHash, out var managerSalt);
-            AuthService.CreatePasswordHash("user123", out var userHash, out var userSalt);
+            /*Error: Dynamic values*/
+            // AuthService.CreatePasswordHash("Admin", out var adminHash, out var adminSalt);
+            // AuthService.CreatePasswordHash("manager123", out var managerHash, out var managerSalt);
+            // AuthService.CreatePasswordHash("user123", out var userHash, out var userSalt);
+            var adminSalt = "AQIDBAUEDF+CAQIDBAUGCQ0ODw==";
+            var adminHash = "ERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAx";
+            var managerSalt = "ITIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1A=";
+            var managerHash = "UVJTVFVWVxhZWltcXV5fYGFiY2RlZmdoaWprbG1ub3A=";
+            var userSalt = "cXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5A=";
+            var userHash = "kZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7A=";
+
 
             modelBuilder.Entity<User>().HasData(
                 new User
@@ -241,54 +249,5 @@ namespace ZooTrack.Data
                 new Log { LogId = 8, UserId = 1, ActionType = "Emergency_Alert", Timestamp = new DateTime(2025, 6, 20, 15, 2, 20), Message = "Emergency alert triggered for bear sighting", Level = "Critical", DetectionId = 8 }
             );
         }
-
-        // TOMER's OnModelCreating
-        /*
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<User>()
-                .HasIndex(u => u.Email)
-                .IsUnique();
-
-            modelBuilder.Entity<UserSettings>()
-                .HasOne(us => us.User)
-                .WithOne(u => u.UserSettings)
-                .HasForeignKey<UserSettings>(us => us.UserId);
-
-            // --- SEED SINGLE ADMIN USER WITH NEW CREDENTIALS ---
-            // Calls the static method on AuthService to create the password hash and salt
-            AuthService.CreatePasswordHash("Admin", out var adminHash, out var adminSalt);
-
-            modelBuilder.Entity<User>().HasData(
-                new User
-                {
-                    UserId = 1,
-                    Name = "Admin",
-                    Email = "Admin", // Simplified username
-                    Role = "Admin",
-                    PasswordHash = adminHash,
-                    PasswordSalt = adminSalt
-                }
-            );
-
-            // Other seed data...
-            modelBuilder.Entity<UserSettings>().HasData(
-                new UserSettings
-                {
-                    UserId = 1,
-                    NotificationPreference = "Email",
-                    DetectionThreshold = 0.8f,
-                    TargetAnimalsJson = JsonSerializer.Serialize(new List<string> { "person", "dog", "cow", "wolf", "tiger", "lion" }),
-                    HighlightSavePath = "Media/HighlightFrames/Admin"
-                }
-            );
-
-            modelBuilder.Entity<Device>().HasData(
-                new Device { DeviceId = 1, Location = "North Zone", Status = "Online", LastActive = new DateTime(2025, 6, 18, 18, 18, 18) }
-            );
-        }
-        */
     }
 }
