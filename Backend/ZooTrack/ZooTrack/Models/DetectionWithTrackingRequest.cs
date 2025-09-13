@@ -2,6 +2,8 @@
 
 namespace ZooTrack.Models
 {
+    // this class used in DetectionController.cs
+
     public class DetectionWithTrackingRequest
     {
         public float Confidence { get; set; }

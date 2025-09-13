@@ -6,6 +6,7 @@ using OpenCvSharp;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic;
 
 namespace ZooTrack.Services
 {
@@ -21,28 +22,22 @@ namespace ZooTrack.Services
     /// 3. Saves extracted frames to disk storage
     /// 4. Registers frames in the Media table connected to detections
     /// 5. Correlates detections to identify and track the same objects
+    /// 6. Implement TrackMIL algorithm
     /// </remarks>
-    public class DetectionMediaService
+    public class DetectionMediaService : IDisposable
     {
         #region Constants and Configuration
 
         /// Number of frames to extract per second for tracking analysis
         private const int FRAMES_PER_SECOND = 5;
-
         /// Number of seconds before the detection moment to include in frame extraction
         private const int SECONDS_BEFORE_DETECTION = 10;
-
         /// Number of seconds after the detection moment to include in frame extraction
         private const int SECONDS_AFTER_DETECTION = 20;
-
-        /// Maximum time difference in seconds between detections to consider them as the same object
-        private const double SAME_OBJECT_TIME_THRESHOLD = 15.0;
-
-        /// Maximum distance threshold (as percentage of frame) between detection centers to consider them as the same object
-        private const double SAME_OBJECT_DISTANCE_THRESHOLD = 0.3;
-
-        /// Minimum size similarity ratio required for detections to be considered the same object
-        private const double SIZE_SIMILARITY_THRESHOLD = 0.7;
+        /// Maximum tracking age in seconds before a tracker is considered stale
+        private const int MAX_TRACKING_AGE_SECONDS = 30;
+        /// Minimum overlap threshold for associating detections with existing trackers
+        private const double MIN_OVERLAP_THRESHOLD = 0.3;
 
         #endregion
 
@@ -51,6 +46,13 @@ namespace ZooTrack.Services
         private readonly ZootrackDbContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly ILogService _logService;
+        private readonly Dictionary<int, string> _trackerObjects = new Dictionary<int, string>();
+
+        // containing Tracking Instances
+        private readonly Dictionary<int, MilTrackerService> _activeTrackers = new Dictionary<int, MilTrackerService>();
+        private readonly Dictionary<int, DateTime> _lastSeenTimes = new Dictionary<int, DateTime>();
+        private readonly Dictionary<int, Rect> _lastKnownBounds = new Dictionary<int, Rect>();
+        private bool _disposed = false;
 
         #endregion
 
@@ -68,7 +70,6 @@ namespace ZooTrack.Services
             _environment = environment ?? throw new ArgumentNullException(nameof(environment));
             _logService = logService ?? throw new ArgumentNullException(nameof(logService));
         }
-
         #endregion
 
         #region Public Methods
@@ -91,18 +92,19 @@ namespace ZooTrack.Services
                 await _logService.AddLogAsync(1, "FrameExtractionStarted",
                     $"Starting smart frame extraction for detection {detection.DetectionId}", "Info", detection.DetectionId);
 
+                CleanupStaleTrackers(); // Clean up stale trackers
+
                 // Validate and load media file
                 var media = await LoadAndValidateMediaAsync(detection.MediaId);
                 var mediaPath = GetMediaPath(media.FilePath);
 
-                // Prepare output directory for extracted frames
                 var outputDir = CreateOutputDirectory(detection.DetectionId);
 
                 // Extract frames for tracking analysis
                 await ExtractTrackingFramesAsync(mediaPath, outputDir, detection);
 
                 // Correlate with existing detections to identify same objects
-                await CorrelateWithExistingDetections(detection);
+                await InitializeOrUpdateTracking(detection, mediaPath);
 
                 // Save all changes to database
                 await _context.SaveChangesAsync();
@@ -165,7 +167,6 @@ namespace ZooTrack.Services
             Directory.CreateDirectory(outputDir);
             return outputDir;
         }
-
         #endregion
 
         #region Private Methods - Frame Extraction
@@ -174,15 +175,15 @@ namespace ZooTrack.Services
         {
             try
             {
-                // Calculate the time window using the detection constants
+                // Calculate the time window
                 var timeWindow = CalculateExtractionTimeWindow(detection.DetectedAt);
                 var totalFramesToExtract = (int)(timeWindow.Duration * FRAMES_PER_SECOND);
                 var frameInterval = 1.0 / FRAMES_PER_SECOND;
-
+                /*
                 await _logService.AddLogAsync(1, "FrameExtractionPlan",
                     $"Extracting {totalFramesToExtract} frames at {FRAMES_PER_SECOND} FPS for detection {detection.DetectionId}",
                     "Info", detection.DetectionId);
-
+                */
                 // Extract frames at regular intervals using your constants
                 await ExtractRegularFrames(outputDir, timeWindow, totalFramesToExtract, frameInterval);
 
@@ -242,16 +243,17 @@ namespace ZooTrack.Services
             double fps = capture.Fps > 0 ? capture.Fps : 20.0; // Fallback like your CameraService
             DateTime videoStartTime = media.Timestamp; // Using Media.Timestamp as the video start time
 
+            /*
             await _logService.AddLogAsync(1, "FrameExtractionStarted",
                 $"Starting extraction of {totalFrames} frames from {media.FilePath} at {FRAMES_PER_SECOND} FPS",
                 "Info", media.MediaId);
+            */
 
             for (int i = 0; i < totalFrames; i++)
             {
                 var frameTime = timeWindow.StartTime.AddSeconds(i * frameInterval);
                 var framePath = Path.Combine(outputDir, $"frame_{i:000}.jpg");
 
-                // Calculate frame position based on time offset from video start
                 double secondsFromVideoStart = (frameTime - videoStartTime).TotalSeconds;
                 if (secondsFromVideoStart < 0)
                 {
@@ -262,17 +264,30 @@ namespace ZooTrack.Services
 
                 int targetFrameNumber = (int)(secondsFromVideoStart * fps);
 
-                // Extract frame using OpenCV
-                byte[] frameData = await ExtractFrameAtPosition(capture, targetFrameNumber, frameTime, media.MediaId);
+                // setting current position of the video stream to a specific frame number
+                capture.PosFrames = targetFrameNumber;
+                using var frame = new Mat();
+                if (!capture.Read(frame) || frame.Empty())
+                    continue;
 
-                if (frameData != null)
-                {
-                    await SaveFrameToFile(frameData, framePath, frameTime);
-                }
+                // save to file
+                DrawTrackersOnFrame(frame, frameTime);
+                var encodingParams = new int[] { (int)ImwriteFlags.JpegQuality, 90 };
+                Cv2.ImEncode(".jpg", frame, out byte[] jpegBytes, encodingParams);
+                await SaveFrameToFile(jpegBytes, framePath, frameTime);
+
+                // update all active trackers
+                UpdateActiveTrackers(frame, frameTime, media.MediaId);
+
+                // save to DB only in batches of 10
+                if (i % 10 == 0)
+                    await _context.SaveChangesAsync();
             }
+
         }
 
 
+        // saving frames at the detection event, then before and after it for better tracking
         private async Task SaveKeyFrames(string outputDir, Detection detection)
         {
             // Load the associated media for this detection
@@ -331,6 +346,8 @@ namespace ZooTrack.Services
             }
         }
 
+        // extract position frame, returns frame as byte[]
+        // Helper method to private async Task SaveKeyFrames(string outputDir, Detection detection)
         private async Task<byte[]> ExtractFrameAtPosition(VideoCapture capture, int frameNumber, DateTime frameTime, int? contextId = null)
         {
             return await Task.Run(() =>
@@ -368,38 +385,7 @@ namespace ZooTrack.Services
             });
         }
 
-        /// <summary>
-        /// Simulates frame extraction by creating placeholder files.
-        /// In production, this should be replaced with actual FFmpeg or OpenCV frame extraction.
-        /// </summary>
-        /// <param name="framePath">Path where the extracted frame will be saved</param>
-        /// <param name="frameTime">The timestamp of the frame being extracted</param>
-        /// <returns>A task representing the asynchronous simulation operation</returns>
-        /// <remarks>
-        /// This is a placeholder implementation. In a real system, you would use:
-        /// - FFmpeg command-line tool for video frame extraction
-        /// - OpenCV for programmatic video processing
-        /// - Other video processing libraries
-        /// </remarks>
-        private async Task SimulateFrameExtraction(string framePath, DateTime frameTime)
-        {
-            await File.WriteAllTextAsync(framePath, $"Frame extracted at {frameTime:yyyy-MM-dd HH:mm:ss}");
-            await Task.Delay(10); // Simulate processing time
-        }
-
-        //OLD SaveFrameToFile
-        /* 
-        private async Task SaveFrameToFile(byte[] frameData, string framePath, DateTime frameTime)
-        {
-            // Example with System.IO.File for byte array
-            await File.WriteAllBytesAsync(framePath, frameData);
-            await _logService.AddLogAsync(1, "FrameSaved", $"Frame saved to {framePath} at {frameTime}", "Info");
-            // You might want to remove the Task.Delay after implementing actual saving
-            // await Task.Delay(10); // Original simulation delay 
-        }
-        */
-
-        // Updated SaveFrameToFile with your existing structure but enhanced error handling
+        
         private async Task SaveFrameToFile(byte[] frameData, string framePath, DateTime frameTime)
         {
             if (frameData == null || frameData.Length == 0)
@@ -411,14 +397,13 @@ namespace ZooTrack.Services
 
             try
             {
-                // Ensure the directory exists (matching your CreateOutputDirectory pattern)
+                // Ensure the directory exists 
                 string directory = Path.GetDirectoryName(framePath);
                 if (!Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
 
-                // Use your existing approach
                 await File.WriteAllBytesAsync(framePath, frameData);
                 await _logService.AddLogAsync(1, "FrameSaved",
                     $"Frame saved to {framePath} at {frameTime}", "Info");
@@ -427,10 +412,9 @@ namespace ZooTrack.Services
             {
                 await _logService.AddLogAsync(1, "SaveFrameError",
                     $"Error saving frame to {framePath} at {frameTime}: {ex.Message}", "Error");
-                throw; // Re-throw to maintain your existing error handling pattern
+                throw;
             }
         }
-
 
         // Helper method to find media containing a specific time window
         private async Task<Media> FindMediaForTimeWindow((DateTime StartTime, DateTime EndTime, double Duration) timeWindow)
@@ -438,7 +422,7 @@ namespace ZooTrack.Services
             // Query your database to find media that contains the time window
             // Since Media doesn't have Duration, we'll find the media with Timestamp closest to but before the StartTime
             var media = await _context.Media
-                .Where(m => m.Timestamp <= timeWindow.StartTime && m.Type == "video") // Assuming video type
+                .Where(m => m.Timestamp <= timeWindow.StartTime && m.Type == "video")
                 .OrderByDescending(m => m.Timestamp)
                 .FirstOrDefaultAsync();
 
@@ -460,200 +444,163 @@ namespace ZooTrack.Services
             }
         }
 
-
         #endregion
 
-        #region Private Methods - Object Correlation and Tracking
-
-        /// <summary>
-        /// Correlates a new detection with existing detections to identify if they represent the same object.
-        /// Assigns tracking IDs to group related detections together.
-        /// </summary>
-        /// <param name="newDetection">The new detection to correlate with existing ones</param>
-        /// <returns>A task representing the asynchronous correlation operation</returns>
-        private async Task CorrelateWithExistingDetections(Detection newDetection)
+        #region Private Methods - TRACKING
+        private void CleanupStaleTrackers()
         {
-            try
+            var now = DateTime.UtcNow;
+            var staleIds = _lastSeenTimes
+                .Where(kv => (now - kv.Value).TotalSeconds > MAX_TRACKING_AGE_SECONDS)
+                .Select(kv => kv.Key)
+                .ToList();
+
+            foreach (var id in staleIds)
             {
-                // Find recent detections from the same device within time threshold
-                var recentDetections = await FindRecentDetections(newDetection);
-
-                // Check each recent detection for correlation
-                foreach (var existingDetection in recentDetections)
-                {
-                    if (IsSameObject(newDetection, existingDetection))
-                    {
-                        await AssignTrackingId(newDetection, existingDetection);
-
-                        await _logService.AddLogAsync(1, "ObjectTracked",
-                            $"Detection {newDetection.DetectionId} correlated with detection {existingDetection.DetectionId} (TrackingId: {newDetection.TrackingId})",
-                            "Info", newDetection.DetectionId);
-
-                        return; // Found match, stop looking
-                    }
-                }
-
-                // If no match found, assign new tracking ID for new object
-                await AssignNewTrackingId(newDetection);
-            }
-            catch (Exception ex)
-            {
-                await _logService.AddLogAsync(1, "CorrelationError",
-                    $"Error correlating detections: {ex.Message}", "Error", newDetection.DetectionId);
+                _activeTrackers[id].Dispose();
+                _activeTrackers.Remove(id);
+                _lastSeenTimes.Remove(id);
+                _lastKnownBounds.Remove(id);
+                _trackerObjects.Remove(id);
             }
         }
 
-        /// <summary>
-        /// Finds recent detections from the same device within the correlation time threshold.
-        /// </summary>
-        /// <param name="newDetection">The new detection to find correlations for</param>
-        /// <returns>A list of recent detections ordered by time proximity</returns>
-        private async Task<List<Detection>> FindRecentDetections(Detection newDetection)
+        // detection event: determine if is part of already tracked detection or of new one.
+        // determine by calling IoU calculation
+        private async Task InitializeOrUpdateTracking(Detection detection, string videoPath)
         {
-            return await _context.Detections
-                .Where(d => d.DeviceId == newDetection.DeviceId &&
-                           d.DetectionId != newDetection.DetectionId &&
-                           d.DetectedAt >= newDetection.DetectedAt.AddSeconds(-SAME_OBJECT_TIME_THRESHOLD) &&
-                           d.DetectedAt <= newDetection.DetectedAt.AddSeconds(SAME_OBJECT_TIME_THRESHOLD))
-                .OrderBy(d => Math.Abs((d.DetectedAt - newDetection.DetectedAt).TotalSeconds))
-                .ToListAsync();
-        }
+            using var capture = new VideoCapture(videoPath);
+            if (!capture.IsOpened()) return;
 
-        /// <summary>
-        /// Determines if two detections represent the same object based on timing, position, and size similarity.
-        /// </summary>
-        /// <param name="detection1">First detection to compare</param>
-        /// <param name="detection2">Second detection to compare</param>
-        /// <returns>True if the detections likely represent the same object, false otherwise</returns>
-        private bool IsSameObject(Detection detection1, Detection detection2)
-        {
-            // Check time difference constraint
-            if (!IsWithinTimeThreshold(detection1, detection2))
-                return false;
+            // go to the relevant frame by: detection.DetectedAt
+            double fps = capture.Fps > 0 ? capture.Fps : 20.0;
+            double secondsFromStart = (detection.DetectedAt - detection.Media.Timestamp).TotalSeconds;
+            int frameNumber = (int)(secondsFromStart * fps);
 
-            // Check if bounding box data is available
-            if (!HasValidBoundingBoxes(detection1, detection2))
-                return false;
+            capture.PosFrames = frameNumber;
+            using var frame = new Mat();
+            if (!capture.Read(frame) || frame.Empty()) return;
 
-            // Check spatial proximity of detection centers
-            if (!IsWithinDistanceThreshold(detection1, detection2))
-                return false;
+            var newBox = new Rect(
+                (int)detection.BoundingBoxX,
+                (int)detection.BoundingBoxY,
+                (int)detection.BoundingBoxWidth,
+                (int)detection.BoundingBoxHeight
+            );
 
-            // Check size similarity between detections
-            return IsSimilarSize(detection1, detection2);
-        }
-
-        /// <summary>
-        /// Checks if two detections occurred within the acceptable time threshold.
-        /// </summary>
-        /// <param name="detection1">First detection</param>
-        /// <param name="detection2">Second detection</param>
-        /// <returns>True if detections are within time threshold</returns>
-        private bool IsWithinTimeThreshold(Detection detection1, Detection detection2)
-        {
-            var timeDiff = Math.Abs((detection1.DetectedAt - detection2.DetectedAt).TotalSeconds);
-            return timeDiff <= SAME_OBJECT_TIME_THRESHOLD;
-        }
-
-        /// <summary>
-        /// Validates that both detections have valid bounding box data for comparison.
-        /// </summary>
-        /// <param name="detection1">First detection</param>
-        /// <param name="detection2">Second detection</param>
-        /// <returns>True if both detections have valid bounding boxes</returns>
-        private bool HasValidBoundingBoxes(Detection detection1, Detection detection2)
-        {
-            return detection1.BoundingBoxWidth > 0 && detection2.BoundingBoxWidth > 0;
-        }
-
-        /// <summary>
-        /// Checks if the centers of two detection bounding boxes are within the distance threshold.
-        /// </summary>
-        /// <param name="detection1">First detection</param>
-        /// <param name="detection2">Second detection</param>
-        /// <returns>True if detection centers are close enough to be considered the same object</returns>
-        private bool IsWithinDistanceThreshold(Detection detection1, Detection detection2)
-        {
-            var center1 = CalculateBoundingBoxCenter(detection1);
-            var center2 = CalculateBoundingBoxCenter(detection2);
-            var distance = CalculateDistance(center1, center2);
-
-            return distance <= SAME_OBJECT_DISTANCE_THRESHOLD;
-        }
-
-        /// <summary>
-        /// Calculates the center point of a detection's bounding box.
-        /// </summary>
-        /// <param name="detection">The detection whose center to calculate</param>
-        /// <returns>A tuple containing the X and Y coordinates of the center</returns>
-        private (double X, double Y) CalculateBoundingBoxCenter(Detection detection)
-        {
-            var centerX = detection.BoundingBoxX + detection.BoundingBoxWidth / 2.0;
-            var centerY = detection.BoundingBoxY + detection.BoundingBoxHeight / 2.0;
-            return (centerX, centerY);
-        }
-
-        /// <summary>
-        /// Calculates the Euclidean distance between two points.
-        /// </summary>
-        /// <param name="point1">First point coordinates</param>
-        /// <param name="point2">Second point coordinates</param>
-        /// <returns>The distance between the two points</returns>
-        private double CalculateDistance((double X, double Y) point1, (double X, double Y) point2)
-        {
-            return Math.Sqrt(Math.Pow(point1.X - point2.X, 2) + Math.Pow(point1.Y - point2.Y, 2));
-        }
-
-        /// <summary>
-        /// Checks if two detections have similar sizes (bounding box areas).
-        /// </summary>
-        /// <param name="detection1">First detection</param>
-        /// <param name="detection2">Second detection</param>
-        /// <returns>True if the detections have similar sizes</returns>
-        private bool IsSimilarSize(Detection detection1, Detection detection2)
-        {
-            var size1 = detection1.BoundingBoxWidth * detection1.BoundingBoxHeight;
-            var size2 = detection2.BoundingBoxWidth * detection2.BoundingBoxHeight;
-            var sizeRatio = Math.Min(size1, size2) / Math.Max(size1, size2);
-
-            return sizeRatio > SIZE_SIMILARITY_THRESHOLD;
-        }
-
-        /// <summary>
-        /// Assigns a tracking ID to a new detection based on an existing correlated detection.
-        /// </summary>
-        /// <param name="newDetection">The new detection to assign a tracking ID to</param>
-        /// <param name="existingDetection">The existing detection to correlate with</param>
-        /// <returns>A task representing the asynchronous tracking ID assignment</returns>
-        private async Task AssignTrackingId(Detection newDetection, Detection existingDetection)
-        {
-            if (existingDetection.TrackingId.HasValue)
+            // search for exist trackers with overlaps
+            int? matchedId = FindMatchingTracker(newBox);
+            if (matchedId.HasValue)
             {
-                // Use existing tracking ID
-                newDetection.TrackingId = existingDetection.TrackingId;
+                // update exists tracker
+                _lastSeenTimes[matchedId.Value] = DateTime.UtcNow;
+                _lastKnownBounds[matchedId.Value] = newBox;
+                detection.TrackingId = matchedId.Value;
             }
             else
             {
-                // Create new tracking ID for both detections
-                var newTrackingId = await GetNextTrackingId();
-                newDetection.TrackingId = newTrackingId;
-                existingDetection.TrackingId = newTrackingId;
-                _context.Detections.Update(existingDetection);
+                // create new tracker 
+                int newId = await GetNextTrackingId();
+                var tracker = new MilTrackerService();
+                if (tracker.Initialize(frame, newBox))
+                {
+                    _activeTrackers[newId] = tracker;
+                    _lastSeenTimes[newId] = DateTime.UtcNow;
+                    _lastKnownBounds[newId] = newBox;
+                    _trackerObjects[newId] = detection.DetectedObject ?? "Unknown";
+                    detection.TrackingId = newId;
+                }
             }
         }
 
-        /// <summary>
-        /// Assigns a new tracking ID to a detection that doesn't correlate with any existing detections.
-        /// </summary>
-        /// <param name="newDetection">The detection to assign a new tracking ID to</param>
-        /// <returns>A task representing the asynchronous new tracking ID assignment</returns>
-        private async Task AssignNewTrackingId(Detection newDetection)
+        private int? FindMatchingTracker(Rect newBox)
         {
-            newDetection.TrackingId = await GetNextTrackingId();
-            await _logService.AddLogAsync(1, "NewObjectDetected",
-                $"New object detected with TrackingId: {newDetection.TrackingId}",
-                "Info", newDetection.DetectionId);
+            foreach (var kvp in _lastKnownBounds)
+            {
+                double overlap = CalculateIoU(newBox, kvp.Value);
+                if (overlap >= MIN_OVERLAP_THRESHOLD)
+                    return kvp.Key;
+            }
+            return null;
         }
+
+        // Intersection over Union
+        private double CalculateIoU(Rect a, Rect b)
+        {
+            int x1 = Math.Max(a.Left, b.Left);
+            int y1 = Math.Max(a.Top, b.Top);
+            int x2 = Math.Min(a.Right, b.Right);
+            int y2 = Math.Min(a.Bottom, b.Bottom);
+
+            int intersection = Math.Max(0, x2 - x1) * Math.Max(0, y2 - y1);
+            int union = a.Width * a.Height + b.Width * b.Height - intersection;
+
+            return union > 0 ? (double)intersection / union : 0;
+        }
+
+        // manage the active trackers, saves new locations or stops tracking
+        private void UpdateActiveTrackers(Mat frame, DateTime frameTime, int mediaId)
+        {
+            foreach (var kvp in _activeTrackers.ToList()) // work on temp list
+            {
+                var tracker = kvp.Value;
+                var id = kvp.Key;
+
+                var newBox = tracker.Update(frame); //call for TrackerMIL algorithm
+                if (newBox.HasValue)
+                {
+                    // update status
+                    _lastKnownBounds[id] = newBox.Value;
+                    _lastSeenTimes[id] = DateTime.UtcNow;
+
+                    // create new detection
+                    var trackingDetection = new Detection
+                    {
+                        MediaId = mediaId,
+                        TrackingId = id,
+                        DetectedAt = frameTime,
+                        BoundingBoxX = newBox.Value.X,
+                        BoundingBoxY = newBox.Value.Y,
+                        BoundingBoxWidth = newBox.Value.Width,
+                        BoundingBoxHeight = newBox.Value.Height,
+                        Confidence = 1.0f, // default value
+                        DetectedObject = _trackerObjects.ContainsKey(id) ? _trackerObjects[id] : "Unknown"
+                    };
+
+                    _context.Detections.Add(trackingDetection);
+                }
+                else
+                {
+                    tracker.Dispose();
+                    _activeTrackers.Remove(id);
+                    _lastSeenTimes.Remove(id);
+                    _lastKnownBounds.Remove(id);
+                    _trackerObjects.Remove(id);
+
+                    _logService.AddLogAsync(1, "TrackingLost",
+                        $"Tracker {id} removed at {frameTime}", "Warning");
+                }
+            }
+        }
+
+        private void DrawTrackersOnFrame(Mat frame, DateTime frameTime)
+        {
+            foreach (var kvp in _lastKnownBounds)
+            {
+                int id = kvp.Key;
+                Rect box = kvp.Value;
+
+                string label = _trackerObjects.ContainsKey(id) ? _trackerObjects[id] : "Unknown";
+                Cv2.Rectangle(frame, box, Scalar.Red, 2);
+
+                string text = $"ID:{id} {label}";
+                Cv2.PutText(frame, text,
+                    new Point(box.X, Math.Max(0, box.Y - 10)),
+                    HersheyFonts.HersheySimplex,
+                    0.6, Scalar.Blue, 2);
+            }
+        }
+
 
         /// <summary>
         /// Generates the next available tracking ID by finding the maximum existing tracking ID and incrementing it.
@@ -666,6 +613,17 @@ namespace ZooTrack.Services
                 .MaxAsync(d => (int?)d.TrackingId) ?? 0;
 
             return maxTrackingId + 1;
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                foreach (var tracker in _activeTrackers.Values)
+                    tracker.Dispose();
+                _activeTrackers.Clear();
+                _disposed = true;
+            }
         }
 
         #endregion
