@@ -51,11 +51,10 @@ namespace ZooTrack.Services
         #endregion
 
         #region Fields
-
         private readonly ZootrackDbContext _context;
         private readonly NotificationService _notificationService;
         private readonly ILogService _logService;
-
+        private readonly IWebHostEnvironment _environment;
         #endregion
 
         #region Constructor
@@ -67,13 +66,14 @@ namespace ZooTrack.Services
         /// <param name="notificationService">Service for sending notifications about detections</param>
         /// <param name="logService">Service for logging detection operations and events</param>
         /// <exception cref="ArgumentNullException">Thrown when any required parameter is null</exception>
-        public DetectionService(ZootrackDbContext context, NotificationService notificationService, ILogService logService)
+        public DetectionService(ZootrackDbContext context, NotificationService notificationService,
+            ILogService logService, IWebHostEnvironment environment)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
             _logService = logService ?? throw new ArgumentNullException(nameof(logService));
+            _environment = environment ?? throw new ArgumentNullException(nameof(environment));
         }
-
         #endregion
 
         #region Public Methods
@@ -159,7 +159,6 @@ namespace ZooTrack.Services
                 // Create the detection using standard creation process
                 var createdDetection = await CreateDetectionAsync(detection);
 
-                // NEW: Try generating the route based on the tracking ID
                 if (createdDetection.TrackingId.HasValue)
                 {
                     await TryGenerateTrackingRouteAsync(
@@ -175,7 +174,7 @@ namespace ZooTrack.Services
             catch (Exception ex)
             {
                 await _logService.AddLogAsync(SYSTEM_USER_ID, "TrackingDetectionCreationFailed",
-                    $"Failed to create detection with tracking: {ex.Message}", "Error");
+                    $"Failed to create detection with tracking: {ex}", "Error");
                 throw;
             }
         }
@@ -419,11 +418,8 @@ namespace ZooTrack.Services
         /// <returns>A task representing the asynchronous initiation operation</returns>
         private async Task InitiateFrameExtraction(Detection detection)
         {
-            // Note: In a production system, you would inject IWebHostEnvironment
-            // For now, this demonstrates the integration pattern
-            var mediaService = new DetectionMediaService(_context, null, _logService);
+            var mediaService = new DetectionMediaService(_context, _environment, _logService);
 
-            // Run frame extraction asynchronously to avoid blocking the main thread
             _ = Task.Run(async () =>
             {
                 try
