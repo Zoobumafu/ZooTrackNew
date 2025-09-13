@@ -1,16 +1,21 @@
 ﻿using OpenCvSharp;
 using OpenCvSharp.Tracking;
+using Microsoft.Extensions.Logging;
 
 namespace ZooTrackBackend.Services
 {
-    public class MilTrackerService
+    public record TrackerResult(bool Success, Rect? BoundingBox, string? ErrorMessage);
+
+    public class MilTrackerService : IDisposable
     {
         private TrackerMIL _tracker;
         private bool _isInitialized = false;
+        private readonly ILogger<MilTrackerService>? _logger;
 
-        public MilTrackerService()
+        public MilTrackerService(ILogger<MilTrackerService>? logger = null)
         {
             _tracker = TrackerMIL.Create();
+            _logger = logger;
         }
 
         /// <summary>
@@ -32,7 +37,7 @@ namespace ZooTrackBackend.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Tracker initialization failed: {ex.Message}");
+                _logger?.LogError(ex, "Tracker initialization failed");
                 return false;
             }
         }
@@ -105,6 +110,8 @@ namespace ZooTrackBackend.Services
         public void Dispose()
         {
             _tracker?.Dispose();
+            GC.SuppressFinalize(this);
         }
+
     }
 }

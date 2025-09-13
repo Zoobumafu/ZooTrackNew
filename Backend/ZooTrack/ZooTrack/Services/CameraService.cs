@@ -21,7 +21,18 @@ using Timer = System.Timers.Timer;
 namespace ZooTrack.Services
 {
     /// <summary>
-    /// Represents and manages a single physical camera instance, including its capture, processing, and recording resources.
+    /// contains two classes: 
+    ///     CameraInsrance for managing single camera instance ans
+    ///     CameraService for managing all the cameras
+    /// this class uses re-trained YOLOv10 model for process video, saves highlight and draw B-Boxes around them
+    /// 
+    /// Responsibilities:
+    ///     1. Set and connect to the cameras
+    ///     2. Object Detection by Yolo
+    ///     3. Record Highlights
+    ///     4. Write target to DB if it was found
+    ///     5. Show client the processed farmed with B-Boxed object
+    /// 
     /// </summary>
     public class CameraInstance : IDisposable
     {
@@ -133,11 +144,28 @@ namespace ZooTrack.Services
                         {
                             string label = detection.Label.Name.ToLowerInvariant();
                             detectedTargets.Add(label);
-                            if (TargetAnimals.Contains(label))
+
+                            bool isTarget = TargetAnimals.Contains(label);
+
+                            // שמור תמיד, עם סימון IsTarget
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    await WriteDetectionToDatabase(detection, rawData, isTarget);
+                                    _logger.LogInformation("Detection saved for {Label} (IsTarget={IsTarget})", label, isTarget);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, "Failed to save detection for {Label}", label);
+                                }
+                            });
+
+                            if (isTarget)
                             {
                                 targetFound = true;
-                                Task.Run(() => WriteDetectionToDatabase(detection, rawData));
                             }
+
                             DrawDetection(frame, detection);
                         }
                     }
@@ -241,31 +269,76 @@ namespace ZooTrack.Services
             _writer = null;
         }
 
-        // Database logic remains the same...
-        private async Task WriteDetectionToDatabase(YoloDotNet.Models.ObjectDetection detection, byte[] frameBytes)
+        private async Task WriteDetectionToDatabase(YoloDotNet.Models.ObjectDetection detection, byte[] frameBytes, bool isTarget)
         {
+            _logger.LogInformation(">>> WriteDetectionToDatabase started for Camera {CameraId}, IsTarget={IsTarget}", CameraId, isTarget);
             try
             {
                 using var scope = _serviceScopeFactory.CreateScope();
                 var detectionService = scope.ServiceProvider.GetRequiredService<IDetectionService>();
                 var context = scope.ServiceProvider.GetRequiredService<ZootrackDbContext>();
 
-                // Simplified DB logic
+                _logger.LogInformation("Saving frame as Media...");
+                int deviceId = 1;
+                int mediaId = await SaveFrameAsMediaAsync(frameBytes, deviceId, context);
+                _logger.LogInformation("Media saved with MediaId={MediaId}", mediaId);
+
                 var newDetection = new Detection
                 {
-                    DeviceId = 1, // This should eventually map to a real device ID
+                    DeviceId = deviceId,
+                    MediaId = mediaId,
                     DetectedAt = DateTime.Now,
                     DetectedObject = detection.Label.Name,
                     Confidence = (float)(detection.Confidence * 100),
-                    // Bounding box info...
+                    IsTarget = isTarget
                 };
-                await detectionService.CreateDetectionAsync(newDetection);
+
+                _logger.LogInformation("Creating detection via DetectionService...");
+                var created = await detectionService.CreateDetectionWithTrackingAsync(
+                    newDetection,
+                    detection.BoundingBox.Left,
+                    detection.BoundingBox.Top,
+                    detection.BoundingBox.Width,
+                    detection.BoundingBox.Height,
+                    detection.Label.Name
+                );
+
+                _logger.LogInformation("Detection {DetectionId} saved successfully (IsTarget={IsTarget})", created.DetectionId, isTarget);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to write detection to database for CameraId: {CameraId}", CameraId);
+                _logger.LogError(ex, "!!! WriteDetectionToDatabase failed for Camera {CameraId}", CameraId);
+                throw;
             }
         }
+
+
+        private async Task<int> SaveFrameAsMediaAsync(byte[] frameBytes, int deviceId, ZootrackDbContext context)
+        {
+            // create path
+            string relativePath = Path.Combine("MediaFiles", $"detection_{DateTime.Now:yyyyMMdd_HHmmss}.jpg");
+            string fullPath = Path.Combine(AppContext.BaseDirectory, relativePath);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+
+            // write into local disk
+            await File.WriteAllBytesAsync(fullPath, frameBytes);
+
+            // create Media in DB
+            var media = new Media
+            {
+                DeviceId = deviceId,
+                Type = "Frame",
+                FilePath = relativePath,
+                Timestamp = DateTime.Now
+            };
+
+            context.Media.Add(media);
+            await context.SaveChangesAsync();
+
+            return media.MediaId;
+        }
+
 
         public void Dispose()
         {
@@ -290,10 +363,41 @@ namespace ZooTrack.Services
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ConcurrentDictionary<int, CameraInstance> _cameraInstances = new();
 
+        private readonly List<string> _defaultTargetAnimals;
+
         public CameraService(ILogger<CameraService> logger, IServiceScopeFactory serviceScopeFactory)
         {
             _logger = logger;
             _serviceScopeFactory = serviceScopeFactory;
+            _defaultTargetAnimals = LoadDefaultTargetAnimals();
+        }
+        private List<string> LoadDefaultTargetAnimals()
+        {
+            try
+            {
+                string jsonPath = Path.Combine(AppContext.BaseDirectory, "Data", "TargetAnimals.json");
+                if (!File.Exists(jsonPath))
+                {
+                    _logger.LogWarning("TargetAnimals.json not found at {Path}, using empty list", jsonPath);
+                    return new List<string>();
+                }
+
+                string json = File.ReadAllText(jsonPath);
+                var animals = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
+                if (animals == null || animals.Count == 0)
+                {
+                    _logger.LogWarning("TargetAnimals.json is empty or invalid, using empty list");
+                    return new List<string>();
+                }
+
+                _logger.LogInformation("Loaded {Count} default target animals from {Path}", animals.Count, jsonPath);
+                return animals;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load TargetAnimals.json, using empty list");
+                return new List<string>();
+            }
         }
 
         [HandleProcessCorruptedStateExceptions]
@@ -339,16 +443,23 @@ namespace ZooTrack.Services
         {
             if (_cameraInstances.TryGetValue(cameraId, out var instance) && instance.IsInitialized)
             {
-                instance.TargetAnimals = targetAnimals ?? new List<string>();
+                instance.TargetAnimals = (targetAnimals == null || targetAnimals.Count == 0)
+                    ? _defaultTargetAnimals
+                    : targetAnimals;
+
                 instance.HighlightSavePath = savePath ?? "";
                 instance.IsProcessing = true;
-                _logger.LogInformation("Processing started for CameraId: {CameraId}", cameraId);
+
+                _logger.LogInformation(
+                    "Processing started for CameraId: {CameraId} with {Count} target animals",
+                    cameraId, instance.TargetAnimals.Count);
             }
             else
             {
                 _logger.LogWarning("Attempted to start processing for uninitialized or non-existent CameraId: {CameraId}", cameraId);
             }
         }
+
 
         public void StopProcessing(int cameraId)
         {

@@ -350,7 +350,6 @@ namespace ZooTrack.Services
         /// <returns>An active event entity</returns>
         private async Task<Event> GetOrCreateDefaultEvent()
         {
-            // Try to find an active event
             var activeEvent = await _context.Events
                 .Where(e => e.Status == "Active" || e.EndTime > DateTime.Now)
                 .FirstOrDefaultAsync();
@@ -358,7 +357,6 @@ namespace ZooTrack.Services
             if (activeEvent != null)
                 return activeEvent;
 
-            // Create default event
             var defaultEvent = new Event
             {
                 StartTime = DateTime.Now,

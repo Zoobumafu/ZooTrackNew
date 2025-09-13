@@ -138,7 +138,8 @@ namespace ZooTrackBackend.Migrations
                     FrameNumber = table.Column<int>(type: "INTEGER", nullable: false),
                     DetectedObject = table.Column<string>(type: "TEXT", nullable: true),
                     MediaId = table.Column<int>(type: "INTEGER", nullable: false),
-                    EventId = table.Column<int>(type: "INTEGER", nullable: false)
+                    EventId = table.Column<int>(type: "INTEGER", nullable: false),
+                    IsTarget = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -356,29 +357,29 @@ namespace ZooTrackBackend.Migrations
 
             migrationBuilder.InsertData(
                 table: "Detections",
-                columns: new[] { "DetectionId", "BoundingBoxHeight", "BoundingBoxWidth", "BoundingBoxX", "BoundingBoxY", "Confidence", "DetectedAt", "DetectedObject", "DeviceId", "EventId", "FrameNumber", "MediaId", "TrackingId" },
+                columns: new[] { "DetectionId", "BoundingBoxHeight", "BoundingBoxWidth", "BoundingBoxX", "BoundingBoxY", "Confidence", "DetectedAt", "DetectedObject", "DeviceId", "EventId", "FrameNumber", "IsTarget", "MediaId", "TrackingId" },
                 values: new object[,]
                 {
-                    { 1, 200f, 150f, 120.5f, 80.2f, 0.92f, new DateTime(2025, 6, 19, 10, 18, 30, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 450, 1, 1001 },
-                    { 2, 195f, 148f, 125f, 85f, 0.88f, new DateTime(2025, 6, 19, 10, 19, 15, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 495, 1, 1001 },
-                    { 3, 250f, 180f, 200f, 150f, 0.95f, new DateTime(2025, 6, 19, 14, 32, 0, 0, DateTimeKind.Unspecified), "elephant", 2, 2, 720, 3, 2001 },
-                    { 4, 160f, 120f, 50f, 100f, 0.87f, new DateTime(2025, 6, 19, 14, 35, 30, 0, DateTimeKind.Unspecified), "giraffe", 2, 2, 0, 4, 2002 },
-                    { 5, 130f, 100f, 300f, 200f, 0.91f, new DateTime(2025, 6, 20, 8, 22, 45, 0, DateTimeKind.Unspecified), "lion", 4, 3, 165, 5, 4001 },
-                    { 6, 110f, 90f, 180f, 120f, 0.89f, new DateTime(2025, 6, 20, 8, 25, 0, 0, DateTimeKind.Unspecified), "wolf", 4, 3, 300, 5, 4002 },
-                    { 7, 100f, 80f, 150f, 90f, 0.83f, new DateTime(2025, 6, 20, 12, 12, 30, 0, DateTimeKind.Unspecified), "deer", 5, 4, 0, 6, 5001 },
-                    { 8, 180f, 140f, 220f, 180f, 0.94f, new DateTime(2025, 6, 20, 15, 2, 15, 0, DateTimeKind.Unspecified), "bear", 1, 5, 135, 7, 1002 },
-                    { 9, 0.25f, 0.15f, 0.2f, 0.3f, 0.76f, new DateTime(2025, 6, 18, 14, 20, 0, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 200, 1, 1003 },
-                    { 10, 0.18f, 0.12f, 0.6f, 0.1f, 0.45f, new DateTime(2025, 6, 18, 16, 45, 0, 0, DateTimeKind.Unspecified), "deer", 1, 1, 300, 1, 1004 },
-                    { 11, 0.3f, 0.2f, 0.4f, 0.5f, 0.92f, new DateTime(2025, 6, 17, 10, 30, 0, 0, DateTimeKind.Unspecified), "lion", 1, 1, 150, 1, 1005 },
-                    { 12, 0.12f, 0.08f, 0.1f, 0.2f, 0.38f, new DateTime(2025, 6, 18, 11, 15, 0, 0, DateTimeKind.Unspecified), "bird", 2, 2, 100, 3, 2003 },
-                    { 13, 0.35f, 0.25f, 0.3f, 0.4f, 0.89f, new DateTime(2025, 6, 17, 15, 20, 0, 0, DateTimeKind.Unspecified), "elephant", 2, 2, 250, 3, 2004 },
-                    { 14, 0.15f, 0.1f, 0.7f, 0.6f, 0.55f, new DateTime(2025, 6, 16, 13, 45, 0, 0, DateTimeKind.Unspecified), "wolf", 2, 2, 180, 3, 2005 },
-                    { 15, 0.28f, 0.18f, 0.5f, 0.3f, 0.91f, new DateTime(2025, 6, 15, 9, 30, 0, 0, DateTimeKind.Unspecified), "bear", 3, 1, 120, 1, 3001 },
-                    { 16, 0.1f, 0.06f, 0.2f, 0.7f, 0.42f, new DateTime(2025, 6, 15, 14, 20, 0, 0, DateTimeKind.Unspecified), "rabbit", 3, 1, 90, 1, 3002 },
-                    { 17, 0.2f, 0.15f, 0.8f, 0.2f, 0.67f, new DateTime(2025, 6, 19, 8, 45, 0, 0, DateTimeKind.Unspecified), "fox", 4, 3, 75, 5, 4003 },
-                    { 18, 0.08f, 0.05f, 0.1f, 0.8f, 0.29f, new DateTime(2025, 6, 18, 17, 30, 0, 0, DateTimeKind.Unspecified), "bird", 4, 3, 45, 5, 4004 },
-                    { 19, 0.3f, 0.2f, 0.45f, 0.35f, 0.84f, new DateTime(2025, 6, 19, 16, 10, 0, 0, DateTimeKind.Unspecified), "deer", 5, 4, 220, 6, 5002 },
-                    { 20, 0.32f, 0.22f, 0.6f, 0.4f, 0.95f, new DateTime(2025, 6, 20, 11, 5, 0, 0, DateTimeKind.Unspecified), "tiger", 5, 4, 280, 6, 5003 }
+                    { 1, 200f, 150f, 120.5f, 80.2f, 0.92f, new DateTime(2025, 6, 19, 10, 18, 30, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 450, false, 1, 1001 },
+                    { 2, 195f, 148f, 125f, 85f, 0.88f, new DateTime(2025, 6, 19, 10, 19, 15, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 495, false, 1, 1001 },
+                    { 3, 250f, 180f, 200f, 150f, 0.95f, new DateTime(2025, 6, 19, 14, 32, 0, 0, DateTimeKind.Unspecified), "elephant", 2, 2, 720, false, 3, 2001 },
+                    { 4, 160f, 120f, 50f, 100f, 0.87f, new DateTime(2025, 6, 19, 14, 35, 30, 0, DateTimeKind.Unspecified), "giraffe", 2, 2, 0, false, 4, 2002 },
+                    { 5, 130f, 100f, 300f, 200f, 0.91f, new DateTime(2025, 6, 20, 8, 22, 45, 0, DateTimeKind.Unspecified), "lion", 4, 3, 165, false, 5, 4001 },
+                    { 6, 110f, 90f, 180f, 120f, 0.89f, new DateTime(2025, 6, 20, 8, 25, 0, 0, DateTimeKind.Unspecified), "wolf", 4, 3, 300, false, 5, 4002 },
+                    { 7, 100f, 80f, 150f, 90f, 0.83f, new DateTime(2025, 6, 20, 12, 12, 30, 0, DateTimeKind.Unspecified), "deer", 5, 4, 0, false, 6, 5001 },
+                    { 8, 180f, 140f, 220f, 180f, 0.94f, new DateTime(2025, 6, 20, 15, 2, 15, 0, DateTimeKind.Unspecified), "bear", 1, 5, 135, false, 7, 1002 },
+                    { 9, 0.25f, 0.15f, 0.2f, 0.3f, 0.76f, new DateTime(2025, 6, 18, 14, 20, 0, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 200, false, 1, 1003 },
+                    { 10, 0.18f, 0.12f, 0.6f, 0.1f, 0.45f, new DateTime(2025, 6, 18, 16, 45, 0, 0, DateTimeKind.Unspecified), "deer", 1, 1, 300, false, 1, 1004 },
+                    { 11, 0.3f, 0.2f, 0.4f, 0.5f, 0.92f, new DateTime(2025, 6, 17, 10, 30, 0, 0, DateTimeKind.Unspecified), "lion", 1, 1, 150, false, 1, 1005 },
+                    { 12, 0.12f, 0.08f, 0.1f, 0.2f, 0.38f, new DateTime(2025, 6, 18, 11, 15, 0, 0, DateTimeKind.Unspecified), "bird", 2, 2, 100, false, 3, 2003 },
+                    { 13, 0.35f, 0.25f, 0.3f, 0.4f, 0.89f, new DateTime(2025, 6, 17, 15, 20, 0, 0, DateTimeKind.Unspecified), "elephant", 2, 2, 250, false, 3, 2004 },
+                    { 14, 0.15f, 0.1f, 0.7f, 0.6f, 0.55f, new DateTime(2025, 6, 16, 13, 45, 0, 0, DateTimeKind.Unspecified), "wolf", 2, 2, 180, false, 3, 2005 },
+                    { 15, 0.28f, 0.18f, 0.5f, 0.3f, 0.91f, new DateTime(2025, 6, 15, 9, 30, 0, 0, DateTimeKind.Unspecified), "bear", 3, 1, 120, false, 1, 3001 },
+                    { 16, 0.1f, 0.06f, 0.2f, 0.7f, 0.42f, new DateTime(2025, 6, 15, 14, 20, 0, 0, DateTimeKind.Unspecified), "rabbit", 3, 1, 90, false, 1, 3002 },
+                    { 17, 0.2f, 0.15f, 0.8f, 0.2f, 0.67f, new DateTime(2025, 6, 19, 8, 45, 0, 0, DateTimeKind.Unspecified), "fox", 4, 3, 75, false, 5, 4003 },
+                    { 18, 0.08f, 0.05f, 0.1f, 0.8f, 0.29f, new DateTime(2025, 6, 18, 17, 30, 0, 0, DateTimeKind.Unspecified), "bird", 4, 3, 45, false, 5, 4004 },
+                    { 19, 0.3f, 0.2f, 0.45f, 0.35f, 0.84f, new DateTime(2025, 6, 19, 16, 10, 0, 0, DateTimeKind.Unspecified), "deer", 5, 4, 220, false, 6, 5002 },
+                    { 20, 0.32f, 0.22f, 0.6f, 0.4f, 0.95f, new DateTime(2025, 6, 20, 11, 5, 0, 0, DateTimeKind.Unspecified), "tiger", 5, 4, 280, false, 6, 5003 }
                 });
 
             migrationBuilder.InsertData(

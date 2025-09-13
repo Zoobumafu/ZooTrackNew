@@ -81,6 +81,8 @@ namespace ZooTrack.Models
         public virtual Event Event { get; set; }
         public virtual ICollection<Animal> Animals { get; set; }
         public virtual ICollection<Alert> Alerts { get; set; }
+        public bool IsTarget { get; set; } = false;
+
     }
 
     public class DetectionValidation

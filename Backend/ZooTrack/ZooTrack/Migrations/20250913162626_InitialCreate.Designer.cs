@@ -11,7 +11,7 @@ using ZooTrack.Data;
 namespace ZooTrackBackend.Migrations
 {
     [DbContext(typeof(ZootrackDbContext))]
-    [Migration("20250911132850_InitialCreate")]
+    [Migration("20250913162626_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -207,6 +207,9 @@ namespace ZooTrackBackend.Migrations
                     b.Property<int>("FrameNumber")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsTarget")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("MediaId")
                         .HasColumnType("INTEGER");
 
@@ -237,6 +240,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 1,
                             EventId = 1,
                             FrameNumber = 450,
+                            IsTarget = false,
                             MediaId = 1,
                             TrackingId = 1001
                         },
@@ -253,6 +257,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 1,
                             EventId = 1,
                             FrameNumber = 495,
+                            IsTarget = false,
                             MediaId = 1,
                             TrackingId = 1001
                         },
@@ -269,6 +274,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 2,
                             EventId = 2,
                             FrameNumber = 720,
+                            IsTarget = false,
                             MediaId = 3,
                             TrackingId = 2001
                         },
@@ -285,6 +291,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 2,
                             EventId = 2,
                             FrameNumber = 0,
+                            IsTarget = false,
                             MediaId = 4,
                             TrackingId = 2002
                         },
@@ -301,6 +308,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 4,
                             EventId = 3,
                             FrameNumber = 165,
+                            IsTarget = false,
                             MediaId = 5,
                             TrackingId = 4001
                         },
@@ -317,6 +325,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 4,
                             EventId = 3,
                             FrameNumber = 300,
+                            IsTarget = false,
                             MediaId = 5,
                             TrackingId = 4002
                         },
@@ -333,6 +342,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 5,
                             EventId = 4,
                             FrameNumber = 0,
+                            IsTarget = false,
                             MediaId = 6,
                             TrackingId = 5001
                         },
@@ -349,6 +359,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 1,
                             EventId = 5,
                             FrameNumber = 135,
+                            IsTarget = false,
                             MediaId = 7,
                             TrackingId = 1002
                         },
@@ -365,6 +376,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 1,
                             EventId = 1,
                             FrameNumber = 200,
+                            IsTarget = false,
                             MediaId = 1,
                             TrackingId = 1003
                         },
@@ -381,6 +393,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 1,
                             EventId = 1,
                             FrameNumber = 300,
+                            IsTarget = false,
                             MediaId = 1,
                             TrackingId = 1004
                         },
@@ -397,6 +410,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 1,
                             EventId = 1,
                             FrameNumber = 150,
+                            IsTarget = false,
                             MediaId = 1,
                             TrackingId = 1005
                         },
@@ -413,6 +427,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 2,
                             EventId = 2,
                             FrameNumber = 100,
+                            IsTarget = false,
                             MediaId = 3,
                             TrackingId = 2003
                         },
@@ -429,6 +444,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 2,
                             EventId = 2,
                             FrameNumber = 250,
+                            IsTarget = false,
                             MediaId = 3,
                             TrackingId = 2004
                         },
@@ -445,6 +461,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 2,
                             EventId = 2,
                             FrameNumber = 180,
+                            IsTarget = false,
                             MediaId = 3,
                             TrackingId = 2005
                         },
@@ -461,6 +478,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 3,
                             EventId = 1,
                             FrameNumber = 120,
+                            IsTarget = false,
                             MediaId = 1,
                             TrackingId = 3001
                         },
@@ -477,6 +495,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 3,
                             EventId = 1,
                             FrameNumber = 90,
+                            IsTarget = false,
                             MediaId = 1,
                             TrackingId = 3002
                         },
@@ -493,6 +512,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 4,
                             EventId = 3,
                             FrameNumber = 75,
+                            IsTarget = false,
                             MediaId = 5,
                             TrackingId = 4003
                         },
@@ -509,6 +529,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 4,
                             EventId = 3,
                             FrameNumber = 45,
+                            IsTarget = false,
                             MediaId = 5,
                             TrackingId = 4004
                         },
@@ -525,6 +546,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 5,
                             EventId = 4,
                             FrameNumber = 220,
+                            IsTarget = false,
                             MediaId = 6,
                             TrackingId = 5002
                         },
@@ -541,6 +563,7 @@ namespace ZooTrackBackend.Migrations
                             DeviceId = 5,
                             EventId = 4,
                             FrameNumber = 280,
+                            IsTarget = false,
                             MediaId = 6,
                             TrackingId = 5003
                         });
