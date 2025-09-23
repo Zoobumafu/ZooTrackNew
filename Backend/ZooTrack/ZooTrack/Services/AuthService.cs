@@ -13,6 +13,9 @@ using ZooTrack.Models;
 
 namespace ZooTrack.Services
 {
+    /// <summary>
+    /// Service for users authentication, managing registration, signing in and passwords.
+    /// </summary>
     public class AuthService : IAuthService
     {
         private readonly ZootrackDbContext _context;

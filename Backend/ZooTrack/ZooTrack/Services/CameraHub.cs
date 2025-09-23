@@ -1,12 +1,18 @@
-﻿// REWRITTEN - SECURITY REMOVED
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
 namespace ZooTrack.Hubs
 {
-    // [Authorize] // <-- THIS LINE HAS BEEN REMOVED
+    /// <summary>
+    /// This service mangages the video input devices in the system, using SignlIR.
+    /// SignalIR creates two-way connection between Client and Server by WebSocket.
+    /// Server->Client: Video stream, camera status
+    /// Client->Server: camera resignation, add or erase camera
+    /// </summary>
+
+    // [Authorize]
     public class CameraHub : Hub
     {
         private readonly ILogger<CameraHub> _logger;
@@ -15,6 +21,7 @@ namespace ZooTrack.Hubs
         {
             _logger = logger;
         }
+
 
         public async Task SubscribeToCamera(int cameraId)
         {

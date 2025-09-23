@@ -4,8 +4,14 @@ using Microsoft.Extensions.Logging;
 
 namespace ZooTrackBackend.Services
 {
-    public record TrackerResult(bool Success, Rect? BoundingBox, string? ErrorMessage);
-
+    /// <summary> 
+    /// This is Helping service to DetectionMediaService.cs.
+    /// The service is using OpenCvSharp.TrackerMIL algorithm to follow objects between different frames.
+    /// The Tracker gets frame and starting position of the target object, then update the position in the next frames.
+    /// MIL - Multiple Instance Learning, trains a classifier in an online manner to separate the object from the background
+    /// 
+    /// </summary>
+    
     public class MilTrackerService : IDisposable
     {
         private TrackerMIL _tracker;

@@ -46,7 +46,7 @@ namespace ZooTrack.Services
         private const int FREQUENT_DETECTION_THRESHOLD = 5;
 
         /// Default event duration in hours for automatically created events
-        private const int DEFAULT_EVENT_DURATION_HOURS = 24;
+        private const int DEFAULT_EVENT_DURATION_HOURS = 4;
 
         #endregion
 

@@ -1,5 +1,4 @@
-﻿// REWRITTEN AND FIXED
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenCvSharp;
 using SkiaSharp;
@@ -24,7 +23,7 @@ namespace ZooTrack.Services
     /// contains two classes: 
     ///     CameraInsrance for managing single camera instance ans
     ///     CameraService for managing all the cameras
-    /// this class uses re-trained YOLOv10 model for process video, saves highlight and draw B-Boxes around them
+    /// this service uses re-trained YOLOv10 model for process video, saves highlight and draw B-Boxes around them
     /// 
     /// Responsibilities:
     ///     1. Set and connect to the cameras
@@ -62,6 +61,7 @@ namespace ZooTrack.Services
             _serviceScopeFactory = serviceScopeFactory;
         }
 
+        // connect to specific camera using OpenCvSharp, load Yolo, set resolution
         public bool Initialize()
         {
             if (IsInitialized) return true;
@@ -110,63 +110,69 @@ namespace ZooTrack.Services
             }
         }
 
+        // MAIN METHOD: process frames
+        // 1. Reads from camera and run Yolo
+        // 2. Calls to Draws B-Box and labels
+        // 3. Saves to DB: frame & frame metadata
         public FrameData ProcessFrame()
         {
+            // IsProcessing = camera is actively being monitored
+            // IsInitialized = camera connection and YOLO model are ready
+            // _capture != null = camera object exists
             if (!IsProcessing || !IsInitialized || _capture == null)
             {
-                // If not processing, return a placeholder frame indicating the idle state.
                 return CreateErrorFrame("Idle");
             }
 
             using var frame = new Mat();
             if (!_capture.Read(frame) || frame.Empty())
             {
-                // *** MAJOR FIX ***
-                // Instead of returning null, create and send a visible error frame to the client.
-                _logger.LogWarning("Could not read frame from CameraId: {CameraId}. The camera may be disconnected or in use.", CameraId);
+                _logger.LogWarning("Error! Could not read frame from CameraId: {CameraId}. Device may be disconnected or in use.", CameraId);
                 return CreateErrorFrame("Cannot Read Frame");
             }
 
             bool targetFound = false;
             var detectedTargets = new List<string>();
+            var allDetections = new List<YoloDotNet.Models.ObjectDetection>();
 
             try
             {
                 // Run detection logic
                 if (_yolo != null)
                 {
-                    Cv2.ImEncode(".jpg", frame, out byte[] rawData);
-                    using var skImage = SKImage.FromEncodedData(rawData);
+                    Cv2.ImEncode(".jpg", frame, out byte[] rawData); // compress image and saves in buffer
+                    using var skImage = SKImage.FromEncodedData(rawData); // load from buffer into Skia object
                     if (skImage != null)
                     {
-                        var results = _yolo.RunObjectDetection(skImage, confidence: 0.4f);
+                        var results = _yolo.RunObjectDetection(skImage, confidence: 0.4f); // run Yolo for obj deetection
                         foreach (var detection in results)
                         {
+                            // check if the found obj is in target list
                             string label = detection.Label.Name.ToLowerInvariant();
-                            detectedTargets.Add(label);
-
                             bool isTarget = TargetAnimals.Contains(label);
-
-                            // שמור תמיד, עם סימון IsTarget
-                            _ = Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    await WriteDetectionToDatabase(detection, rawData, isTarget);
-                                    _logger.LogInformation("Detection saved for {Label} (IsTarget={IsTarget})", label, isTarget);
-                                }
-                                catch (Exception ex)
-                                {
-                                    _logger.LogError(ex, "Failed to save detection for {Label}", label);
-                                }
-                            });
+                            DrawDetection(frame, detection, isTarget);
 
                             if (isTarget)
                             {
-                                targetFound = true;
+                                detectedTargets.Add(label);
+                                // save to DB
+                                _ = Task.Run(async () =>
+                                {
+                                    try
+                                    {
+                                        await WriteDetectionToDatabase(detection, rawData, isTarget);
+                                        _logger.LogInformation("Target saved: {Label}", label);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _logger.LogError(ex, "Failed to save target: {Label}", label);
+                                    }
+                                });
                             }
-
-                            DrawDetection(frame, detection);
+                            else
+                            {
+                                _logger.LogDebug("Non-target detected: {Label}", label);
+                            }
                         }
                     }
                 }
@@ -176,18 +182,37 @@ namespace ZooTrack.Services
                 _logger.LogError(ex, "Error during YOLO detection for CameraId: {CameraId}", CameraId);
             }
 
-            HandleHighlightRecording(frame, targetFound);
-            Cv2.ImEncode(".jpg", frame, out byte[] finalJpegBytes);
+            bool hasTargets = detectedTargets.Count > 0;
+            // records 10 seconds when target is found
+            if (hasTargets)
+                HandleHighlightRecording(frame, hasTargets);
+
+            var jpegQuality = hasTargets ? 95 : 75; // Higher quality for targets
+            var jpegParams = new int[] { (int)ImwriteFlags.JpegQuality, jpegQuality };
+            Cv2.ImEncode(".jpg", frame, out byte[] finalJpegBytes, jpegParams);
+
+            if (hasTargets)
+            {
+                _logger.LogInformation("Targets detected in frame from Camera {CameraId}: [{Targets}]",
+                    CameraId, string.Join(", ", detectedTargets));
+            }
+            if (allDetections.Count > 0)
+            {
+                var allLabels = allDetections.Select(d => d.Label.Name.ToLowerInvariant()).ToArray();
+                _logger.LogDebug("All detections in frame from Camera {CameraId}: [{AllDetections}]",
+                    CameraId, string.Join(", ", allLabels));
+            }
 
             return new FrameData
             {
                 CameraId = this.CameraId,
                 JpegBytes = finalJpegBytes,
-                TargetDetected = targetFound,
+                TargetDetected = hasTargets,
                 DetectedTargets = detectedTargets
             };
         }
 
+        // Error handaling
         private FrameData CreateErrorFrame(string message)
         {
             using var errorMat = new Mat(new Size(_width, _height), MatType.CV_8UC3, Scalar.Black);
@@ -196,22 +221,53 @@ namespace ZooTrack.Services
             return new FrameData { CameraId = CameraId, JpegBytes = jpegBytes };
         }
 
-        private void DrawDetection(Mat frame, YoloDotNet.Models.ObjectDetection detection)
+        // Draw B-Box around object in the Camera
+        private void DrawDetection(Mat frame, YoloDotNet.Models.ObjectDetection detection, bool isTarget)
         {
             var rect = detection.BoundingBox;
-            Cv2.Rectangle(frame, new Rect(rect.Left, rect.Top, rect.Width, rect.Height), Scalar.LimeGreen, 2);
+
+            // draw B-Box
+            var color = isTarget ? Scalar.LimeGreen : Scalar.Gray;
+            var thickness = isTarget ? 3 : 2;
+            var cvRect = new Rect(rect.Left, rect.Top, rect.Width, rect.Height);
+            Cv2.Rectangle(frame, cvRect, color, thickness);
+
+            // label
             string text = $"{detection.Label.Name} ({detection.Confidence:P0})";
-            Cv2.PutText(frame, text, new Point(rect.Left, rect.Top - 5), HersheyFonts.HersheySimplex, 0.5, Scalar.White, 2);
+            double fontScale = isTarget ? 0.6 : 0.5;
+            var textColor = isTarget ? Scalar.White : Scalar.LightGray;
+            int textThickness = isTarget ? 2 : 1;
+            var textSize = Cv2.GetTextSize(text, HersheyFonts.HersheySimplex, fontScale, textThickness, out int baseline);
+            Point textPosition;
+
+            // frame limitation
+            if (rect.Top < textSize.Height + 10)
+                textPosition = new Point(rect.Left + 5, rect.Top + textSize.Height + 5);
+            else
+                textPosition = new Point(rect.Left, rect.Top - 5);
+
+            textPosition.X = Math.Max(0, Math.Min(textPosition.X, frame.Width - textSize.Width));
+            textPosition.Y = Math.Max(textSize.Height, Math.Min(textPosition.Y, frame.Height - baseline));
+
+            // text background
+            if (isTarget)
+            {
+                var bgRect = new Rect(textPosition.X - 2, textPosition.Y - textSize.Height - 2,
+                                     textSize.Width + 4, textSize.Height + baseline + 4);
+                Cv2.Rectangle(frame, bgRect, Scalar.Black, -1); // black background
+            }
+
+            Cv2.PutText(frame, text, textPosition, HersheyFonts.HersheySimplex,
+              fontScale, textColor, textThickness);
         }
 
-        private void HandleHighlightRecording(Mat frame, bool targetFoundInFrame)
+        // records video only when target is found
+        private void HandleHighlightRecording(Mat frame, bool hasTargetsInFrame)
         {
-            if (!targetFoundInFrame || string.IsNullOrEmpty(HighlightSavePath)) return;
+            if (!hasTargetsInFrame || string.IsNullOrEmpty(HighlightSavePath)) return;
 
             if (!_isRecording)
-            {
                 StartHighlightRecording();
-            }
 
             // Keep writing to the current video file
             if (_isRecording)
@@ -223,6 +279,7 @@ namespace ZooTrack.Services
             }
         }
 
+        // help method to HandleHighlightRecording()
         private void StartHighlightRecording()
         {
             if (_isRecording) return;
@@ -256,6 +313,7 @@ namespace ZooTrack.Services
             }
         }
 
+        // help method to HandleHighlightRecording()
         private void StopHighlightRecording()
         {
             if (!_isRecording) return;
@@ -269,6 +327,10 @@ namespace ZooTrack.Services
             _writer = null;
         }
 
+        // saves detecion into DB,
+        // saves precced frame as photo
+        // create record in DB
+        // initiate tracking with CreateDetectionWithTrackingAsync()
         private async Task WriteDetectionToDatabase(YoloDotNet.Models.ObjectDetection detection, byte[] frameBytes, bool isTarget)
         {
             _logger.LogInformation(">>> WriteDetectionToDatabase started for Camera {CameraId}, IsTarget={IsTarget}", CameraId, isTarget);
@@ -279,7 +341,7 @@ namespace ZooTrack.Services
                 var context = scope.ServiceProvider.GetRequiredService<ZootrackDbContext>();
 
                 _logger.LogInformation("Saving frame as Media...");
-                int deviceId = 1;
+                int deviceId = this.CameraId;
                 int mediaId = await SaveFrameAsMediaAsync(frameBytes, deviceId, context);
                 _logger.LogInformation("Media saved with MediaId={MediaId}", mediaId);
 
@@ -354,9 +416,7 @@ namespace ZooTrack.Services
         }
     }
 
-    /// <summary>
-    /// Manages the lifecycle of all CameraInstance objects.
-    /// </summary>
+    /// Manages the lifecycle of CameraInstance objects.
     public class CameraService : IDisposable
     {
         private readonly ILogger<CameraService> _logger;
@@ -371,6 +431,7 @@ namespace ZooTrack.Services
             _serviceScopeFactory = serviceScopeFactory;
             _defaultTargetAnimals = LoadDefaultTargetAnimals();
         }
+        
         private List<string> LoadDefaultTargetAnimals()
         {
             try
@@ -425,7 +486,8 @@ namespace ZooTrack.Services
             return cameras;
         }
 
-        public bool IsCameraInitialized(int cameraId) => _cameraInstances.ContainsKey(cameraId) && _cameraInstances[cameraId].IsInitialized;
+        public bool IsCameraInitialized(int cameraId) =>
+            _cameraInstances.ContainsKey(cameraId) && _cameraInstances[cameraId].IsInitialized;
 
         public bool InitializeCamera(int cameraId)
         {
@@ -439,6 +501,7 @@ namespace ZooTrack.Services
             return true;
         }
 
+        // set targets, set path, initiate processing condition for camera instance
         public void StartProcessing(int cameraId, List<string> targetAnimals, string savePath)
         {
             if (_cameraInstances.TryGetValue(cameraId, out var instance) && instance.IsInitialized)
@@ -504,6 +567,7 @@ namespace ZooTrack.Services
         }
     }
 
+    // Data Transfer Object between Client and Server by SignalIR
     public class FrameData
     {
         public int CameraId { get; set; }

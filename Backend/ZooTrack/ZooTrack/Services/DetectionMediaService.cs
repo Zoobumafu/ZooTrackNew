@@ -11,19 +11,15 @@ using Microsoft.VisualBasic;
 namespace ZooTrack.Services
 {
     /// <summary>
-    /// Service responsible for extracting frames from media files during detection events
+    /// This service extracts frames from media files during detection events
     /// and correlating detections to track the same objects across multiple frames.
-    /// This service provides intelligent frame extraction and object tracking capabilities.
+    /// To determine if an object is already tracked or new one, it calculates IoU on the object.
+    /// Low IoU rate initiates creation of new Tracker instance.
+    /// Old Trackers get deleted if not used recently.
+    /// In case of multiple animals from same species, each will get its own Tracker instance.
+    /// In addition, the service extract frames, saves them and log it.
     /// </summary>
-    /// <remarks>
-    /// The service performs the following operations:
-    /// 1. Listens to detection events
-    /// 2. Extracts frames from media at configurable frame rates
-    /// 3. Saves extracted frames to disk storage
-    /// 4. Registers frames in the Media table connected to detections
-    /// 5. Correlates detections to identify and track the same objects
-    /// 6. Implement TrackMIL algorithm
-    /// </remarks>
+
     public class DetectionMediaService : IDisposable
     {
         #region Constants and Configuration
@@ -489,7 +485,7 @@ namespace ZooTrack.Services
             );
 
             // search for exist trackers with overlaps
-            int? matchedId = FindMatchingTracker(newBox);
+            int? matchedId = FindMatchingTracker(newBox); // call for IoU calculation
             if (matchedId.HasValue)
             {
                 // update exists tracker
@@ -509,7 +505,33 @@ namespace ZooTrack.Services
                     _lastKnownBounds[newId] = newBox;
                     _trackerObjects[newId] = detection.DetectedObject ?? "Unknown";
                     detection.TrackingId = newId;
+
+                    await _logService.AddLogAsync(1, "TrackerCreated",
+                          $"Created tracker {newId} for detection {detection.DetectionId} at {detection.DetectedAt}",
+                          "Info", detection.DetectionId);
                 }
+                else
+                {
+                    await _logService.AddLogAsync(1, "TrackerInitFailed",
+                        $"Failed to initialize tracker for detection {detection.DetectionId}",
+                        "Error", detection.DetectionId);
+                }
+
+            }
+            try
+            {
+                _context.Detections.Update(detection);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                await _logService.AddLogAsync(
+                    1,
+                    "DbUpdateFailed",
+                    $"Failed to save tracking update for detection {detection.DetectionId}: {ex.Message}",
+                    "Error",
+                    detection.DetectionId
+                );
             }
         }
 
@@ -517,7 +539,7 @@ namespace ZooTrack.Services
         {
             foreach (var kvp in _lastKnownBounds)
             {
-                double overlap = CalculateIoU(newBox, kvp.Value);
+                double overlap = CalculateIoU(newBox, kvp.Value); // call for IoU calculation
                 if (overlap >= MIN_OVERLAP_THRESHOLD)
                     return kvp.Key;
             }
