@@ -145,12 +145,12 @@ namespace ZooTrack.Services
                     if (skImage != null)
                     {
                         var results = _yolo.RunObjectDetection(skImage, confidence: 0.4f); // run Yolo for obj deetection
-                        foreach (var detection in results)
+                        foreach (var detectedAnimal in results)
                         {
                             // check if the found obj is in target list
-                            string label = detection.Label.Name.ToLowerInvariant();
+                            string label = detectedAnimal.Label.Name.ToLowerInvariant();
                             bool isTarget = TargetAnimals.Contains(label);
-                            DrawDetection(frame, detection, isTarget);
+                            DrawDetection(frame, detectedAnimal, isTarget);
 
                             if (isTarget)
                             {
@@ -160,7 +160,7 @@ namespace ZooTrack.Services
                                 {
                                     try
                                     {
-                                        await WriteDetectionToDatabase(detection, rawData, isTarget);
+                                        await WriteDetectionToDatabase(detectedAnimal, rawData, isTarget);
                                         _logger.LogInformation("Target saved: {Label}", label);
                                     }
                                     catch (Exception ex)
@@ -424,6 +424,7 @@ namespace ZooTrack.Services
         private readonly ConcurrentDictionary<int, CameraInstance> _cameraInstances = new();
 
         private readonly List<string> _defaultTargetAnimals;
+        public const int NUM_CAMERAS = 2; // for testing porpose
 
         public CameraService(ILogger<CameraService> logger, IServiceScopeFactory serviceScopeFactory)
         {
@@ -467,7 +468,7 @@ namespace ZooTrack.Services
         {
             var cameras = new List<(int, string, bool)>();
             _logger.LogInformation("Starting camera discovery...");
-            for (int i = 0; i < 10; i++) // Check first 10 indices
+            for (int i = 0; i < NUM_CAMERAS; i++)
             {
                 try
                 {

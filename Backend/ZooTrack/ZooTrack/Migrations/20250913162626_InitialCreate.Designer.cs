@@ -1391,7 +1391,7 @@ namespace ZooTrackBackend.Migrations
                             DetectionThreshold = 0.8f,
                             HighlightSavePath = "Media/HighlightFrames/Admin",
                             NotificationPreference = "Email",
-                            TargetAnimalsJson = "[\"person\",\"dog\",\"cow\",\"wolf\",\"tiger\",\"lion\",\"elephant\",\"giraffe\"]"
+                            TargetAnimalsJson = "[\"21\",\"bear\",\"person\",\"dog\",\"cow\",\"wolf\",\"tiger\",\"lion\",\"elephant\",\"giraffe\"]"
                         },
                         new
                         {

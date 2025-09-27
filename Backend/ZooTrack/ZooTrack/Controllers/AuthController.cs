@@ -119,7 +119,7 @@ namespace ZooTrack.Controllers
         }
 
         [HttpPost("change-password")]
-        [Authorize] // Only logged-in users can change their password
+       //  [Authorize] // Only logged-in users can change their password
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
         {
             if (request == null || string.IsNullOrEmpty(request.OldPassword) || string.IsNullOrEmpty(request.NewPassword))
