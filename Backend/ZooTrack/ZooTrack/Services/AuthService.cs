@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ZooTrack.Data;
 using ZooTrack.Models;
+using ZooTrackBackend.Services;
 
 namespace ZooTrack.Services
 {

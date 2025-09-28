@@ -18,7 +18,7 @@ namespace ZooTrack.Services // Corrected Namespace
             _context = context;
         }
 
-        public async Task<Log> AddLogAsync(int userId, string actionType, string message = "", string level = "Info", int? detectionId = null)
+        public async Task<Log> AddLogAsync(int? userId, string actionType, string message = "", string level = "Info", int? detectionId = null)
         {
             var log = new Log
             {

@@ -110,6 +110,7 @@ namespace ZooTrack.Services
             }
         }
 
+        // TODO: check method responsibilities
         // MAIN METHOD: process frames
         // 1. Reads from camera and run Yolo
         // 2. Calls to Draws B-Box and labels
@@ -155,6 +156,29 @@ namespace ZooTrack.Services
                             if (isTarget)
                             {
                                 detectedTargets.Add(label);
+
+                                // Queue for the DetectionMediaService to handle
+                                _ = Task.Run(async () =>
+                                {
+                                    var tempDetection = new Detection
+                                    {
+                                        DeviceId = CameraId,
+                                        DetectedAt = DateTime.Now,
+                                        DetectedObject = detectedAnimal.Label.Name,
+                                        BoundingBoxX = detectedAnimal.BoundingBox.Left,
+                                        BoundingBoxY = detectedAnimal.BoundingBox.Top,
+                                        BoundingBoxWidth = detectedAnimal.BoundingBox.Width,
+                                        BoundingBoxHeight = detectedAnimal.BoundingBox.Height,
+                                        Confidence = (float)(detectedAnimal.Confidence * 100),
+                                        IsTarget = isTarget
+                                    };
+                                    using var scope = _serviceScopeFactory.CreateScope();
+                                    var mediaService = scope.ServiceProvider.GetRequiredService<DetectionMediaService>();
+
+                                    // Let DetectionMediaService decide whether to save based on tracking
+                                    await mediaService.ProcessDetectionForSaving(tempDetection, rawData);
+                                });
+                                /*
                                 // save to DB
                                 _ = Task.Run(async () =>
                                 {
@@ -172,6 +196,7 @@ namespace ZooTrack.Services
                             else
                             {
                                 _logger.LogDebug("Non-target detected: {Label}", label);
+                                */
                             }
                         }
                     }
@@ -378,7 +403,7 @@ namespace ZooTrack.Services
         private async Task<int> SaveFrameAsMediaAsync(byte[] frameBytes, int deviceId, ZootrackDbContext context)
         {
             // create path
-            string relativePath = Path.Combine("MediaFiles", $"detection_{DateTime.Now:yyyyMMdd_HHmmss}.jpg");
+            string relativePath = Path.Combine("Media/HighlightFrames", $"detection_{DateTime.Now:yyyyMMdd_HHmmss_ff}.jpg");
             string fullPath = Path.Combine(AppContext.BaseDirectory, relativePath);
 
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
@@ -432,7 +457,7 @@ namespace ZooTrack.Services
             _serviceScopeFactory = serviceScopeFactory;
             _defaultTargetAnimals = LoadDefaultTargetAnimals();
         }
-        
+
         private List<string> LoadDefaultTargetAnimals()
         {
             try

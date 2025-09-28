@@ -3,10 +3,12 @@ using ZooTrack.Models;
 using Microsoft.EntityFrameworkCore;
 using ZooTrackBackend.Services;
 using OpenCvSharp;
+using System.Linq;
 using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace ZooTrack.Services
 {
@@ -82,36 +84,98 @@ namespace ZooTrack.Services
         {
             if (detection == null)
                 throw new ArgumentNullException(nameof(detection));
+            if (!detection.MediaId.HasValue)
+                throw new InvalidOperationException($"Detection {detection.DetectionId} has no associated media");
 
             try
             {
-                await _logService.AddLogAsync(1, "FrameExtractionStarted",
-                    $"Starting smart frame extraction for detection {detection.DetectionId}", "Info", detection.DetectionId);
-
-                CleanupStaleTrackers(); // Clean up stale trackers
+                if (detection.DetectionId > 0) // is already saved in DB
+                {
+                    /*
+                    await _logService.AddLogAsync(1, "FrameExtractionStarted",
+                $"Starting smart frame extraction for detection {detection.DetectionId}",
+                "Info", detection.DetectionId);
+                    */
+                }
+                CleanupStaleTrackers();
 
                 // Validate and load media file
-                var media = await LoadAndValidateMediaAsync(detection.MediaId);
+                var media = await LoadAndValidateMediaAsync(detection.MediaId.Value);
                 var mediaPath = GetMediaPath(media.FilePath);
-
                 var outputDir = CreateOutputDirectory(detection.DetectionId);
 
                 // Extract frames for tracking analysis
                 await ExtractTrackingFramesAsync(mediaPath, outputDir, detection);
 
                 // Correlate with existing detections to identify same objects
-                await InitializeOrUpdateTracking(detection, mediaPath);
+                await InitializeOrUpdateTrackingForSaving(detection);
 
+                /*
                 // Save all changes to database
                 await _context.SaveChangesAsync();
+                */
 
+                /*
                 await _logService.AddLogAsync(1, "FrameExtractionCompleted",
                     $"Smart frame extraction completed for detection {detection.DetectionId}", "Info", detection.DetectionId);
+                */
             }
             catch (Exception ex)
             {
+                /*
+                var detectionIdForLog = detection.DetectionId > 0 ? detection.DetectionId : (int?)null;
                 await _logService.AddLogAsync(1, "FrameExtractionFailed",
-                    $"Frame extraction failed for detection {detection.DetectionId}: {ex.Message}", "Error", detection.DetectionId);
+                    $"Frame extraction failed: {ex.Message}", "Error", detectionIdForLog);
+                */
+                throw;
+            }
+        }
+
+        // Processes a detection for saving, using tracking to reduce duplicate saves
+        public async Task ProcessDetectionForSaving(Detection detection, byte[] frameBytes)
+        {
+            if (detection == null)
+                throw new ArgumentNullException(nameof(detection));
+
+            try
+            {
+                /*
+                await _logService.AddLogAsync(1, "ProcessDetectionForSaving",
+                    $"Processing detection for device {detection.DeviceId}, object: {detection.DetectedObject}",
+                    "Info", null /* detection.DetectionId );
+                */
+                CleanupStaleTrackers();
+
+                // Check if detection is relevant based on recent activity
+                if (!await ShouldSaveDetection(detection))
+                {
+                    /*
+                    await _logService.AddLogAsync(1, "DetectionSkipped",
+                        $"Skipped - similar detection recently saved: {detection.DetectedObject}",
+                        "Info", null /* detection.DetectionId );
+                    */
+                    return;
+                }
+
+                // Save the frame as media
+                int mediaId = await SaveDetectionFrameAsync(frameBytes, detection.DeviceId);
+                detection.MediaId = mediaId;
+
+                // Correlate with existing detections to identify same objects
+                await InitializeOrUpdateTrackingForSaving(detection);
+
+                /*
+                await _logService.AddLogAsync(1, "DetectionProcessed",
+                    $"Successfully processed, detection saved for {detection.DetectedObject}",
+                    "Info", detection.DetectionId);
+                */
+            }
+            catch (Exception ex)
+            {
+                /*
+                await _logService.AddLogAsync(1, "ProcessDetectionError",
+                    $"Error processing detection: {ex.Message}", "Error", null /* detection.DetectionId );
+                */
                 throw;
             }
         }
@@ -175,29 +239,28 @@ namespace ZooTrack.Services
                 var timeWindow = CalculateExtractionTimeWindow(detection.DetectedAt);
                 var totalFramesToExtract = (int)(timeWindow.Duration * FRAMES_PER_SECOND);
                 var frameInterval = 1.0 / FRAMES_PER_SECOND;
-                /*
-                await _logService.AddLogAsync(1, "FrameExtractionPlan",
-                    $"Extracting {totalFramesToExtract} frames at {FRAMES_PER_SECOND} FPS for detection {detection.DetectionId}",
-                    "Info", detection.DetectionId);
-                */
+               
                 // Extract frames at regular intervals using your constants
                 await ExtractRegularFrames(outputDir, timeWindow, totalFramesToExtract, frameInterval);
 
                 // Extract and save key frames
                 await SaveKeyFrames(outputDir, detection);
 
+                /*
                 await _logService.AddLogAsync(1, "FramesExtracted",
                     $"Extracted {totalFramesToExtract} tracking frames for detection {detection.DetectionId}",
                     "Info", detection.DetectionId);
+                */
             }
             catch (Exception ex)
             {
+                /*
                 await _logService.AddLogAsync(1, "FrameExtractionError",
                     $"Error extracting frames: {ex.Message}", "Error", detection.DetectionId);
+                */
                 throw;
             }
         }
-
 
         // calculate extraction time window based on the constants
         private (DateTime StartTime, DateTime EndTime, double Duration) CalculateExtractionTimeWindow(DateTime detectionTime)
@@ -215,24 +278,30 @@ namespace ZooTrack.Services
             var media = await FindMediaForTimeWindow(timeWindow);
             if (media == null)
             {
+                /*
                 await _logService.AddLogAsync(1, "MediaNotFound",
                     $"No media found for time window {timeWindow.StartTime} - {timeWindow.EndTime}", "Warning");
+                */
                 return;
             }
 
             string videoPath = GetMediaFilePath(media);
             if (!File.Exists(videoPath))
             {
+                /*
                 await _logService.AddLogAsync(1, "VideoFileNotFound",
                     $"Video file not found: {videoPath}", "Error", media.MediaId);
+                */
                 return;
             }
 
             using var capture = new VideoCapture(videoPath);
             if (!capture.IsOpened())
             {
+                /*
                 await _logService.AddLogAsync(1, "VideoOpenError",
                     $"Failed to open video file: {videoPath}", "Error", media.MediaId);
+                */
                 return;
             }
 
@@ -253,8 +322,10 @@ namespace ZooTrack.Services
                 double secondsFromVideoStart = (frameTime - videoStartTime).TotalSeconds;
                 if (secondsFromVideoStart < 0)
                 {
+                    /*
                     await _logService.AddLogAsync(1, "FrameSkipped",
                         $"Skipping frame {i} - time {frameTime} is before video start", "Warning", media.MediaId);
+                    */
                     continue;
                 }
 
@@ -286,22 +357,34 @@ namespace ZooTrack.Services
         // saving frames at the detection event, then before and after it for better tracking
         private async Task SaveKeyFrames(string outputDir, Detection detection)
         {
+            if (!detection.MediaId.HasValue)
+            {
+                /*
+                await _logService.AddLogAsync(1, "NoMediaAssociated",
+                    $"No media associated with detection {detection.DetectionId} for key frame extraction", "Warning", detection.DetectionId);
+                */
+                return;
+            }
             // Load the associated media for this detection
-            var media = await LoadAndValidateMediaAsync(detection.MediaId);
+            var media = await LoadAndValidateMediaAsync(detection.MediaId.Value);
             string videoPath = GetMediaFilePath(media);
 
             if (!File.Exists(videoPath))
             {
+                /*
                 await _logService.AddLogAsync(1, "VideoFileNotFound",
                     $"Video file not found for key frame extraction: {videoPath}", "Error", detection.DetectionId);
+                */
                 return;
             }
 
             using var capture = new VideoCapture(videoPath);
             if (!capture.IsOpened())
             {
+                /*
                 await _logService.AddLogAsync(1, "VideoOpenError",
                     $"Failed to open video file for key frames: {videoPath}", "Error", detection.DetectionId);
+                */
                 return;
             }
 
@@ -315,9 +398,10 @@ namespace ZooTrack.Services
                 ("before_detection.jpg", detection.DetectedAt.AddSeconds(-5)), // Keep your existing 5-second offset
                 ("after_detection.jpg", detection.DetectedAt.AddSeconds(5))
             };
-
+            /*
             await _logService.AddLogAsync(1, "KeyFrameExtractionStarted",
                 $"Extracting key frames for detection {detection.DetectionId}", "Info", detection.DetectionId);
+            */
 
             foreach (var (fileName, frameTime) in keyFrames)
             {
@@ -326,8 +410,10 @@ namespace ZooTrack.Services
                 double secondsFromVideoStart = (frameTime - videoStartTime).TotalSeconds;
                 if (secondsFromVideoStart < 0)
                 {
+                    /*
                     await _logService.AddLogAsync(1, "KeyFrameSkipped",
                         $"Skipping key frame {fileName} - time {frameTime} is before video start", "Warning", detection.DetectionId);
+                    */
                     continue;
                 }
 
@@ -374,20 +460,23 @@ namespace ZooTrack.Services
                 catch (Exception ex)
                 {
                     // Log in background, don't wait
+                    /*
                     _ = Task.Run(async () => await _logService.AddLogAsync(1, "FrameExtractionError",
                         $"Error extracting frame {frameNumber} at {frameTime}: {ex.Message}", "Error", contextId));
+                    */
                     throw;
                 }
             });
         }
 
-        
         private async Task SaveFrameToFile(byte[] frameData, string framePath, DateTime frameTime)
         {
             if (frameData == null || frameData.Length == 0)
             {
+                /*
                 await _logService.AddLogAsync(1, "SaveFrameFailed",
                     $"Attempted to save empty frame data at {frameTime}", "Warning");
+                */
                 return;
             }
 
@@ -401,13 +490,17 @@ namespace ZooTrack.Services
                 }
 
                 await File.WriteAllBytesAsync(framePath, frameData);
+                /*
                 await _logService.AddLogAsync(1, "FrameSaved",
                     $"Frame saved to {framePath} at {frameTime}", "Info");
+                */
             }
             catch (Exception ex)
             {
+                /*
                 await _logService.AddLogAsync(1, "SaveFrameError",
                     $"Error saving frame to {framePath} at {frameTime}: {ex.Message}", "Error");
+                */
                 throw;
             }
         }
@@ -461,22 +554,68 @@ namespace ZooTrack.Services
             }
         }
 
+        // check if detection relevant based on recent detections
+        private async Task<bool> ShouldSaveDetection(Detection detection)
+        {
+            // Check for similar detections within the last 5 seconds
+            var recentDetections = await _context.Detections
+                .Where(d => d.DeviceId == detection.DeviceId &&
+                           d.DetectedObject == detection.DetectedObject &&
+                           d.DetectedAt > DateTime.Now.AddSeconds(-5))
+                .OrderByDescending(d => d.DetectedAt)
+                .Take(1)
+                .ToListAsync();
+
+            if (!recentDetections.Any()) // no recent detection, save it
+                return true;
+
+            var recent = recentDetections.First();
+
+            // If confidence is significantly higher (>15% improvement), save it
+            if (detection.Confidence > recent.Confidence + 15)
+            {
+                /*
+                await _logService.AddLogAsync(1, "HigherConfidenceDetection",
+                    $"Saving higher confidence detection: {detection.Confidence:F1}% vs {recent.Confidence:F1}%",
+                    "Info", detection.DetectionId);
+                */
+                return true;
+            }
+
+            // Otherwise, skip to reduce duplicates
+            return false;
+        }
+
+        // TODO: change PATH
+        // Saves detection frame, returns MediaId
+        private async Task<int> SaveDetectionFrameAsync(byte[] frameBytes, int deviceId)
+        {
+            string fileName = $"detection_{DateTime.Now:yyyyMMdd_HHmmss_ff}.jpg";
+            string relativePath = Path.Combine("Media", "HighlightFrames", fileName);
+            string fullPath = Path.Combine(_environment.ContentRootPath, relativePath);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+
+            await File.WriteAllBytesAsync(fullPath, frameBytes);
+
+            var media = new Media
+            {
+                DeviceId = deviceId,
+                Type = "Frame",
+                FilePath = relativePath,
+                Timestamp = DateTime.Now
+            };
+
+            _context.Media.Add(media);
+            await _context.SaveChangesAsync();
+
+            return media.MediaId;
+        }
+
         // detection event: determine if is part of already tracked detection or of new one.
         // determine by calling IoU calculation
-        private async Task InitializeOrUpdateTracking(Detection detection, string videoPath)
+        private async Task InitializeOrUpdateTrackingForSaving(Detection detection)
         {
-            using var capture = new VideoCapture(videoPath);
-            if (!capture.IsOpened()) return;
-
-            // go to the relevant frame by: detection.DetectedAt
-            double fps = capture.Fps > 0 ? capture.Fps : 20.0;
-            double secondsFromStart = (detection.DetectedAt - detection.Media.Timestamp).TotalSeconds;
-            int frameNumber = (int)(secondsFromStart * fps);
-
-            capture.PosFrames = frameNumber;
-            using var frame = new Mat();
-            if (!capture.Read(frame) || frame.Empty()) return;
-
             var newBox = new Rect(
                 (int)detection.BoundingBoxX,
                 (int)detection.BoundingBoxY,
@@ -484,54 +623,45 @@ namespace ZooTrack.Services
                 (int)detection.BoundingBoxHeight
             );
 
-            // search for exist trackers with overlaps
-            int? matchedId = FindMatchingTracker(newBox); // call for IoU calculation
+            // Try finding matching tracker
+            int? matchedId = FindMatchingTracker(newBox);
             if (matchedId.HasValue)
             {
-                // update exists tracker
+                // Update existing tracker
                 _lastSeenTimes[matchedId.Value] = DateTime.UtcNow;
                 _lastKnownBounds[matchedId.Value] = newBox;
                 detection.TrackingId = matchedId.Value;
             }
-            else
+            else // no match, create new Tracker
             {
-                // create new tracker 
                 int newId = await GetNextTrackingId();
-                var tracker = new MilTrackerService();
-                if (tracker.Initialize(frame, newBox))
-                {
-                    _activeTrackers[newId] = tracker;
-                    _lastSeenTimes[newId] = DateTime.UtcNow;
-                    _lastKnownBounds[newId] = newBox;
-                    _trackerObjects[newId] = detection.DetectedObject ?? "Unknown";
-                    detection.TrackingId = newId;
-
-                    await _logService.AddLogAsync(1, "TrackerCreated",
-                          $"Created tracker {newId} for detection {detection.DetectionId} at {detection.DetectedAt}",
-                          "Info", detection.DetectionId);
-                }
-                else
-                {
-                    await _logService.AddLogAsync(1, "TrackerInitFailed",
-                        $"Failed to initialize tracker for detection {detection.DetectionId}",
-                        "Error", detection.DetectionId);
-                }
-
+                _lastSeenTimes[newId] = DateTime.UtcNow;
+                _lastKnownBounds[newId] = newBox;
+                _trackerObjects[newId] = detection.DetectedObject ?? "Unknown";
+                detection.TrackingId = newId;
             }
+            // Save the detection to database
             try
             {
-                _context.Detections.Update(detection);
+                _context.Detections.Add(detection);
                 await _context.SaveChangesAsync();
             }
             catch (Exception ex)
             {
-                await _logService.AddLogAsync(
-                    1,
-                    "DbUpdateFailed",
-                    $"Failed to save tracking update for detection {detection.DetectionId}: {ex.Message}",
-                    "Error",
-                    detection.DetectionId
-                );
+                /*
+                await _logService.AddLogAsync(1, "DetectionSaveFailed",
+                    $"Failed to save detection: {ex.Message}", "Error", null);
+                */
+                throw; 
+            }
+
+            if (!matchedId.HasValue) // log every new Tracker
+            {
+                /*
+                await _logService.AddLogAsync(1, "TrackerCreated",
+                   $"Created new tracker {detection.TrackingId} for detection of {detection.DetectedObject}",
+                   "Info", detection.DetectionId);
+                */
             }
         }
 
@@ -561,8 +691,9 @@ namespace ZooTrack.Services
         }
 
         // manage the active trackers, saves new locations or stops tracking
-        private void UpdateActiveTrackers(Mat frame, DateTime frameTime, int mediaId)
+        private async void UpdateActiveTrackers(Mat frame, DateTime frameTime, int mediaId)
         {
+            var trackingDetections = new List<Detection>();
             foreach (var kvp in _activeTrackers.ToList()) // work on temp list
             {
                 var tracker = kvp.Value;
@@ -588,8 +719,7 @@ namespace ZooTrack.Services
                         Confidence = 1.0f, // default value
                         DetectedObject = _trackerObjects.ContainsKey(id) ? _trackerObjects[id] : "Unknown"
                     };
-
-                    _context.Detections.Add(trackingDetection);
+                    trackingDetections.Add(trackingDetection);
                 }
                 else
                 {
@@ -599,8 +729,27 @@ namespace ZooTrack.Services
                     _lastKnownBounds.Remove(id);
                     _trackerObjects.Remove(id);
 
-                    _logService.AddLogAsync(1, "TrackingLost",
-                        $"Tracker {id} removed at {frameTime}", "Warning");
+                    /*
+                    _ = Task.Run(async () => await _logService.AddLogAsync(1, "TrackingLost",
+                                   $"Tracker {id} removed at {frameTime}", "Warning", null));
+                    */
+                }
+            }
+            // Save all tracking detections in a single batch
+            if (trackingDetections.Any())
+            {
+                try
+                {
+                    _context.Detections.AddRange(trackingDetections);
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    /*
+                    await _logService.AddLogAsync(1, "TrackingDetectionSaveFailed",
+                        $"Failed to save {trackingDetections.Count} tracking detections: {ex.Message}",
+                        "Error", null);
+                    */
                 }
             }
         }
