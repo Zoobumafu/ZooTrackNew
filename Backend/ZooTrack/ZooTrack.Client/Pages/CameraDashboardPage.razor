@@ -18,9 +18,71 @@
     <div class="card-body">
         <div class="row align-items-end g-3">
             <div class="col-md-5">
-                <label for="
-" class="form-label">Target Animals (comma-separated):</label>
-                <input type="text" class="form-control" id="targetAnimals" @bind="globalTargetAnimals" placeholder="e.g., person, cat, dog" />
+                <label class="form-label">Target Animals:</label>
+                <div class="input-group">
+                    <button class="btn btn-outline-secondary" type="button" @onclick="ToggleAnimalDrawer">
+                        <i class="bi bi-list-check"></i> Select Animals (@selectedAnimals.Count selected)
+                    </button>
+                    <input type="text" class="form-control" readonly value="@GetSelectedAnimalsDisplay()" placeholder="No animals selected" />
+                </div>
+
+                @if (showAnimalDrawer)
+                {
+                    <div class="card mt-2 shadow">
+                        <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong>Select Animals</strong>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="SelectAllAnimals">Select All</button>
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="ClearAllAnimals">Clear All</button>
+                                </div>
+                            </div>
+                            <hr class="mt-1 mb-2" />
+
+                            @foreach (var animal in predefinedAnimals)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="animal_@animal.Key"
+                                           checked="@selectedAnimals.Contains(animal.Key)"
+                                           @onchange="@(e => ToggleAnimal(animal.Key, (bool)e.Value!))" />
+                                    <label class="form-check-label" for="animal_@animal.Key">
+                                        @animal.Value
+                                    </label>
+                                </div>
+                            }
+
+                            @if (customAnimals.Any())
+                            {
+                                <hr class="my-2" />
+                                <small class="text-muted">Custom Animals:</small>
+                                @foreach (var customAnimal in customAnimals)
+                                {
+                                    <div class="form-check d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <input class="form-check-input" type="checkbox" id="custom_@customAnimal"
+                                                   checked="@selectedAnimals.Contains(customAnimal)"
+                                                   @onchange="@(e => ToggleAnimal(customAnimal, (bool)e.Value!))" />
+                                            <label class="form-check-label" for="custom_@customAnimal">
+                                                @customAnimal
+                                            </label>
+                                        </div>
+                                        <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => RemoveCustomAnimal(customAnimal)">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </div>
+                                }
+                            }
+
+                            <hr class="my-2" />
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" placeholder="Add custom animal..." @bind="newCustomAnimal" @onkeyup="HandleCustomAnimalKeyPress" />
+                                <button class="btn btn-outline-success" type="button" @onclick="AddCustomAnimal">
+                                    <i class="bi bi-plus-lg"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
             <div class="col-md-4">
                 <label for="savePath" class="form-label">Base Highlight Save Path:</label>
@@ -119,8 +181,24 @@ else if (availableCameras != null)
     private ConcurrentDictionary<int, StreamData> streamData = new();
     private ConcurrentDictionary<int, HubConnection> hubConnections = new();
 
-    //private string globalTargetAnimals = "bear,21,person,cat,dog,wolf,lion,deer,elephant";
-    private string globalTargetAnimals = "0,1,2,3,4,5,6,7,8,21,cougar,bear,wild boar,warthog,indian cobra,lion,elephant,hyena";
+    // Animal selection
+    private Dictionary<string, string> predefinedAnimals = new()
+    {
+        { "0", "Human" },
+        { "1", "Cougar" },
+        { "2", "Bear" },
+        { "3", "Wild Boar" },
+        { "4", "Warthog" },
+        { "5", "Indian Cobra" },
+        { "6", "Lion" },
+        { "7", "Elephant" },
+        { "8", "Hyena" }
+    };
+
+    private HashSet<string> selectedAnimals = new() { "0", "1", "2", "3", "4", "5", "6", "7", "8" };
+    private List<string> customAnimals = new();
+    private string newCustomAnimal = "";
+    private bool showAnimalDrawer = false;
 
     private string globalSavePath = "C:/ZooTrackHighlights";
     private string? apiError;
@@ -143,6 +221,90 @@ else if (availableCameras != null)
         public int CameraId { get; set; }
         public string Name { get; set; } = string.Empty;
         public bool IsActive { get; set; }
+    }
+
+    private void ToggleAnimalDrawer()
+    {
+        showAnimalDrawer = !showAnimalDrawer;
+    }
+
+    private void ToggleAnimal(string animalKey, bool isChecked)
+    {
+        if (isChecked)
+        {
+            selectedAnimals.Add(animalKey);
+        }
+        else
+        {
+            selectedAnimals.Remove(animalKey);
+        }
+    }
+
+    private void SelectAllAnimals()
+    {
+        selectedAnimals.Clear();
+        foreach (var animal in predefinedAnimals.Keys)
+        {
+            selectedAnimals.Add(animal);
+        }
+        foreach (var custom in customAnimals)
+        {
+            selectedAnimals.Add(custom);
+        }
+    }
+
+    private void ClearAllAnimals()
+    {
+        selectedAnimals.Clear();
+    }
+
+    private void AddCustomAnimal()
+    {
+        if (!string.IsNullOrWhiteSpace(newCustomAnimal) &&
+            !customAnimals.Contains(newCustomAnimal, StringComparer.OrdinalIgnoreCase) &&
+            !predefinedAnimals.ContainsKey(newCustomAnimal))
+        {
+            customAnimals.Add(newCustomAnimal.Trim());
+            selectedAnimals.Add(newCustomAnimal.Trim());
+            newCustomAnimal = "";
+        }
+    }
+
+    private void RemoveCustomAnimal(string animal)
+    {
+        customAnimals.Remove(animal);
+        selectedAnimals.Remove(animal);
+    }
+
+    private void HandleCustomAnimalKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddCustomAnimal();
+        }
+    }
+
+    private string GetSelectedAnimalsDisplay()
+    {
+        if (!selectedAnimals.Any())
+            return "";
+
+        var displayNames = selectedAnimals.Select(key =>
+        {
+            if (predefinedAnimals.TryGetValue(key, out var name))
+                return name;
+            return key;
+        }).ToList();
+
+        if (displayNames.Count <= 3)
+            return string.Join(", ", displayNames);
+
+        return $"{string.Join(", ", displayNames.Take(3))}, +{displayNames.Count - 3} more";
+    }
+
+    private string GetTargetAnimalsString()
+    {
+        return string.Join(",", selectedAnimals);
     }
 
     private async Task DiscoverCameras()
@@ -279,10 +441,16 @@ else if (availableCameras != null)
             return;
         }
 
+        if (!selectedAnimals.Any())
+        {
+            apiError = "Please select at least one target animal.";
+            return;
+        }
+
         var request = new
         {
             CameraIds = new List<int> { cameraId },
-            TargetAnimals = globalTargetAnimals.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+            TargetAnimals = selectedAnimals.ToArray(),
             HighlightSavePath = globalSavePath
         };
 

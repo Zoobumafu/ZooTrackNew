@@ -152,7 +152,11 @@ namespace ZooTrack.Services
                             string label = detectedAnimal.Label.Name.ToLowerInvariant();
                             bool isTarget = TargetAnimals.Contains(label);
                             DrawDetection(frame, detectedAnimal, isTarget);
+                            /*
+                             * debug: show label and what animals are saved.
                             Console.WriteLine(label);
+                            Console.WriteLine(string.Join(", ", TargetAnimals));
+                            */
 
                             if (isTarget)
                             {
