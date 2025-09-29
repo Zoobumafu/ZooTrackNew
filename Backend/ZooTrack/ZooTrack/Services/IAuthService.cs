@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace ZooTrack.Services
+namespace ZooTrackBackend.Services
 {
     public interface IAuthService
     {

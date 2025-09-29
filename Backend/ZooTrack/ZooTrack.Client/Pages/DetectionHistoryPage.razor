@@ -132,44 +132,45 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th scope="col">
-                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
-                                                @onclick="() => SortTable(nameof(DetectionRecord.Id))">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none" @onclick="() => SortTable(nameof(DetectionRecord.DetectionId))">
                                             Detection ID
                                             <i class="bi bi-arrow-down-up ms-1"></i>
                                         </button>
                                     </th>
                                     <th scope="col">
-                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
-                                                @onclick="() => SortTable(nameof(DetectionRecord.DetectedAt))">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none" @onclick="() => SortTable(nameof(DetectionRecord.DetectedAt))">
                                             Date
                                             <i class="bi bi-arrow-down-up ms-1"></i>
                                         </button>
                                     </th>
                                     <th scope="col">Time</th>
                                     <th scope="col">
-                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
-                                                @onclick="() => SortTable(nameof(DetectionRecord.AnimalType))">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none" @onclick="() => SortTable(nameof(DetectionRecord.DetectedObject))">
                                             Detected Object
                                             <i class="bi bi-arrow-down-up ms-1"></i>
                                         </button>
                                     </th>
                                     <th scope="col">
-                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
-                                                @onclick="() => SortTable(nameof(DetectionRecord.DeviceId))">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none" @onclick="() => SortTable(nameof(DetectionRecord.DeviceId))">
                                             Device ID
                                             <i class="bi bi-arrow-down-up ms-1"></i>
                                         </button>
                                     </th>
                                     <th scope="col">
-                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none"
-                                                @onclick="() => SortTable(nameof(DetectionRecord.Confidence))">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none" @onclick="() => SortTable(nameof(DetectionRecord.TrackingId))">
+                                            Tracking ID
+                                            <i class="bi bi-arrow-down-up ms-1"></i>
+                                        </button>
+                                    </th>
+                                    <th scope="col">
+                                        <button class="btn btn-sm btn-link text-white p-0 text-decoration-none" @onclick="() => SortTable(nameof(DetectionRecord.Confidence))">
                                             Confidence
                                             <i class="bi bi-arrow-down-up ms-1"></i>
                                         </button>
                                     </th>
                                     <th scope="col">Media ID</th>
                                     <th scope="col" style="width: 120px;">Thumbnail</th>
-                                    <th scope="col" style="width: 100px;">Actions</th>
+                                    <th scope="col" style="width: 140px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -177,7 +178,7 @@
                                 {
                                     <tr>
                                         <td>
-                                            <span class="badge bg-secondary">#@detection.Id</span>
+                                            <span class="badge bg-secondary">#@detection.DetectionId</span>
                                         </td>
                                         <td>
                                             <strong>@detection.DetectedAt.ToString("MMM dd, yyyy")</strong>
@@ -186,20 +187,29 @@
                                             <span class="text-muted">@detection.DetectedAt.ToString("HH:mm:ss")</span>
                                         </td>
                                         <td>
-                                            <span class="badge @GetAnimalBadgeClass(detection.AnimalType) fs-6">
-                                                @CapitalizeFirstLetter(detection.AnimalType)
+                                            <span class="badge @GetAnimalBadgeClass(detection.DetectedObject) fs-6">
+                                                @CapitalizeFirstLetter(detection.DetectedObject ?? "Unknown")
                                             </span>
                                         </td>
                                         <td>
                                             <span class="badge bg-info text-dark">@detection.DeviceId</span>
                                         </td>
                                         <td>
+                                            @if (detection.TrackingId.HasValue)
+                                            {
+                                                <span class="badge bg-warning text-dark">#@detection.TrackingId</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">N/A</span>
+                                            }
+                                        </td>
+                                        <td>
                                             <div class="d-flex align-items-center">
                                                 <div class="progress me-2" style="width: 60px; height: 8px;">
-                                                    <div class="progress-bar @GetConfidenceColor(detection.Confidence)"
-                                                         style="width: @(detection.Confidence * 100)%"></div>
+                                                    <div class="progress-bar @GetConfidenceColor(detection.Confidence)" style="width: @GetNormalizedConfidence(detection.Confidence)%"></div>
                                                 </div>
-                                                <small class="text-muted">@detection.Confidence.ToString("P1")</small>
+                                                <small class="text-muted">@GetNormalizedConfidence(detection.Confidence).ToString("F1")%</small>
                                             </div>
                                         </td>
                                         <td>
@@ -208,11 +218,7 @@
                                         <td>
                                             @if (!string.IsNullOrEmpty(detection.ImagePath))
                                             {
-                                                <img src="@detection.ImagePath"
-                                                     alt="Detection thumbnail"
-                                                     class="thumbnail-image"
-                                                     @onclick="() => ShowImageModal(detection)"
-                                                     title="Click to view full image" />
+                                                <img src="@detection.ImagePath" alt="Detection thumbnail" class="thumbnail-image" @onclick="() => ShowImageModal(detection)" title="Click to view full image" />
                                             }
                                             else
                                             {
@@ -223,16 +229,14 @@
                                         </td>
                                         <td>
                                             <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary"
-                                                        @onclick="() => ShowDetails(detection)"
-                                                        title="View Details">
+                                                <button class="btn btn-outline-primary" @onclick="() => ShowDetails(detection)" title="View Details">
                                                     <i class="bi bi-eye"></i>
                                                 </button>
-                                                <button class="btn btn-outline-success"
-                                                        @onclick="() => DownloadImage(detection)"
-                                                        disabled="@string.IsNullOrEmpty(detection.ImagePath)"
-                                                        title="Download Image">
+                                                <button class="btn btn-outline-success" @onclick="() => DownloadImage(detection)" disabled="@string.IsNullOrEmpty(detection.ImagePath)" title="Download Image">
                                                     <i class="bi bi-download"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" @onclick="() => ShowDeleteConfirmation(detection)" title="Delete Detection">
+                                                    <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
                                         </td>
@@ -251,8 +255,7 @@
             <div class="d-flex justify-content-between align-items-center mt-4">
                 <div>
                     <small class="text-muted">
-                        Showing @((currentPage - 1) * pageSize + 1) - @Math.Min(currentPage * pageSize, filteredDetections.Count)
-                        of @filteredDetections.Count detection@(filteredDetections.Count != 1 ? "s" : "")
+                        Showing @((currentPage - 1) * pageSize + 1) - @Math.Min(currentPage * pageSize, filteredDetections.Count) of @filteredDetections.Count detection@(filteredDetections.Count != 1 ? "s" : "")
                     </small>
                 </div>
 
@@ -275,9 +278,7 @@
                             {
                                 var pageNumber = i;
                                 <li class="page-item @(currentPage == pageNumber ? "active" : "")">
-                                    <button class="page-link" @onclick="() => GoToPage(pageNumber)">
-                                        @pageNumber
-                                    </button>
+                                    <button class="page-link" @onclick="() => GoToPage(pageNumber)">@pageNumber</button>
                                 </li>
                             }
 
@@ -307,33 +308,35 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="bi bi-@GetAnimalIcon(selectedDetection.AnimalType) me-2 text-primary"></i>
-                        @CapitalizeFirstLetter(selectedDetection.AnimalType) Detection
+                        <i class="bi bi-@GetAnimalIcon(selectedDetection.DetectedObject ?? "unknown") me-2 text-primary"></i>
+                        @CapitalizeFirstLetter(selectedDetection.DetectedObject ?? "Unknown") Detection
                     </h5>
                     <button type="button" class="btn-close" @onclick="CloseImageModal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="text-center mb-3">
-                        <img src="@selectedDetection.ImagePath"
-                             alt="Detection of @selectedDetection.AnimalType"
-                             class="img-fluid rounded shadow"
-                             style="max-height: 60vh;" />
+                        <img src="@selectedDetection.ImagePath" alt="Detection of @selectedDetection.DetectedObject" class="img-fluid rounded shadow" style="max-height: 60vh;" />
                     </div>
                     <div class="row">
                         <div class="col-md-6">
                             <h6 class="mb-2">Detection Details</h6>
                             <ul class="list-unstyled">
-                                <li><strong>ID:</strong> #@selectedDetection.Id</li>
+                                <li><strong>Detection ID:</strong> #@selectedDetection.DetectionId</li>
                                 <li><strong>Date & Time:</strong> @selectedDetection.DetectedAt.ToString("MMM dd, yyyy HH:mm:ss")</li>
                                 <li><strong>Device:</strong> @selectedDetection.DeviceId</li>
                                 <li><strong>Media ID:</strong> @selectedDetection.MediaId</li>
+                                @if (selectedDetection.TrackingId.HasValue)
+                                {
+                                    <li><strong>Tracking ID:</strong> #@selectedDetection.TrackingId</li>
+                                }
                             </ul>
                         </div>
                         <div class="col-md-6">
                             <h6 class="mb-2">Detection Metrics</h6>
                             <ul class="list-unstyled">
-                                <li><strong>Confidence:</strong> @selectedDetection.Confidence.ToString("P1")</li>
+                                <li><strong>Confidence:</strong> @GetNormalizedConfidence(selectedDetection.Confidence).ToString("F1")%</li>
                                 <li><strong>Processing Time:</strong> @selectedDetection.ProcessingTimeMs ms</li>
+                                <li><strong>Frame Number:</strong> @selectedDetection.FrameNumber</li>
                                 <li>
                                     <strong>Alert Status:</strong>
                                     @if (selectedDetection.AlertTriggered)
@@ -360,7 +363,85 @@
     </div>
 }
 
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal && detectionToDelete != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>
+                        Confirm Deletion
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this detection record?</p>
+                    <div class="alert alert-light border">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <strong>Detection ID:</strong> #@detectionToDelete.DetectionId<br>
+                                <strong>Animal:</strong> @CapitalizeFirstLetter(detectionToDelete.DetectedObject ?? "Unknown")<br>
+                                <strong>Date:</strong> @detectionToDelete.DetectedAt.ToString("MMM dd, yyyy HH:mm:ss")<br>
+                                <strong>Device:</strong> @detectionToDelete.DeviceId
+                            </div>
+                            @if (!string.IsNullOrEmpty(detectionToDelete.ImagePath))
+                            {
+                                <div class="col-md-4 text-end">
+                                    <img src="@detectionToDelete.ImagePath" alt="Detection thumbnail" class="img-thumbnail" style="max-width: 80px; max-height: 60px;" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> This action cannot be undone.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">
+                        <i class="bi bi-x-circle me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">
+                        <i class="bi bi-trash me-1"></i>Delete Detection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <style>
+    .btn-outline-danger:hover {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: white;
+    }
+
+    .modal-content {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid #dee2e6;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .alert {
+        border-radius: 8px;
+    }
+
+    .modal-header.bg-danger {
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .btn-close-white {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+
     .thumbnail-image {
         width: 60px;
         height: 40px;
@@ -474,6 +555,8 @@
     private DateOnly? dateFrom;
     private DateOnly? dateTo;
     private DetectionRecord? selectedDetection;
+    private bool showDeleteModal = false;
+    private DetectionRecord? detectionToDelete;
 
     // Pagination
     private int currentPage = 1;
@@ -484,6 +567,83 @@
     // Sorting
     private string currentSortField = nameof(DetectionRecord.DetectedAt);
     private bool sortDescending = true;
+
+    // Helper method to normalize confidence values
+    private double GetNormalizedConfidence(float confidence)
+    {
+        // If confidence is already between 0-1, convert to percentage
+        if (confidence <= 1.0f)
+            return confidence * 100;
+
+        // If confidence is already a percentage (0-100), return as is
+        if (confidence <= 100)
+            return confidence;
+
+        // If confidence is greater than 100, assume it's been multiplied by 100 incorrectly
+        // and divide by 100 to get back to 0-100 range
+        return Math.Min(confidence / 100, 100);
+    }
+
+    // CRUD: delete
+    private async Task DeleteDetection(DetectionRecord detection)
+    {
+        if (detection == null) return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/detection/{detection.DetectionId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                // delete locally
+                allDetections?.Remove(detection);
+                filteredDetections.Remove(detection);
+
+                ApplyFiltersAndPagination(); // refresh
+
+                Logger.LogInformation("Successfully deleted detection {Id}", detection.DetectionId);
+
+                showDeleteModal = false;
+                detectionToDelete = null;
+
+                StateHasChanged();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to delete detection: {response.StatusCode}";
+                Logger.LogError("Failed to delete detection {Id}: {StatusCode} - {Error}",
+                    detection.DetectionId, response.StatusCode, errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting detection: {ex.Message}";
+            Logger.LogError(ex, "Exception while deleting detection {Id}", detection.DetectionId);
+        }
+    }
+
+    private void ShowDeleteConfirmation(DetectionRecord detection)
+    {
+        detectionToDelete = detection;
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteModal = false;
+        detectionToDelete = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (detectionToDelete != null)
+        {
+            await DeleteDetection(detectionToDelete);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -514,7 +674,7 @@
             {
                 Logger.LogWarning("Failed to load target animals file: {StatusCode}", response.StatusCode);
                 // Fallback to default animals if file not found
-                targetAnimals = new List<string> { "giraffe", "sheep", "dog", "cow", "wolf", "zebra", "tiger", "lion", "person","other" };
+                targetAnimals = new List<string> { "giraffe", "sheep", "dog", "cow", "wolf", "zebra", "tiger", "lion", "person", "other" };
             }
         }
         catch (Exception ex)
@@ -596,7 +756,7 @@
 
         // Apply filters
         filteredDetections = allDetections.Where(d =>
-            (string.IsNullOrEmpty(selectedAnimalType) || d.AnimalType.Equals(selectedAnimalType, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(selectedAnimalType) || (d.DetectedObject?.Equals(selectedAnimalType, StringComparison.OrdinalIgnoreCase) ?? false)) &&
             (string.IsNullOrEmpty(selectedDevice) || d.DeviceId.ToString() == selectedDevice)
         ).ToList();
 
@@ -643,18 +803,21 @@
 
         return currentSortField switch
         {
-            nameof(DetectionRecord.Id) => sortDescending
-                ? filteredDetections.OrderByDescending(d => d.Id)
-                : filteredDetections.OrderBy(d => d.Id),
+            nameof(DetectionRecord.DetectionId) => sortDescending
+                ? filteredDetections.OrderByDescending(d => d.DetectionId)
+                : filteredDetections.OrderBy(d => d.DetectionId),
             nameof(DetectionRecord.DetectedAt) => sortDescending
                 ? filteredDetections.OrderByDescending(d => d.DetectedAt)
                 : filteredDetections.OrderBy(d => d.DetectedAt),
-            nameof(DetectionRecord.AnimalType) => sortDescending
-                ? filteredDetections.OrderByDescending(d => d.AnimalType)
-                : filteredDetections.OrderBy(d => d.AnimalType),
+            nameof(DetectionRecord.DetectedObject) => sortDescending
+                ? filteredDetections.OrderByDescending(d => d.DetectedObject)
+                : filteredDetections.OrderBy(d => d.DetectedObject),
             nameof(DetectionRecord.DeviceId) => sortDescending
                 ? filteredDetections.OrderByDescending(d => d.DeviceId)
                 : filteredDetections.OrderBy(d => d.DeviceId),
+            nameof(DetectionRecord.TrackingId) => sortDescending
+                ? filteredDetections.OrderByDescending(d => d.TrackingId)
+                : filteredDetections.OrderBy(d => d.TrackingId),
             nameof(DetectionRecord.Confidence) => sortDescending
                 ? filteredDetections.OrderByDescending(d => d.Confidence)
                 : filteredDetections.OrderBy(d => d.Confidence),
@@ -687,19 +850,19 @@
     {
         if (string.IsNullOrEmpty(detection.ImagePath))
         {
-            Logger.LogWarning("No image path available for detection {Id}", detection.Id);
+            Logger.LogWarning("No image path available for detection {Id}", detection.DetectionId);
             return;
         }
 
         try
         {
-            Logger.LogInformation("Downloading image for detection {Id}", detection.Id);
+            Logger.LogInformation("Downloading image for detection {Id}", detection.DetectionId);
             // Implement actual download logic here
             // You can use JavaScript interop to trigger download
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error downloading image for detection {Id}", detection.Id);
+            Logger.LogError(ex, "Error downloading image for detection {Id}", detection.DetectionId);
         }
     }
 
@@ -707,16 +870,16 @@
     {
         try
         {
-            Logger.LogInformation("Showing details for detection {Id}", detection.Id);
+            Logger.LogInformation("Showing details for detection {Id}", detection.DetectionId);
             // Navigate to detailed view or show additional modal
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error showing details for detection {Id}", detection.Id);
+            Logger.LogError(ex, "Error showing details for detection {Id}", detection.DetectionId);
         }
     }
 
-    private string GetAnimalBadgeClass(string animalType)
+    private string GetAnimalBadgeClass(string? animalType)
     {
         return animalType?.ToLower() switch
         {
@@ -733,7 +896,7 @@
         };
     }
 
-    private string GetAnimalIcon(string animalType)
+    private string GetAnimalIcon(string? animalType)
     {
         return animalType?.ToLower() switch
         {
@@ -749,38 +912,42 @@
         };
     }
 
-    private string GetConfidenceColor(double confidence)
+    private string GetConfidenceColor(float confidence)
     {
-        return confidence switch
+        var normalizedConfidence = GetNormalizedConfidence(confidence);
+        return normalizedConfidence switch
         {
-            >= 0.8 => "bg-success",
-            >= 0.6 => "bg-warning",
+            >= 80 => "bg-success",
+            >= 60 => "bg-warning",
             _ => "bg-danger"
         };
     }
 
     public class DetectionRecord
     {
-        public int Id { get; set; }
+        public int DetectionId { get; set; }
         public DateTime DetectedAt { get; set; }
-        public string AnimalType { get; set; } = "";
-        public double Confidence { get; set; }
+        public string? DetectedObject { get; set; }
+        public float Confidence { get; set; }
         public int DeviceId { get; set; }
+        public int? TrackingId { get; set; }
         public int MediaId { get; set; }
         public string? ImagePath { get; set; }
         public string? VideoPath { get; set; }
         public BoundingBox BoundingBox { get; set; } = new();
         public int ProcessingTimeMs { get; set; }
+        public int FrameNumber { get; set; }
         public bool AlertTriggered { get; set; }
         public string? Notes { get; set; }
         public bool IsExpanded { get; set; } = false;
+        public bool IsTarget { get; set; } = false;
     }
 
     public class BoundingBox
     {
-        public int X { get; set; }
-        public int Y { get; set; }
-        public int Width { get; set; }
-        public int Height { get; set; }
+        public float BoundingBoxX { get; set; }
+        public float BoundingBoxY { get; set; }
+        public float BoundingBoxWidth { get; set; }
+        public float BoundingBoxHeight { get; set; }
     }
 }

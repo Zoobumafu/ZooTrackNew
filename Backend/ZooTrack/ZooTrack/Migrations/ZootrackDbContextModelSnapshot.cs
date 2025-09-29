@@ -198,7 +198,7 @@ namespace ZooTrackBackend.Migrations
                     b.Property<int>("DeviceId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("EventId")
+                    b.Property<int?>("EventId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("FrameNumber")
@@ -207,7 +207,7 @@ namespace ZooTrackBackend.Migrations
                     b.Property<bool>("IsTarget")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("MediaId")
+                    b.Property<int?>("MediaId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int?>("TrackingId")
@@ -978,7 +978,7 @@ namespace ZooTrackBackend.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("UserId")
+                    b.Property<int?>("UserId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("LogId");
@@ -1448,15 +1448,11 @@ namespace ZooTrackBackend.Migrations
 
                     b.HasOne("ZooTrack.Models.Event", "Event")
                         .WithMany("Detections")
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("EventId");
 
                     b.HasOne("ZooTrack.Models.Media", "Media")
                         .WithMany("Detections")
-                        .HasForeignKey("MediaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("MediaId");
 
                     b.Navigation("Device");
 
@@ -1484,9 +1480,7 @@ namespace ZooTrackBackend.Migrations
 
                     b.HasOne("ZooTrack.Models.User", "User")
                         .WithMany("Logs")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("UserId");
 
                     b.Navigation("Detection");
 

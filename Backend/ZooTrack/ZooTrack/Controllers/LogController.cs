@@ -18,18 +18,18 @@ namespace ZooTrack.Controllers
     public class LogController : ControllerBase
     {
         private readonly ILogService _logService;
-
         private readonly ZootrackDbContext _context;
 
-        public LogController(ILogService logService)
+        public LogController(ILogService logService, ZootrackDbContext context)
         {
             _logService = logService;
+            _context = context;
         }
 
         // GET: api/Log
         [HttpGet]
         // [Authorize(Roles = "Admin")] // Only admins can see all logs
-        public async Task<ActionResult<IEnumerable<Log>>> GetLogs(
+        public async Task<ActionResult<PaginatedLogResponse>> GetLogs(
             [FromQuery] int? userId = null,
             [FromQuery] string actionType = null,
             [FromQuery] DateTime? startDate = null,
@@ -41,13 +41,15 @@ namespace ZooTrack.Controllers
         {
             if (pageSize > 100) pageSize = 100; // Limit maximum page size
 
-            return Ok(await _logService.GetLogsAsync(
-                userId, actionType, startDate, endDate, level, detectionId, pageNumber, pageSize));
+            var result = await _logService.GetLogsAsync(
+                userId, actionType, startDate, endDate, level, detectionId, pageNumber, pageSize);
+
+            return Ok(result);
         }
 
         // GET: api/Log/User/5
         [HttpGet("User/{userId}")]
-        public async Task<ActionResult<IEnumerable<Log>>> GetUserLogs(
+        public async Task<ActionResult<PaginatedLogResponse>> GetUserLogs(
             int userId,
             [FromQuery] string actionType = null,
             [FromQuery] DateTime? startDate = null,
@@ -64,8 +66,24 @@ namespace ZooTrack.Controllers
 
             if (pageSize > 100) pageSize = 100; // Limit maximum page size
 
-            return Ok(await _logService.GetLogsAsync(
-                userId, actionType, startDate, endDate, level, null, pageNumber, pageSize));
+            var result = await _logService.GetLogsAsync(
+                userId, actionType, startDate, endDate, level, null, pageNumber, pageSize);
+
+            return Ok(result);
+        }
+
+        // GET: api/Log/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Log>> GetLog(int id)
+        {
+            var log = await _logService.GetLogByIdAsync(id);
+
+            if (log == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(log);
         }
 
         // DELETE: api/Log/5
@@ -73,21 +91,14 @@ namespace ZooTrack.Controllers
         // [Authorize(Roles = "Admin")] // Only admins can delete logs
         public async Task<IActionResult> DeleteLog(int id)
         {
-            var log = await _context.Logs.FindAsync(id);
-            if (log == null)
+            var success = await _logService.DeleteLogAsync(id);
+
+            if (!success)
             {
                 return NotFound();
             }
 
-            _context.Logs.Remove(log);
-            await _context.SaveChangesAsync();
-
             return NoContent();
-        }
-
-        private bool LogExists(int id)
-        {
-            return _context.Logs.Any(e => e.LogId == id);
         }
     }
 }

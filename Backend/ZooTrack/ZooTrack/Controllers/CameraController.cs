@@ -1,5 +1,4 @@
-﻿// REWRITTEN - SECURITY REMOVED
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -10,7 +9,7 @@ namespace ZooTrack.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    // [Authorize] // <-- THIS LINE HAS BEEN REMOVED
+    // [Authorize] 
     public class CameraController : ControllerBase
     {
         private readonly ILogger<CameraController> _logger;

@@ -71,14 +71,14 @@ namespace ZooTrack.Models
         public float BoundingBoxHeight { get; set; }
         public int FrameNumber { get; set; }
         public string? DetectedObject { get; set; }
-        public int MediaId { get; set; }
-        public int EventId { get; set; }
+        public int? MediaId { get; set; }
+        public int? EventId { get; set; }
         [ForeignKey("MediaId")]
         [JsonIgnore]
-        public virtual Media Media { get; set; }
+        public virtual Media? Media { get; set; }
         [ForeignKey("EventId")]
         [JsonIgnore]
-        public virtual Event Event { get; set; }
+        public virtual Event? Event { get; set; }
         public virtual ICollection<Animal> Animals { get; set; }
         public virtual ICollection<Alert> Alerts { get; set; }
         public bool IsTarget { get; set; } = false;
@@ -158,8 +158,7 @@ namespace ZooTrack.Models
     {
         [Key]
         public int LogId { get; set; }
-        [Required]
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
         [Required]
         [MaxLength(100)]
         public string ActionType { get; set; }
@@ -172,7 +171,7 @@ namespace ZooTrack.Models
         public int? DetectionId { get; set; }
         [ForeignKey("UserId")]
         [JsonIgnore]
-        public virtual User User { get; set; }
+        public virtual User? User { get; set; }
         [ForeignKey("DetectionId")]
         [JsonIgnore]
         public virtual Detection? Detection { get; set; }

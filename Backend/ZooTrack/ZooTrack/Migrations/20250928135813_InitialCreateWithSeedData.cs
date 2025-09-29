@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ZooTrackBackend.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialCreateWithSeedData : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -137,8 +137,8 @@ namespace ZooTrackBackend.Migrations
                     BoundingBoxHeight = table.Column<float>(type: "REAL", nullable: false),
                     FrameNumber = table.Column<int>(type: "INTEGER", nullable: false),
                     DetectedObject = table.Column<string>(type: "TEXT", nullable: true),
-                    MediaId = table.Column<int>(type: "INTEGER", nullable: false),
-                    EventId = table.Column<int>(type: "INTEGER", nullable: false),
+                    MediaId = table.Column<int>(type: "INTEGER", nullable: true),
+                    EventId = table.Column<int>(type: "INTEGER", nullable: true),
                     IsTarget = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
@@ -154,14 +154,12 @@ namespace ZooTrackBackend.Migrations
                         name: "FK_Detections_Events_EventId",
                         column: x => x.EventId,
                         principalTable: "Events",
-                        principalColumn: "EventId",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "EventId");
                     table.ForeignKey(
                         name: "FK_Detections_Media_MediaId",
                         column: x => x.MediaId,
                         principalTable: "Media",
-                        principalColumn: "MediaId",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "MediaId");
                 });
 
             migrationBuilder.CreateTable(
@@ -245,7 +243,7 @@ namespace ZooTrackBackend.Migrations
                 {
                     LogId = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    UserId = table.Column<int>(type: "INTEGER", nullable: false),
+                    UserId = table.Column<int>(type: "INTEGER", nullable: true),
                     ActionType = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     Timestamp = table.Column<DateTime>(type: "TEXT", nullable: false),
                     Message = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
@@ -264,8 +262,7 @@ namespace ZooTrackBackend.Migrations
                         name: "FK_Logs_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
-                        principalColumn: "UserId",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "UserId");
                 });
 
             migrationBuilder.InsertData(

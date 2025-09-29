@@ -1,4 +1,3 @@
-// TEST
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using ZooTrack.Client;
@@ -23,6 +22,8 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// --- Add Dashboard Services ---
+builder.Services.AddScoped<IDashboardClientService, DashboardClientService>();
 
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
 

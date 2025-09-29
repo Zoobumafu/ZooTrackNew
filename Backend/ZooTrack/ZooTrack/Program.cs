@@ -1,4 +1,3 @@
-// Definitive Fix
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +13,7 @@ using ZooTrack.Data;
 using ZooTrack.Hubs;
 using ZooTrack.Services;
 using ZooTrackBackend.Services;
+using ZooTrackBackend.Services.ZooTrack.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,13 +31,15 @@ builder.Services.AddScoped<ILogService, LogService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<IDetectionService, DetectionService>();
 builder.Services.AddScoped<DetectionMediaService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
+// builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<CameraService>();
 builder.Services.AddHostedService<CameraProcessingService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddSignalR();
-builder.Services.AddAuthorization();
+// builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 
+/*
 // --- Authentication Service Configuration ---
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -52,10 +54,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenSecret)),
             ValidateIssuer = false,
-            ValidateAudience = false
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(5), // Allow 5 minutes clock skew
+            RequireExpirationTime = true
         };
 
-        // This event allows SignalR to authenticate using the query string
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -70,6 +74,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             }
         };
     });
+*/
 
 // --- Swagger Configuration ---
 builder.Services.AddSwaggerGen(c =>
@@ -111,8 +116,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("AllowBlazorApp");
-app.UseAuthentication();
-app.UseAuthorization();
+// app.UseAuthentication();
+// app.UseAuthorization();
 
 app.UseEndpoints(endpoints =>
 {

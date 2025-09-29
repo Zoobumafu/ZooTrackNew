@@ -1,5 +1,4 @@
 ﻿@page "/camera-dashboard"
-@* @attribute [Authorize] <-- REMOVED THIS LINE *@
 @using Microsoft.AspNetCore.SignalR.Client
 @using System.Text.Json
 @using System.Collections.Concurrent
@@ -120,7 +119,8 @@ else if (availableCameras != null)
     private ConcurrentDictionary<int, StreamData> streamData = new();
     private ConcurrentDictionary<int, HubConnection> hubConnections = new();
 
-    private string globalTargetAnimals = "person,cat,dog,wolf,lion,deer,elephant";
+    private string globalTargetAnimals = "bear,21,person,cat,dog,wolf,lion,deer,elephant";
+
     private string globalSavePath = "C:/ZooTrackHighlights";
     private string? apiError;
     private bool isDiscovering = false;
@@ -184,9 +184,8 @@ else if (availableCameras != null)
 
     private async Task ConnectToHub(int cameraId)
     {
-        // *** MAJOR FIX: REMOVED TOKEN LOGIC ***
         var hubConnection = new HubConnectionBuilder()
-            .WithUrl(new Uri(Http.BaseAddress!, "cameraHub")) // Removed options with AccessTokenProvider
+            .WithUrl(new Uri(Http.BaseAddress!, "cameraHub"))
             .WithAutomaticReconnect()
             .Build();
 
@@ -256,7 +255,6 @@ else if (availableCameras != null)
         await InvokeAsync(StateHasChanged);
     }
 
-    // The rest of the @code block is unchanged...
     private Task HandleDisconnection(int cameraId, string message)
     {
         if (streamData.TryGetValue(cameraId, out var data))
