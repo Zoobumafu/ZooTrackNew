@@ -152,6 +152,7 @@ namespace ZooTrack.Services
                             string label = detectedAnimal.Label.Name.ToLowerInvariant();
                             bool isTarget = TargetAnimals.Contains(label);
                             DrawDetection(frame, detectedAnimal, isTarget);
+                            Console.WriteLine(label);
 
                             if (isTarget)
                             {
@@ -178,25 +179,6 @@ namespace ZooTrack.Services
                                     // Let DetectionMediaService decide whether to save based on tracking
                                     await mediaService.ProcessDetectionForSaving(tempDetection, rawData);
                                 });
-                                /*
-                                // save to DB
-                                _ = Task.Run(async () =>
-                                {
-                                    try
-                                    {
-                                        await WriteDetectionToDatabase(detectedAnimal, rawData, isTarget);
-                                        _logger.LogInformation("Target saved: {Label}", label);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _logger.LogError(ex, "Failed to save target: {Label}", label);
-                                    }
-                                });
-                            }
-                            else
-                            {
-                                _logger.LogDebug("Non-target detected: {Label}", label);
-                                */
                             }
                         }
                     }
@@ -351,81 +333,6 @@ namespace ZooTrack.Services
             _writer?.Dispose();
             _writer = null;
         }
-
-        // saves detecion into DB,
-        // saves precced frame as photo
-        // create record in DB
-        // initiate tracking with CreateDetectionWithTrackingAsync()
-        private async Task WriteDetectionToDatabase(YoloDotNet.Models.ObjectDetection detection, byte[] frameBytes, bool isTarget)
-        {
-            _logger.LogInformation(">>> WriteDetectionToDatabase started for Camera {CameraId}, IsTarget={IsTarget}", CameraId, isTarget);
-            try
-            {
-                using var scope = _serviceScopeFactory.CreateScope();
-                var detectionService = scope.ServiceProvider.GetRequiredService<IDetectionService>();
-                var context = scope.ServiceProvider.GetRequiredService<ZootrackDbContext>();
-
-                _logger.LogInformation("Saving frame as Media...");
-                int deviceId = this.CameraId;
-                int mediaId = await SaveFrameAsMediaAsync(frameBytes, deviceId, context);
-                _logger.LogInformation("Media saved with MediaId={MediaId}", mediaId);
-
-                var newDetection = new Detection
-                {
-                    DeviceId = deviceId,
-                    MediaId = mediaId,
-                    DetectedAt = DateTime.Now,
-                    DetectedObject = detection.Label.Name,
-                    Confidence = (float)(detection.Confidence * 100),
-                    IsTarget = isTarget
-                };
-
-                _logger.LogInformation("Creating detection via DetectionService...");
-                var created = await detectionService.CreateDetectionWithTrackingAsync(
-                    newDetection,
-                    detection.BoundingBox.Left,
-                    detection.BoundingBox.Top,
-                    detection.BoundingBox.Width,
-                    detection.BoundingBox.Height,
-                    detection.Label.Name
-                );
-
-                _logger.LogInformation("Detection {DetectionId} saved successfully (IsTarget={IsTarget})", created.DetectionId, isTarget);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "!!! WriteDetectionToDatabase failed for Camera {CameraId}", CameraId);
-                throw;
-            }
-        }
-
-
-        private async Task<int> SaveFrameAsMediaAsync(byte[] frameBytes, int deviceId, ZootrackDbContext context)
-        {
-            // create path
-            string relativePath = Path.Combine("Media/HighlightFrames", $"detection_{DateTime.Now:yyyyMMdd_HHmmss_ff}.jpg");
-            string fullPath = Path.Combine(AppContext.BaseDirectory, relativePath);
-
-            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-
-            // write into local disk
-            await File.WriteAllBytesAsync(fullPath, frameBytes);
-
-            // create Media in DB
-            var media = new Media
-            {
-                DeviceId = deviceId,
-                Type = "Frame",
-                FilePath = relativePath,
-                Timestamp = DateTime.Now
-            };
-
-            context.Media.Add(media);
-            await context.SaveChangesAsync();
-
-            return media.MediaId;
-        }
-
 
         public void Dispose()
         {

@@ -141,7 +141,7 @@ namespace ZooTrack.Services
                     // TODO: keep
                     await _logService.AddLogAsync(1, "DetectionSkipped",
                         $"Skipped - similar detection recently saved: {detection.DetectedObject}",
-                        "Info", null /* detection.DetectionId*/);
+                        "Info", null);
                     
                     return;
                 }
@@ -515,8 +515,8 @@ namespace ZooTrack.Services
                 return true;
             }
 
-            // If confidence is significantly higher (>15% improvement), save it
-            if (detection.Confidence > recentDetection.Confidence + 15)
+            // If confidence is significantly higher (>10% improvement), save it
+            if (detection.Confidence > recentDetection.Confidence + 10)
             {
                 
          // TODO: keep
@@ -526,12 +526,10 @@ namespace ZooTrack.Services
          
                 return true;
             }
-
             // Otherwise, skip to reduce duplicates
             return false;
         }
 
-        // TODO: change PATH
         // Saves detection frame, returns MediaId
         private async Task<int> SaveDetectionFrameAsync(byte[] frameBytes, int deviceId)
         {
