@@ -11,7 +11,7 @@
 <div class="row mb-3">
     <div class="col-md-3">
         <label for="logLevel" class="form-label">Filter by Level:</label>
-        <select class="form-select" id="logLevel" @bind="selectedLogLevel" @bind:after="LoadLogs">
+        <select class="form-select" id="logLevel" @bind="selectedLogLevel" @bind:after="ReloadFromFirstPage">
             <option value="">All Levels</option>
             <option value="Info">Information</option>
             <option value="Warning">Warning</option>
@@ -21,14 +21,14 @@
     </div>
     <div class="col-md-3">
         <label for="dateFrom" class="form-label">From Date:</label>
-        <input type="date" class="form-control" id="dateFrom" @bind="dateFrom" @bind:after="LoadLogs" />
+        <input type="date" class="form-control" id="dateFrom" @bind="dateFrom" @bind:after="ReloadFromFirstPage" />
     </div>
     <div class="col-md-3">
         <label for="dateTo" class="form-label">To Date:</label>
-        <input type="date" class="form-control" id="dateTo" @bind="dateTo" @bind:after="LoadLogs" />
+        <input type="date" class="form-control" id="dateTo" @bind="dateTo" @bind:after="ReloadFromFirstPage" />
     </div>
     <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-primary me-2" @onclick="LoadLogs" disabled="@isLoading">
+        <button class="btn btn-primary me-2" @onclick="ReloadFromFirstPage" disabled="@isLoading">
             @if (isLoading)
             {
                 <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -61,7 +61,7 @@ else if (logs != null)
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 <i class="bi bi-list-ul me-2"></i>
-                System Logs (@logs.Count records)
+                System Logs (@totalRecords records)
             </h5>
             <small class="text-muted">Last updated: @DateTime.Now.ToString("HH:mm:ss")</small>
         </div>
@@ -134,6 +134,60 @@ else if (logs != null)
                         </tbody>
                     </table>
                 </div>
+
+                @* Pagination Controls *@
+                @if (totalPages > 1)
+                {
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="text-muted small">
+                                Showing @((currentPage - 1) * PageSize + 1) to @Math.Min(currentPage * PageSize, totalRecords) of @totalRecords entries
+                            </div>
+                            <nav aria-label="Log pagination">
+                                <ul class="pagination pagination-sm mb-0">
+                                    @* First Page *@
+                                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => GoToPage(1)" disabled="@(currentPage == 1 || isLoading)">
+                                            <i class="bi bi-chevron-double-left"></i>
+                                        </button>
+                                    </li>
+
+                                    @* Previous Page *@
+                                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => GoToPage(currentPage - 1)" disabled="@(currentPage == 1 || isLoading)">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </button>
+                                    </li>
+
+                                    @* Page Numbers *@
+                                    @for (int page = GetStartPage(); page <= GetEndPage(); page++)
+                                    {
+                                        var pageNumber = page;
+                                        <li class="page-item @(page == currentPage ? "active" : "")">
+                                            <button class="page-link" @onclick="() => GoToPage(pageNumber)" disabled="@isLoading">
+                                                @pageNumber
+                                            </button>
+                                        </li>
+                                    }
+
+                                    @* Next Page *@
+                                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => GoToPage(currentPage + 1)" disabled="@(currentPage == totalPages || isLoading)">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </button>
+                                    </li>
+
+                                    @* Last Page *@
+                                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => GoToPage(totalPages)" disabled="@(currentPage == totalPages || isLoading)">
+                                            <i class="bi bi-chevron-double-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                }
             }
         </div>
     </div>
@@ -168,6 +222,33 @@ else if (logs != null)
         max-height: 200px;
         overflow-y: auto;
     }
+
+    .pagination .page-link {
+        border: 1px solid #dee2e6;
+        padding: 0.25rem 0.5rem;
+        cursor: pointer;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+
+    .pagination .page-item.disabled .page-link {
+        color: #6c757d;
+        background-color: #fff;
+        border-color: #dee2e6;
+        cursor: not-allowed;
+    }
+
+    .pagination .page-link:hover:not(.disabled) {
+        background-color: #e9ecef;
+    }
+
+    .pagination .page-item.active .page-link:hover {
+        background-color: #0d6efd;
+    }
 </style>
 
 @code {
@@ -177,6 +258,12 @@ else if (logs != null)
     private string selectedLogLevel = "";
     private DateOnly? dateFrom;
     private DateOnly? dateTo;
+
+    // Pagination properties
+    private const int PageSize = 50;
+    private int currentPage = 1;
+    private int totalRecords = 0;
+    private int totalPages => (int)Math.Ceiling((double)totalRecords / PageSize);
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,6 +293,10 @@ else if (logs != null)
             if (dateTo.HasValue)
                 queryParams.Add($"to={dateTo.Value:yyyy-MM-dd}");
 
+            // Add pagination parameters
+            queryParams.Add($"pageNumber={currentPage}");
+            queryParams.Add($"pageSize={PageSize}");
+
             var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
 
             Logger.LogInformation("Loading logs with query: {Query}", queryString);
@@ -215,15 +306,31 @@ else if (logs != null)
             if (response.IsSuccessStatusCode)
             {
                 var jsonContent = await response.Content.ReadAsStringAsync();
-                logs = JsonSerializer.Deserialize<List<LogEntry>>(jsonContent, new JsonSerializerOptions
+
+                // Expect the API to return a paginated response
+                var paginatedResponse = JsonSerializer.Deserialize<PaginatedLogResponse>(jsonContent, new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     });
 
-                // Sort by timestamp descending (newest first)
-                logs = logs?.OrderByDescending(l => l.Timestamp).ToList();
+                if (paginatedResponse != null)
+                {
+                    logs = paginatedResponse.Logs;
+                    totalRecords = paginatedResponse.TotalRecords;
+                    currentPage = paginatedResponse.CurrentPage;
+                }
+                else
+                {
+                    // Fallback for non-paginated API response
+                    logs = JsonSerializer.Deserialize<List<LogEntry>>(jsonContent, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+                    totalRecords = logs?.Count ?? 0;
+                }
 
-                Logger.LogInformation("Successfully loaded {Count} logs", logs?.Count ?? 0);
+                Logger.LogInformation("Successfully loaded {Count} logs (page {Page} of {TotalPages})",
+                    logs?.Count ?? 0, currentPage, totalPages);
             }
             else
             {
@@ -244,12 +351,50 @@ else if (logs != null)
         }
     }
 
+    private async Task ReloadFromFirstPage()
+    {
+        currentPage = 1;
+        await LoadLogs();
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page >= 1 && page <= totalPages && page != currentPage && !isLoading)
+        {
+            currentPage = page;
+            await LoadLogs();
+        }
+    }
+
     private async Task ClearFilters()
     {
         selectedLogLevel = "";
         dateFrom = DateOnly.FromDateTime(DateTime.Today.AddDays(-7));
         dateTo = DateOnly.FromDateTime(DateTime.Today);
+        currentPage = 1;
         await LoadLogs();
+    }
+
+    private int GetStartPage()
+    {
+        const int maxPagesToShow = 5;
+        int start = Math.Max(1, currentPage - maxPagesToShow / 2);
+        int end = Math.Min(totalPages, start + maxPagesToShow - 1);
+
+        // Adjust start if we're near the end
+        if (end - start < maxPagesToShow - 1)
+        {
+            start = Math.Max(1, end - maxPagesToShow + 1);
+        }
+
+        return start;
+    }
+
+    private int GetEndPage()
+    {
+        const int maxPagesToShow = 5;
+        int start = GetStartPage();
+        return Math.Min(totalPages, start + maxPagesToShow - 1);
     }
 
     private void ToggleExpand(LogEntry log)
@@ -296,5 +441,14 @@ else if (logs != null)
         public string? Exception { get; set; }
         public bool IsExpanded { get; set; } = false;
         public bool ShowException { get; set; } = false;
+    }
+
+    public class PaginatedLogResponse
+    {
+        public List<LogEntry> Logs { get; set; } = new();
+        public int CurrentPage { get; set; }
+        public int TotalPages { get; set; }
+        public int TotalRecords { get; set; }
+        public int PageSize { get; set; }
     }
 }
