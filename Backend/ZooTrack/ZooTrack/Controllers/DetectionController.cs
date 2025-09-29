@@ -324,7 +324,12 @@ namespace ZooTrack.Controllers
         {
             try
             {
-                var detection = await _context.Detections.FindAsync(id);
+                // Load the detection with all its relationships
+                var detection = await _context.Detections
+                    .Include(d => d.Animals)
+                    .Include(d => d.Alerts)
+                    .FirstOrDefaultAsync(d => d.DetectionId == id);
+
                 if (detection == null)
                 {
                     await _logService.AddLogAsync(
@@ -336,17 +341,65 @@ namespace ZooTrack.Controllers
                     return NotFound();
                 }
 
+                // 1. Delete related Animals
+                if (detection.Animals != null && detection.Animals.Any())
+                {
+                    _context.Animals.RemoveRange(detection.Animals);
+                }
+
+                // 2. Delete related Alerts
+                if (detection.Alerts != null && detection.Alerts.Any())
+                {
+                    _context.Alerts.RemoveRange(detection.Alerts);
+                }
+
+                // 3. Delete related Logs
+                var logs = await _context.Logs
+                    .Where(l => l.DetectionId == id)
+                    .ToListAsync();
+                if (logs.Any())
+                {
+                    _context.Logs.RemoveRange(logs);
+                }
+
+                // 4. Delete related DetectionValidations
+                var validations = await _context.DetectionValidations
+                    .Where(dv => dv.DetectionId == id)
+                    .ToListAsync();
+                if (validations.Any())
+                {
+                    _context.DetectionValidations.RemoveRange(validations);
+                }
+
+                // 5. Save changes to remove all related data
+                await _context.SaveChangesAsync();
+
+                // 6. Now delete the detection itself
                 _context.Detections.Remove(detection);
                 await _context.SaveChangesAsync();
 
+                // Log success (without DetectionId to avoid FK error)
                 await _logService.AddLogAsync(
                     userId: GetCurrentUserId(),
                     actionType: "DetectionDeleted",
-                    message: $"Detection {id} deleted",
-                    level: "Info"
+                    message: $"Detection {id} deleted with all related data",
+                    level: "Info",
+                    detectionId: null  // Don't reference the deleted detection
                 );
 
                 return NoContent();
+            }
+            catch (DbUpdateException dbEx)
+            {
+                var innerMessage = dbEx.InnerException?.Message ?? dbEx.Message;
+                await _logService.AddLogAsync(
+                    userId: GetCurrentUserId(),
+                    actionType: "DetectionDeleteFailed",
+                    message: $"Database error deleting detection {id}: {innerMessage}",
+                    level: "Error",
+                    detectionId: null
+                );
+                return StatusCode(500, $"Database error: {innerMessage}");
             }
             catch (Exception ex)
             {
@@ -354,9 +407,10 @@ namespace ZooTrack.Controllers
                     userId: GetCurrentUserId(),
                     actionType: "DetectionDeleteFailed",
                     message: $"Failed to delete detection {id}: {ex.Message}",
-                    level: "Error"
+                    level: "Error",
+                    detectionId: null
                 );
-                return StatusCode(500, "Failed to delete detection");
+                return StatusCode(500, $"Failed to delete detection: {ex.Message}");
             }
         }
 
