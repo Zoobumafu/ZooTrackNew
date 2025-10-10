@@ -142,7 +142,7 @@ namespace ZooTrack.Services
                     await _logService.AddLogAsync(1, "DetectionSkipped",
                         $"Skipped - similar detection recently saved: {detection.DetectedObject}",
                         "Info", null);
-                    
+
                     return;
                 }
 
@@ -158,10 +158,10 @@ namespace ZooTrack.Services
             catch (Exception ex)
             {
                 // TODO: keep
-                
+
                 await _logService.AddLogAsync(1, "ProcessDetectionError",
                     $"Error processing detection: {ex.Message}", "Error", null /* detection.DetectionId*/ );
-                
+
                 throw;
             }
         }
@@ -244,7 +244,7 @@ namespace ZooTrack.Services
                 var timeWindow = CalculateExtractionTimeWindow(detection.DetectedAt);
                 var totalFramesToExtract = (int)(timeWindow.Duration * FRAMES_PER_SECOND);
                 var frameInterval = 1.0 / FRAMES_PER_SECOND;
-               
+
                 // Extract frames at regular intervals using your constants
                 await ExtractRegularFrames(outputDir, timeWindow, totalFramesToExtract, frameInterval);
 
@@ -495,9 +495,10 @@ namespace ZooTrack.Services
         // check if detection relevant based on recent detections
         private async Task<bool> ShouldSaveDetection(Detection detection)
         {
-            var cutoffTime = DateTime.UtcNow.AddSeconds(-5);
+            // FIX: Reduced the cooldown from 5 seconds to 2 seconds to allow more frequent logging.
+            var cutoffTime = DateTime.UtcNow.AddSeconds(-2);
 
-            // Check for similar detections within the last 5 seconds
+            // Check for similar detections within the last 2 seconds
             var recentDetection = await _context.Detections
                 .Where(d => d.DeviceId == detection.DeviceId &&
                            d.DetectedObject == detection.DetectedObject &&
@@ -518,12 +519,12 @@ namespace ZooTrack.Services
             // If confidence is significantly higher (>10% improvement), save it
             if (detection.Confidence > recentDetection.Confidence + 10)
             {
-                
-         // TODO: keep
-         await _logService.AddLogAsync(1, "HigherConfidenceDetection",
-             $"Saving higher confidence detection: {detection.Confidence:F1}% vs {recentDetection.Confidence:F1}%",
-             "Info", detection.DetectionId);
-         
+
+                // TODO: keep
+                await _logService.AddLogAsync(1, "HigherConfidenceDetection",
+                    $"Saving higher confidence detection: {detection.Confidence:F1}% vs {recentDetection.Confidence:F1}%",
+                    "Info", detection.DetectionId);
+
                 return true;
             }
             // Otherwise, skip to reduce duplicates
@@ -598,7 +599,7 @@ namespace ZooTrack.Services
                 // TODO: keep
                 await _logService.AddLogAsync(1, "DetectionSaveFailed",
                     $"Failed to save detection: {ex.Message}", "Error", null);
-                throw; 
+                throw;
             }
 
             if (!matchedId.HasValue) // log every new Tracker
