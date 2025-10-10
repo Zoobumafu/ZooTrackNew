@@ -150,7 +150,8 @@ namespace ZooTrack.Services
                         {
                             // check if the found obj is in target list
                             string label = detectedAnimal.Label.Name.ToLowerInvariant();
-                            bool isTarget = TargetAnimals.Contains(label);
+                            // FIX: The check is now case-insensitive to match "Person" with "person".
+                            bool isTarget = TargetAnimals.Contains(label, StringComparer.OrdinalIgnoreCase);
                             DrawDetection(frame, detectedAnimal, isTarget);
                             /*
                              * debug: show label and what animals are saved.
