@@ -63,3 +63,5 @@ secrets.json
 # Git
 *.orig
 *.jpg
+Backend/ZooTrack/ZooTrack/Zootrack.db-shm
+Backend/ZooTrack/ZooTrack/Zootrack.db-wal
