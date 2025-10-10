@@ -22,8 +22,8 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<ZootrackDbContext>(options =>
 {
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
-   // options.ConfigureWarnings(warnings =>
-   //    warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
+    // options.ConfigureWarnings(warnings =>
+    //    warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
 }
    );
 
@@ -89,7 +89,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazorApp", policy =>
     {
-        policy.WithOrigins("https://localhost:7155", "http://localhost:5119")
+        // FIX: Add the frontend URL (https://localhost:7019) to allow requests.
+        policy.WithOrigins("https://localhost:7019", "https://localhost:7155", "http://localhost:5119")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
