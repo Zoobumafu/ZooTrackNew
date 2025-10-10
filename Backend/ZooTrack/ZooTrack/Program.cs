@@ -27,7 +27,8 @@ builder.Services.AddDbContext<ZootrackDbContext>(options =>
 }
    );
 
-builder.Services.AddScoped<ILogService, LogService>();
+// FIX: Changed the LogService lifetime from Scoped to Transient to resolve conflicts.
+builder.Services.AddTransient<ILogService, LogService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<IDetectionService, DetectionService>();
 builder.Services.AddScoped<DetectionMediaService>();
@@ -89,7 +90,6 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazorApp", policy =>
     {
-        // FIX: Add the frontend URL (https://localhost:7019) to allow requests.
         policy.WithOrigins("https://localhost:7019", "https://localhost:7155", "http://localhost:5119")
               .AllowAnyHeader()
               .AllowAnyMethod()
