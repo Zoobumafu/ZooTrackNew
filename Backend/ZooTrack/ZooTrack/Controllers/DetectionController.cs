@@ -28,16 +28,28 @@ namespace ZooTrack.Controllers
             _logService = logService ?? throw new ArgumentNullException(nameof(logService));
         }
 
+        // FIX: This method now accepts 'from' and 'to' date parameters to correctly filter the results.
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Detection>>> GetDetections()
+        public async Task<ActionResult<IEnumerable<Detection>>> GetDetections([FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null)
         {
             try
             {
-                var detections = await _context.Detections
+                var query = _context.Detections
                     .Include(d => d.Device)
                     .Include(d => d.Media)
-                    .OrderByDescending(d => d.DetectedAt)
-                    .ToListAsync();
+                    .AsQueryable();
+
+                // Apply date filters if they are provided
+                if (from.HasValue)
+                {
+                    query = query.Where(d => d.DetectedAt >= from.Value.Date);
+                }
+                if (to.HasValue)
+                {
+                    query = query.Where(d => d.DetectedAt < to.Value.Date.AddDays(1));
+                }
+
+                var detections = await query.OrderByDescending(d => d.DetectedAt).ToListAsync();
 
                 await _logService.AddLogAsync(
                     userId: GetCurrentUserId(),
