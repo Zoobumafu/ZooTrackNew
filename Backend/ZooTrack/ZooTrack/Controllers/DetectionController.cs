@@ -28,7 +28,6 @@ namespace ZooTrack.Controllers
             _logService = logService ?? throw new ArgumentNullException(nameof(logService));
         }
 
-        // FIX: This method now accepts 'from' and 'to' date parameters to correctly filter the results.
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Detection>>> GetDetections([FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null)
         {
@@ -46,6 +45,7 @@ namespace ZooTrack.Controllers
                 }
                 if (to.HasValue)
                 {
+                    // Use AddDays(1) to include the entire 'to' date.
                     query = query.Where(d => d.DetectedAt < to.Value.Date.AddDays(1));
                 }
 
@@ -336,7 +336,6 @@ namespace ZooTrack.Controllers
         {
             try
             {
-                // Load the detection with all its relationships
                 var detection = await _context.Detections
                     .Include(d => d.Animals)
                     .Include(d => d.Alerts)
@@ -353,19 +352,16 @@ namespace ZooTrack.Controllers
                     return NotFound();
                 }
 
-                // 1. Delete related Animals
                 if (detection.Animals != null && detection.Animals.Any())
                 {
                     _context.Animals.RemoveRange(detection.Animals);
                 }
 
-                // 2. Delete related Alerts
                 if (detection.Alerts != null && detection.Alerts.Any())
                 {
                     _context.Alerts.RemoveRange(detection.Alerts);
                 }
 
-                // 3. Delete related Logs
                 var logs = await _context.Logs
                     .Where(l => l.DetectionId == id)
                     .ToListAsync();
@@ -374,7 +370,6 @@ namespace ZooTrack.Controllers
                     _context.Logs.RemoveRange(logs);
                 }
 
-                // 4. Delete related DetectionValidations
                 var validations = await _context.DetectionValidations
                     .Where(dv => dv.DetectionId == id)
                     .ToListAsync();
@@ -383,20 +378,17 @@ namespace ZooTrack.Controllers
                     _context.DetectionValidations.RemoveRange(validations);
                 }
 
-                // 5. Save changes to remove all related data
                 await _context.SaveChangesAsync();
 
-                // 6. Now delete the detection itself
                 _context.Detections.Remove(detection);
                 await _context.SaveChangesAsync();
 
-                // Log success (without DetectionId to avoid FK error)
                 await _logService.AddLogAsync(
                     userId: GetCurrentUserId(),
                     actionType: "DetectionDeleted",
                     message: $"Detection {id} deleted with all related data",
                     level: "Info",
-                    detectionId: null  // Don't reference the deleted detection
+                    detectionId: null
                 );
 
                 return NoContent();
@@ -431,8 +423,8 @@ namespace ZooTrack.Controllers
             if (detection == null) return new ValidationResult(false, "Detection data is required");
             if (detection.Confidence < 0 || detection.Confidence > 100) return new ValidationResult(false, "Confidence must be between 0 and 100");
             if (detection.DeviceId <= 0) return new ValidationResult(false, "Valid DeviceId is required");
-            if (detection.MediaId <= 0) return new ValidationResult(false, "Valid MediaId is required");
-            if (detection.EventId <= 0) return new ValidationResult(false, "Valid EventId is required");
+            if (!detection.MediaId.HasValue || detection.MediaId <= 0) return new ValidationResult(false, "Valid MediaId is required");
+            if (!detection.EventId.HasValue || detection.EventId <= 0) return new ValidationResult(false, "Valid EventId is required");
 
             if (!await _context.Devices.AnyAsync(d => d.DeviceId == detection.DeviceId)) return new ValidationResult(false, $"Device with ID {detection.DeviceId} does not exist");
             if (!await _context.Media.AnyAsync(m => m.MediaId == detection.MediaId)) return new ValidationResult(false, $"Media with ID {detection.MediaId} does not exist");
@@ -469,7 +461,8 @@ namespace ZooTrack.Controllers
         {
             public bool IsValid { get; }
             public string ErrorMessage { get; }
-            public ValidationResult(bool isValid, string errorMessage) { IsValid = isValid; ErrorMessage = errorMessage; }
+            public ValidationResult(bool isValid, string? errorMessage) { IsValid = isValid; ErrorMessage = errorMessage ?? ""; }
         }
     }
 }
+

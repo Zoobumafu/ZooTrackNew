@@ -1,252 +1,185 @@
 ﻿@page "/"
-@* @attribute [Authorize]*@ 
 @using System.ComponentModel.DataAnnotations
 @using ZooTrack.Client.Services
 @using ZooTrack.Client.Models
 @inject IDashboardClientService DashboardService
 @inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <PageTitle>ZooTrack - Dashboard</PageTitle>
 
-@* <AuthorizeView> *@
-    <div class="hero-section mb-4">
-        <div class="container-fluid">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h1 class="display-5 fw-bold text-primary mb-2">ZooTrack Dashboard</h1>
-                   @* <p class="lead text-muted mb-0">Welcome back, @context.User.Identity?.Name</p> *@
-                    <small class="text-muted">Last updated: @DateTime.Now.ToString("MMM dd, yyyy - HH:mm")</small>
+<div class="hero-section mb-4">
+    <div class="container-fluid">
+        <h1 class="display-5 fw-bold text-primary mb-2">ZooTrack Dashboard</h1>
+        <small class="text-muted">Last updated: @DateTime.Now.ToString("MMM dd, yyyy - HH:mm")</small>
+    </div>
+</div>
+
+@if (_isLoading && _dashboardData == null)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading dashboard data...</p>
+    </div>
+}
+else if (_dashboardData != null)
+{
+    <!-- System Overview Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-video fa-2x mb-3"></i>
+                    <h3 class="card-title fw-bold mb-1">@_dashboardData.Stats.ActiveDevicesCount</h3>
+                    <p class="card-text small mb-0">Active Devices</p>
                 </div>
-                <div class="col-md-4 text-end">
-                    <div class="d-flex align-items-center justify-content-end">
-                        <span class="badge bg-success me-2">
-                            <i class="fas fa-circle me-1"></i>System Online
-                        </span>
-                        <button class="btn btn-outline-primary btn-sm" @onclick="RefreshData" disabled="@_isLoading">
-                            <i class="fas fa-sync-alt me-1 @(_isLoading ? "fa-spin" : "")"></i>
-                            @(_isLoading ? "Loading..." : "Refresh")
-                        </button>
-                    </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-paw fa-2x mb-3"></i>
+                    <h3 class="card-title fw-bold mb-1">@_dashboardData.Stats.TodayDetections</h3>
+                    <p class="card-text small mb-0">Detections (24h)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-warning text-dark">
+                <div class="card-body text-center">
+                    <i class="fas fa-bell fa-2x mb-3"></i>
+                    <h3 class="card-title fw-bold mb-1">@_dashboardData.Stats.CriticalAlerts</h3>
+                    <p class="card-text small mb-0">Recent Alerts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-3"></i>
+                    <h3 class="card-title fw-bold mb-1">@_dashboardData.Stats.SystemUptime</h3>
+                    <p class="card-text small mb-0">System Uptime</p>
                 </div>
             </div>
         </div>
     </div>
 
-    @if (_isLoading && _dashboardData == null)
-    {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="mt-2 text-muted">Loading dashboard data...</p>
-        </div>
-    }
-    else if (_dashboardData != null)
-    {
-        <!-- System Overview Cards -->
-        <div class="row g-4 mb-5">
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100 bg-primary text-white">
-                    <div class="card-body text-center">
-                        <i class="fas fa-video fa-2x mb-3"></i>
-                        <h3 class="card-title fw-bold mb-1">@_dashboardData.Stats.ActiveDevicesCount</h3>
-                        <p class="card-text small mb-0">Active Devices</p>
-                    </div>
+    <!-- Main Content Row -->
+    <div class="row g-4">
+        <!-- Device Status Section -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-camera me-2 text-primary"></i>Device Status
+                    </h5>
+                    <a href="/camera-dashboard" class="btn btn-sm btn-outline-primary">
+                        Manage Devices <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100 bg-success text-white">
-                    <div class="card-body text-center">
-                        <i class="fas fa-paw fa-2x mb-3"></i>
-                        <h3 class="card-title fw-bold mb-1">@_dashboardData.Stats.TodayDetections</h3>
-                        <p class="card-text small mb-0">Detections (24h)</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100 bg-info text-white">
-                    <div class="card-body text-center">
-                        <i class="fas fa-bell fa-2x mb-3"></i>
-                        <h3 class="card-title fw-bold mb-1">@_dashboardData.Stats.CriticalAlerts</h3>
-                        <p class="card-text small mb-0">Recent Alerts</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100 bg-info text-white">
-                    <div class="card-body text-center">
-                        <i class="fas fa-clock fa-2x mb-3"></i>
-                        <h3 class="card-title fw-bold mb-1">@_dashboardData.Stats.SystemUptime</h3>
-                        <p class="card-text small mb-0">System Uptime</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content Row -->
-        <div class="row g-4">
-            <!-- Device Status Section -->
-            <div class="col-lg-8">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-camera me-2 text-primary"></i>Device Status
-                        </h5>
-                        <a href="/camera-dashboard" class="btn btn-sm btn-outline-primary">
-                            View All Devices <i class="fas fa-arrow-right ms-1"></i>
-                        </a>
-                    </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            @if (_dashboardData.Devices?.Any() == true)
+                <div class="card-body">
+                    <div class="row g-3">
+                        @if (_dashboardData.Devices?.Any() == true)
+                        {
+                            @foreach (var device in _dashboardData.Devices.Take(6))
                             {
-                                @foreach (var device in _dashboardData.Devices.Take(6))
-                                {
-                                    <div class="col-md-6">
-                                        <div class="border rounded p-3 @GetDeviceCardClass(device.Status)">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div>
-                                                    <h6 class="fw-bold mb-1">@device.Name</h6>
-                                                    <small class="text-muted">@device.Location</small>
-                                                </div>
-                                                <span class="badge @GetStatusBadgeClass(device.Status)">
-                                                    <i class="fas @GetStatusIcon(device.Status) me-1"></i>
-                                                    @device.Status
-                                                </span>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="fw-bold mb-1">@device.Name</h6>
+                                                <small class="text-muted">@device.Location</small>
                                             </div>
-                                            <div class="mt-2">
-                                                <small class="text-muted">
-                                                    Last seen: @device.LastSeen.ToString("HH:mm")
-                                                </small>
-                                                @if (device.BatteryLevel.HasValue)
-                                                {
-                                                    <br />
-                                                    <small class="text-muted">
-                                                        Battery: @($"{device.BatteryLevel.Value:F0}%")
-                                                    </small>
-                                                }
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                            }
-                            else
-                            {
-                                <div class="col-12 text-center py-4">
-                                    <i class="fas fa-camera fa-3x text-muted mb-3"></i>
-                                    <p class="text-muted">No devices found</p>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Alerts Section -->
-            <div class="col-lg-4">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-bell me-2 text-warning"></i>Recent Alerts
-                        </h5>
-                        <a href="/system-logs" class="btn btn-sm btn-outline-primary">
-                            View All <i class="fas fa-arrow-right ms-1"></i>
-                        </a>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="list-group list-group-flush">
-                            @if (_dashboardData.RecentAlerts?.Any() == true)
-                            {
-                                @foreach (var alert in _dashboardData.RecentAlerts.Take(5))
-                                {
-                                    <div class="list-group-item border-0 py-3">
-                                        <div class="d-flex align-items-start">
-                                            <span class="badge @GetAlertBadgeClass(alert.Severity) me-3 mt-1">
-                                                <i class="fas @GetAlertIcon(alert.Severity)"></i>
+                                            <span class="badge @GetStatusBadgeClass(device.Status)">
+                                                <i class="fas @GetStatusIcon(device.Status) me-1"></i>
+                                                @device.Status
                                             </span>
-                                            <div class="flex-grow-1">
-                                                <h6 class="mb-1 fw-bold">@alert.Title</h6>
-                                                <p class="mb-1 small text-muted">@alert.Message</p>
-                                                @if (!string.IsNullOrEmpty(alert.DeviceName))
-                                                {
-                                                    <small class="text-primary">@alert.DeviceName</small>
-                                                    <br />
-                                                }
-                                                <small class="text-muted">
-                                                    <i class="fas fa-clock me-1"></i>
-                                                    @alert.Timestamp.ToString("MMM dd, HH:mm")
-                                                </small>
-                                            </div>
+                                        </div>
+                                        @* FIX: Removed Battery Level display as it's a placeholder *@
+                                        <div class="mt-2">
+                                            <small class="text-muted">
+                                                Last seen: @device.LastSeen.ToString("HH:mm")
+                                            </small>
                                         </div>
                                     </div>
-                                }
-                            }
-                            else
-                            {
-                                <div class="text-center py-4">
-                                    <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
-                                    <p class="text-muted mb-0">No recent alerts</p>
-                                    <small class="text-muted">All systems are running normally</small>
                                 </div>
                             }
-                        </div>
+                        }
+                        else
+                        {
+                            <div class="col-12 text-center py-4">
+                                <i class="fas fa-camera fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No devices found</p>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Quick Actions Section -->
-        <div class="row g-4 mt-4">
-            <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-rocket me-2 text-primary"></i>Quick Actions
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <a href="/camera-dashboard" class="btn btn-outline-primary w-100 py-3">
-                                    <i class="fas fa-video fa-2x mb-2 d-block"></i>
-                                    Camera Dashboard
-                                </a>
+        <!-- Recent Alerts Section -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bell me-2 text-warning"></i>Recent Alerts
+                    </h5>
+                    <a href="/system-logs" class="btn btn-sm btn-outline-primary">
+                        View All <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        @if (_dashboardData.RecentAlerts?.Any() == true)
+                        {
+                            @foreach (var alert in _dashboardData.RecentAlerts.Take(5))
+                            {
+                                <div class="list-group-item border-0 py-3">
+                                    <div class="d-flex align-items-start">
+                                        <span class="badge @GetAlertBadgeClass(alert.Severity) me-3 mt-1">
+                                            <i class="fas @GetAlertIcon(alert.Severity)"></i>
+                                        </span>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-bold">@alert.Title</h6>
+                                            <p class="mb-1 small text-muted">@alert.Message</p>
+                                            @if (!string.IsNullOrEmpty(alert.DeviceName))
+                                            {
+                                                <small class="text-primary">@alert.DeviceName</small>
+                                                <br />
+                                            }
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock me-1"></i>
+                                                @alert.Timestamp.ToString("MMM dd, HH:mm")
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                                <p class="text-muted mb-0">No recent alerts</p>
                             </div>
-                            <div class="col-md-3">
-                                <a href="/detections" class="btn btn-outline-success w-100 py-3">
-                                    <i class="fas fa-search fa-2x mb-2 d-block"></i>
-                                    Detection History
-                                </a>
-                            </div>
-                            <div class="col-md-3">
-                                <a href="/system-logs" class="btn btn-outline-info w-100 py-3">
-                                    <i class="fas fa-list-alt fa-2x mb-2 d-block"></i>
-                                    System Logs
-                                </a>
-                            </div>
-                            <div class="col-md-3">
-                                <a href="/settings" class="btn btn-outline-secondary w-100 py-3">
-                                    <i class="fas fa-cog fa-2x mb-2 d-block"></i>
-                                    Settings
-                                </a>
-                            </div>
-                        </div>
+                        }
                     </div>
                 </div>
             </div>
         </div>
-    }
-    else if (_errorMessage != null)
-    {
-        <div class="alert alert-danger" role="alert">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <strong>Error:</strong> @_errorMessage
-            <button type="button" class="btn btn-outline-danger btn-sm ms-3" @onclick="RefreshData">
-                Try Again
-            </button>
-        </div>
-    }
-@* </AuthorizeView> *@
+    </div>
+}
+else if (_errorMessage != null)
+{
+    <div class="alert alert-danger" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Error:</strong> @_errorMessage
+        <button type="button" class="btn btn-outline-danger btn-sm ms-3" @onclick="RefreshData">
+            Try Again
+        </button>
+    </div>
+}
 
 @code {
     private DashboardData? _dashboardData;
@@ -257,8 +190,6 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadDashboardData();
-
-        // Set up auto-refresh timer
         _refreshTimer = new Timer(async _ =>
         {
             await InvokeAsync(async () =>
@@ -287,11 +218,6 @@
             _dashboardData = await DashboardService.GetDashboardDataAsync();
             _errorMessage = null;
         }
-        catch (UnauthorizedAccessException)
-        {
-            _errorMessage = "Session expired. Please log in again.";
-            // Optionally redirect to login
-        }
         catch (Exception ex)
         {
             _errorMessage = "Failed to load dashboard data. Please check your connection and try again.";
@@ -309,58 +235,8 @@
         await LoadDashboardData();
     }
 
-    private string GetDeviceCardClass(string status)
-    {
-        return status switch
-        {
-            "Online" => "border-success",
-            "Offline" => "border-danger",
-            "Warning" => "border-warning",
-            _ => "border-secondary"
-        };
-    }
-
-    private string GetStatusBadgeClass(string status)
-    {
-        return status switch
-        {
-            "Online" => "bg-success",
-            "Offline" => "bg-danger",
-            "Warning" => "bg-warning",
-            _ => "bg-secondary"
-        };
-    }
-
-    private string GetStatusIcon(string status)
-    {
-        return status switch
-        {
-            "Online" => "fa-check-circle",
-            "Offline" => "fa-times-circle",
-            "Warning" => "fa-exclamation-triangle",
-            _ => "fa-question-circle"
-        };
-    }
-
-    private string GetAlertBadgeClass(string severity)
-    {
-        return severity switch
-        {
-            "Critical" => "bg-danger",
-            "Warning" => "bg-warning",
-            "Info" => "bg-info",
-            _ => "bg-secondary"
-        };
-    }
-
-    private string GetAlertIcon(string severity)
-    {
-        return severity switch
-        {
-            "Critical" => "fa-exclamation-triangle",
-            "Warning" => "fa-exclamation-circle",
-            "Info" => "fa-info-circle",
-            _ => "fa-bell"
-        };
-    }
+    private string GetStatusBadgeClass(string status) => status switch { "Online" => "bg-success", "Offline" => "bg-danger", "Warning" => "bg-warning", _ => "bg-secondary" };
+    private string GetStatusIcon(string status) => status switch { "Online" => "fa-check-circle", "Offline" => "fa-times-circle", "Warning" => "fa-exclamation-triangle", _ => "fa-question-circle" };
+    private string GetAlertBadgeClass(string severity) => severity switch { "Critical" => "bg-danger", "Warning" => "bg-warning", "Info" => "bg-info", _ => "bg-secondary" };
+    private string GetAlertIcon(string severity) => severity switch { "Critical" => "fa-exclamation-triangle", "Warning" => "fa-exclamation-circle", "Info" => "fa-info-circle", _ => "fa-bell" };
 }
