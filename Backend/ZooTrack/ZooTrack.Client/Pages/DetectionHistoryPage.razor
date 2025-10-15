@@ -58,7 +58,7 @@
                 </div>
                 <div class="col-md-2">
                     <label for="dateTo" class="form-label">To Date:</label>
-                    <input type="date" class="form-control" id="dateTo" @bind:after="LoadDetections" />
+                    <input type="date" class="form-control" id="dateTo" @bind="dateTo" @bind:after="LoadDetections" />
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
                     <button class="btn btn-primary me-2" @onclick="LoadDetections" disabled="@isLoading">
@@ -478,10 +478,6 @@
         }
     }
 
-    // --- FIX START ---
-    // The original method used simple string concatenation, which created invalid URLs.
-    // This updated method uses the new Uri(baseUri, relativePath) constructor,
-    // which correctly handles joining the base address and the relative path with a '/'.
     private string GetFullImagePath(string? relativePath)
     {
         if (string.IsNullOrEmpty(relativePath) || Http.BaseAddress == null)
@@ -492,8 +488,6 @@
         var fullUri = new Uri(Http.BaseAddress, relativePath);
         return fullUri.ToString();
     }
-    // --- FIX END ---
-
 
     private string CapitalizeFirstLetter(string input)
     {
@@ -528,4 +522,3 @@
         public string FilePath { get; set; } = string.Empty;
     }
 }
-
