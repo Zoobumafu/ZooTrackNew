@@ -38,16 +38,23 @@ namespace ZooTrack.Controllers
                     .Include(d => d.Media)
                     .AsQueryable();
 
-                // Apply date filters if they are provided
+                // --- FIX START ---
+                // The original logic could exclude recent detections due to subtle timing issues.
+                // This updated logic ensures the entire date range is inclusive.
                 if (from.HasValue)
                 {
-                    query = query.Where(d => d.DetectedAt >= from.Value.Date);
+                    // Start from the beginning of the 'from' day
+                    var startDate = from.Value.Date;
+                    query = query.Where(d => d.DetectedAt >= startDate);
                 }
                 if (to.HasValue)
                 {
-                    // Use AddDays(1) to include the entire 'to' date.
-                    query = query.Where(d => d.DetectedAt < to.Value.Date.AddDays(1));
+                    // Go to the very end of the 'to' day to ensure all of today's detections are included.
+                    var endDate = to.Value.Date.AddDays(1).AddTicks(-1);
+                    query = query.Where(d => d.DetectedAt <= endDate);
                 }
+                // --- FIX END ---
+
 
                 var detections = await query.OrderByDescending(d => d.DetectedAt).ToListAsync();
 
