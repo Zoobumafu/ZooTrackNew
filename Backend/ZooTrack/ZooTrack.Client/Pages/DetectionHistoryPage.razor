@@ -29,9 +29,59 @@
             }
             Refresh
         </button>
-        <button class="btn btn-outline-secondary" @onclick="ClearFilters">Clear Filters</button>
+        <button class="btn btn-outline-secondary me-2" @onclick="ClearFilters">Clear Filters</button>
+        <button class="btn btn-outline-warning" @onclick="LoadAllDetections" disabled="@isLoading">Load ALL</button>
     </div>
 </div>
+
+<!-- Always-visible Debug Toggle -->
+<div class="mb-3">
+    <button class="btn btn-sm btn-outline-secondary" @onclick="ShowDebugInfo">
+        <i class="bi bi-bug"></i> @(showDebugInfo ? "Hide" : "Show") Debug Info
+    </button>
+</div>
+
+@if (showDebugInfo)
+{
+    <div class="card mb-3 border-info">
+        <div class="card-header bg-info text-white">
+            <strong>🔍 Debug Information</strong>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Request Info:</h6>
+                    <pre style="font-size: 11px;">@debugInfo</pre>
+                </div>
+                <div class="col-md-6">
+                    <h6>Detections Data:</h6>
+                    <ul style="font-size: 11px; max-height: 300px; overflow-y: auto;">
+                        @if (detections == null)
+                        {
+                            <li><strong>detections is NULL</strong></li>
+                        }
+                        else if (detections.Count == 0)
+                        {
+                            <li><strong>detections is EMPTY LIST (Count = 0)</strong></li>
+                        }
+                        else
+                        {
+                            <li><strong>Total Count: @detections.Count</strong></li>
+                            @foreach (var d in detections.Take(10))
+                            {
+                                <li>ID: @d.DetectionId | Time: @d.DetectedAt.ToString("MM/dd HH:mm:ss") | Object: @(d.DetectedObject ?? "null") | Conf: @d.Confidence.ToString("F1")%</li>
+                            }
+                            @if (detections.Count > 10)
+                            {
+                                <li><em>... and @(detections.Count - 10) more</em></li>
+                            }
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @if (!string.IsNullOrEmpty(filterInfo))
 {
@@ -45,21 +95,6 @@
     <div class="alert alert-danger" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         @errorMessage
-        <button type="button" class="btn btn-sm btn-outline-danger mt-2" @onclick="ShowDebugInfo">
-            Show Debug Info
-        </button>
-    </div>
-}
-
-@if (showDebugInfo)
-{
-    <div class="card mb-3 border-warning">
-        <div class="card-header bg-warning text-dark">
-            <strong>Debug Information</strong>
-        </div>
-        <div class="card-body">
-            <pre style="font-size: 12px; max-height: 300px; overflow-y: auto;">@debugInfo</pre>
-        </div>
     </div>
 }
 
@@ -229,9 +264,9 @@ else if (detections != null)
             if (response.IsSuccessStatusCode)
             {
                 var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
 
                 detections = JsonSerializer.Deserialize<List<DetectionDto>>(content, options);
 
@@ -296,6 +331,91 @@ else if (detections != null)
         dateTo = DateOnly.FromDateTime(DateTime.Today);
         Logger.LogInformation("Filters cleared, reloading with defaults");
         await LoadDetections();
+    }
+
+    private async Task LoadAllDetections()
+    {
+        isLoading = true;
+        errorMessage = null;
+        filterInfo = null;
+        debugInfo = null;
+        StateHasChanged();
+
+        try
+        {
+            // NO date filters - get everything
+            var url = $"api/detection?_t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+            Logger.LogInformation("Loading ALL detections (no filters) from: {Url}", url);
+
+            var response = await Http.GetAsync(url);
+            var content = await response.Content.ReadAsStringAsync();
+
+            var debugBuilder = new System.Text.StringBuilder();
+            debugBuilder.AppendLine($"Request URL (NO FILTERS): {url}");
+            debugBuilder.AppendLine($"Response Status: {response.StatusCode}");
+            debugBuilder.AppendLine($"Response Content Length: {content?.Length ?? 0}");
+            debugBuilder.AppendLine($"Current Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+            Logger.LogInformation("API Response Status: {StatusCode}, Content Length: {Length}",
+                response.StatusCode, content?.Length ?? 0);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                detections = JsonSerializer.Deserialize<List<DetectionDto>>(content, options);
+
+                debugBuilder.AppendLine($"Deserialized Count: {detections?.Count ?? 0}");
+
+                if (detections != null)
+                {
+                    Logger.LogInformation("Successfully loaded {Count} detections (ALL, no filters)", detections.Count);
+
+                    if (detections.Any())
+                    {
+                        var newest = detections.OrderByDescending(d => d.DetectedAt).First();
+                        var oldest = detections.OrderBy(d => d.DetectedAt).First();
+
+                        debugBuilder.AppendLine($"Oldest Detection: {oldest.DetectedAt:yyyy-MM-dd HH:mm:ss}");
+                        debugBuilder.AppendLine($"Newest Detection: {newest.DetectedAt:yyyy-MM-dd HH:mm:ss}");
+
+                        filterInfo = $"Showing ALL {detections.Count} detection(s) in database (no date filters)";
+                    }
+                    else
+                    {
+                        filterInfo = "No detections found in database at all!";
+                    }
+
+                    lastUpdateTime = DateTime.Now;
+                }
+            }
+            else
+            {
+                errorMessage = $"Failed to load detections. Status: {response.StatusCode}";
+                debugBuilder.AppendLine($"Error Content: {content}");
+                Logger.LogError("API returned error: {StatusCode} - {Content}", response.StatusCode, content);
+            }
+
+            debugInfo = debugBuilder.ToString();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading detections: {ex.Message}";
+            Logger.LogError(ex, "Exception while loading ALL detections");
+
+            debugInfo = $"Exception Type: {ex.GetType().Name}\n" +
+                       $"Message: {ex.Message}\n" +
+                       $"Stack Trace:\n{ex.StackTrace}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void ShowDebugInfo()

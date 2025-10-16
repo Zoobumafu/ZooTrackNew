@@ -1,38 +1,17 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using OpenCvSharp;
+﻿using OpenCvSharp;
 using SkiaSharp;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Security;
-using System.Threading.Tasks;
 using YoloDotNet;
 using YoloDotNet.Enums;
 using YoloDotNet.Models;
-using ZooTrack.Data;
 using ZooTrack.Models;
+using ZooTrackBackend.Services;
 using Timer = System.Timers.Timer;
 
 namespace ZooTrack.Services
 {
-    /// <summary>
-    /// contains two classes: 
-    ///     CameraInsrance for managing single camera instance ans
-    ///     CameraService for managing all the cameras
-    /// this service uses re-trained YOLOv10 model for process video, saves highlight and draw B-Boxes around them
-    /// 
-    /// Responsibilities:
-    ///     1. Set and connect to the cameras
-    ///     2. Object Detection by Yolo
-    ///     3. Record Highlights
-    ///     4. Write target to DB if it was found
-    ///     5. Show client the processed farmed with B-Boxed object
-    /// 
-    /// </summary>
     public class CameraInstance : IDisposable
     {
         public int CameraId { get; }
@@ -61,14 +40,12 @@ namespace ZooTrack.Services
             _serviceScopeFactory = serviceScopeFactory;
         }
 
-        // connect to specific camera using OpenCvSharp, load Yolo, set resolution
         public bool Initialize()
         {
             if (IsInitialized) return true;
             try
             {
                 _logger.LogInformation("Initializing camera {CameraId}...", CameraId);
-                // Try opening the camera. Some drivers work better with specific APIs.
                 _capture = new VideoCapture(CameraId, VideoCaptureAPIs.DSHOW);
                 if (!_capture.IsOpened())
                 {
@@ -85,10 +62,10 @@ namespace ZooTrack.Services
 
                 _capture.FrameWidth = _width;
                 _capture.FrameHeight = _height;
-                _width = _capture.FrameWidth;   // Read back the actual width/height
+                _width = _capture.FrameWidth;
                 _height = _capture.FrameHeight;
                 _fps = _capture.Get(VideoCaptureProperties.Fps);
-                if (_fps <= 0) _fps = 20.0; // Default FPS if property is not available
+                if (_fps <= 0) _fps = 20.0;
                 _logger.LogInformation("Camera {CameraId} opened successfully. Resolution: {Width}x{Height}, FPS: {Fps}", CameraId, _width, _height, _fps);
 
                 string modelPath = Path.Combine(AppContext.BaseDirectory, "Models", "yolov10.onnx");
@@ -105,21 +82,13 @@ namespace ZooTrack.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception during camera {CameraId} initialization.", CameraId);
-                Dispose(); // Clean up resources on failure
+                Dispose();
                 return false;
             }
         }
 
-        // TODO: check method responsibilities
-        // MAIN METHOD: process frames
-        // 1. Reads from camera and run Yolo
-        // 2. Calls to Draws B-Box and labels
-        // 3. Saves to DB: frame & frame metadata
         public FrameData ProcessFrame()
         {
-            // IsProcessing = camera is actively being monitored
-            // IsInitialized = camera connection and YOLO model are ready
-            // _capture != null = camera object exists
             if (!IsProcessing || !IsInitialized || _capture == null)
             {
                 return CreateErrorFrame("Idle");
@@ -138,51 +107,73 @@ namespace ZooTrack.Services
 
             try
             {
-                // Run detection logic
                 if (_yolo != null)
                 {
-                    Cv2.ImEncode(".jpg", frame, out byte[] rawData); // compress image and saves in buffer
-                    using var skImage = SKImage.FromEncodedData(rawData); // load from buffer into Skia object
+                    Cv2.ImEncode(".jpg", frame, out byte[] rawData);
+                    using var skImage = SKImage.FromEncodedData(rawData);
                     if (skImage != null)
                     {
-                        var results = _yolo.RunObjectDetection(skImage, confidence: 0.4f); // run Yolo for obj deetection
+                        var results = _yolo.RunObjectDetection(skImage, confidence: 0.4f);
                         foreach (var detectedAnimal in results)
                         {
-                            // check if the found obj is in target list
                             string label = detectedAnimal.Label.Name.ToLowerInvariant();
-                            // FIX: The check is now case-insensitive to match "Person" with "person".
                             bool isTarget = TargetAnimals.Contains(label, StringComparer.OrdinalIgnoreCase);
                             DrawDetection(frame, detectedAnimal, isTarget);
-                            /*
-                             * debug: show label and what animals are saved.
-                            Console.WriteLine(label);
-                            Console.WriteLine(string.Join(", ", TargetAnimals));
-                            */
 
                             if (isTarget)
                             {
                                 detectedTargets.Add(label);
 
-                                // Queue for the DetectionMediaService to handle
+                                // FIXED: Added proper exception handling
                                 _ = Task.Run(async () =>
                                 {
-                                    var tempDetection = new Detection
+                                    try
                                     {
-                                        DeviceId = CameraId,
-                                        DetectedAt = DateTime.Now,
-                                        DetectedObject = detectedAnimal.Label.Name,
-                                        BoundingBoxX = detectedAnimal.BoundingBox.Left,
-                                        BoundingBoxY = detectedAnimal.BoundingBox.Top,
-                                        BoundingBoxWidth = detectedAnimal.BoundingBox.Width,
-                                        BoundingBoxHeight = detectedAnimal.BoundingBox.Height,
-                                        Confidence = (float)(detectedAnimal.Confidence * 100),
-                                        IsTarget = isTarget
-                                    };
-                                    using var scope = _serviceScopeFactory.CreateScope();
-                                    var mediaService = scope.ServiceProvider.GetRequiredService<DetectionMediaService>();
+                                        var tempDetection = new Detection
+                                        {
+                                            DeviceId = CameraId,
+                                            DetectedAt = DateTime.Now,
+                                            DetectedObject = detectedAnimal.Label.Name,
+                                            BoundingBoxX = detectedAnimal.BoundingBox.Left,
+                                            BoundingBoxY = detectedAnimal.BoundingBox.Top,
+                                            BoundingBoxWidth = detectedAnimal.BoundingBox.Width,
+                                            BoundingBoxHeight = detectedAnimal.BoundingBox.Height,
+                                            Confidence = (float)(detectedAnimal.Confidence * 100),
+                                            IsTarget = isTarget
+                                        };
 
-                                    // Let DetectionMediaService decide whether to save based on tracking
-                                    await mediaService.ProcessDetectionForSaving(tempDetection, rawData);
+                                        using var scope = _serviceScopeFactory.CreateScope();
+                                        var mediaService = scope.ServiceProvider.GetRequiredService<DetectionMediaService>();
+                                        var logService = scope.ServiceProvider.GetRequiredService<ILogService>();
+
+                                        await mediaService.ProcessDetectionForSaving(tempDetection, rawData);
+
+                                        // Log success
+                                        await logService.AddLogAsync(1, "DetectionProcessedSuccessfully",
+                                            $"Successfully processed and saved detection: {detectedAnimal.Label.Name} (Confidence: {tempDetection.Confidence:F1}%)",
+                                            "Info", null);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        // THIS WAS MISSING - exceptions were being swallowed!
+                                        _logger.LogError(ex, "CRITICAL: Failed to process detection in Task.Run for Camera {CameraId}. Object: {Object}, Confidence: {Confidence}",
+                                            CameraId, detectedAnimal.Label.Name, detectedAnimal.Confidence * 100);
+
+                                        try
+                                        {
+                                            using var scope = _serviceScopeFactory.CreateScope();
+                                            var logService = scope.ServiceProvider.GetRequiredService<ILogService>();
+                                            await logService.AddLogAsync(1, "CameraDetectionProcessingFailed",
+                                                $"CRITICAL ERROR processing detection for {detectedAnimal.Label.Name}: {ex.Message}\n" +
+                                                $"Stack Trace: {ex.StackTrace}\n" +
+                                                $"Inner Exception: {ex.InnerException?.Message}",
+                                                "Error", null);
+                                        }
+                                        catch (Exception loggingEx)
+                                        {
+                                            _logger.LogError(loggingEx, "Failed to log detection processing error");
+                                        }
+                                    }
                                 });
                             }
                         }
@@ -195,11 +186,10 @@ namespace ZooTrack.Services
             }
 
             bool hasTargets = detectedTargets.Count > 0;
-            // records 10 seconds when target is found
             if (hasTargets)
                 HandleHighlightRecording(frame, hasTargets);
 
-            var jpegQuality = hasTargets ? 95 : 75; // Higher quality for targets
+            var jpegQuality = hasTargets ? 95 : 75;
             var jpegParams = new int[] { (int)ImwriteFlags.JpegQuality, jpegQuality };
             Cv2.ImEncode(".jpg", frame, out byte[] finalJpegBytes, jpegParams);
 
@@ -224,7 +214,6 @@ namespace ZooTrack.Services
             };
         }
 
-        // Error handaling
         private FrameData CreateErrorFrame(string message)
         {
             using var errorMat = new Mat(new Size(_width, _height), MatType.CV_8UC3, Scalar.Black);
@@ -233,18 +222,15 @@ namespace ZooTrack.Services
             return new FrameData { CameraId = CameraId, JpegBytes = jpegBytes };
         }
 
-        // Draw B-Box around object in the Camera
         private void DrawDetection(Mat frame, YoloDotNet.Models.ObjectDetection detection, bool isTarget)
         {
             var rect = detection.BoundingBox;
 
-            // draw B-Box
             var color = isTarget ? Scalar.LimeGreen : Scalar.Gray;
             var thickness = isTarget ? 3 : 2;
             var cvRect = new Rect(rect.Left, rect.Top, rect.Width, rect.Height);
             Cv2.Rectangle(frame, cvRect, color, thickness);
 
-            // label
             string text = $"{detection.Label.Name} ({detection.Confidence:P0})";
             double fontScale = isTarget ? 0.6 : 0.5;
             var textColor = isTarget ? Scalar.White : Scalar.LightGray;
@@ -252,7 +238,6 @@ namespace ZooTrack.Services
             var textSize = Cv2.GetTextSize(text, HersheyFonts.HersheySimplex, fontScale, textThickness, out int baseline);
             Point textPosition;
 
-            // frame limitation
             if (rect.Top < textSize.Height + 10)
                 textPosition = new Point(rect.Left + 5, rect.Top + textSize.Height + 5);
             else
@@ -261,19 +246,17 @@ namespace ZooTrack.Services
             textPosition.X = Math.Max(0, Math.Min(textPosition.X, frame.Width - textSize.Width));
             textPosition.Y = Math.Max(textSize.Height, Math.Min(textPosition.Y, frame.Height - baseline));
 
-            // text background
             if (isTarget)
             {
                 var bgRect = new Rect(textPosition.X - 2, textPosition.Y - textSize.Height - 2,
                                      textSize.Width + 4, textSize.Height + baseline + 4);
-                Cv2.Rectangle(frame, bgRect, Scalar.Black, -1); // black background
+                Cv2.Rectangle(frame, bgRect, Scalar.Black, -1);
             }
 
             Cv2.PutText(frame, text, textPosition, HersheyFonts.HersheySimplex,
               fontScale, textColor, textThickness);
         }
 
-        // records video only when target is found
         private void HandleHighlightRecording(Mat frame, bool hasTargetsInFrame)
         {
             if (!hasTargetsInFrame || string.IsNullOrEmpty(HighlightSavePath)) return;
@@ -281,17 +264,14 @@ namespace ZooTrack.Services
             if (!_isRecording)
                 StartHighlightRecording();
 
-            // Keep writing to the current video file
             if (_isRecording)
             {
                 _writer?.Write(frame);
-                // Reset the timer to extend the recording duration
                 _recordingTimer?.Stop();
                 _recordingTimer?.Start();
             }
         }
 
-        // help method to HandleHighlightRecording()
         private void StartHighlightRecording()
         {
             if (_isRecording) return;
@@ -325,7 +305,6 @@ namespace ZooTrack.Services
             }
         }
 
-        // help method to HandleHighlightRecording()
         private void StopHighlightRecording()
         {
             if (!_isRecording) return;
@@ -353,7 +332,6 @@ namespace ZooTrack.Services
         }
     }
 
-    /// Manages the lifecycle of CameraInstance objects.
     public class CameraService : IDisposable
     {
         private readonly ILogger<CameraService> _logger;
@@ -361,7 +339,7 @@ namespace ZooTrack.Services
         private readonly ConcurrentDictionary<int, CameraInstance> _cameraInstances = new();
 
         private readonly List<string> _defaultTargetAnimals;
-        public const int NUM_CAMERAS = 2; // for testing porpose
+        public const int NUM_CAMERAS = 2;
 
         public CameraService(ILogger<CameraService> logger, IServiceScopeFactory serviceScopeFactory)
         {
@@ -429,7 +407,6 @@ namespace ZooTrack.Services
 
         public bool InitializeCamera(int cameraId)
         {
-            // Ensure only one instance is created per ID
             var instance = _cameraInstances.GetOrAdd(cameraId, id => new CameraInstance(id, _logger, _serviceScopeFactory));
 
             if (!instance.IsInitialized)
@@ -439,7 +416,6 @@ namespace ZooTrack.Services
             return true;
         }
 
-        // set targets, set path, initiate processing condition for camera instance
         public void StartProcessing(int cameraId, List<string> targetAnimals, string savePath)
         {
             if (_cameraInstances.TryGetValue(cameraId, out var instance) && instance.IsInitialized)
@@ -460,7 +436,6 @@ namespace ZooTrack.Services
                 _logger.LogWarning("Attempted to start processing for uninitialized or non-existent CameraId: {CameraId}", cameraId);
             }
         }
-
 
         public void StopProcessing(int cameraId)
         {
@@ -486,7 +461,7 @@ namespace ZooTrack.Services
             {
                 return instance.ProcessFrame();
             }
-            return null; // Should ideally not happen if called correctly
+            return null;
         }
 
         public List<int> GetActiveCameraIds()
@@ -505,7 +480,6 @@ namespace ZooTrack.Services
         }
     }
 
-    // Data Transfer Object between Client and Server by SignalIR
     public class FrameData
     {
         public int CameraId { get; set; }

@@ -1,13 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using ZooTrack.Data;
 using ZooTrack.Models;
 using ZooTrackBackend.Services;
 
-namespace ZooTrack.Services // Corrected Namespace
+namespace ZooTrack.Services
 {
     public class LogService : ILogService
     {
@@ -18,6 +14,7 @@ namespace ZooTrack.Services // Corrected Namespace
             _context = context;
         }
 
+        // ⭐ FIXED: Gracefully handle FK constraint errors
         public async Task<Log> AddLogAsync(int? userId, string actionType, string message = "", string level = "Info", int? detectionId = null)
         {
             var log = new Log
@@ -30,23 +27,66 @@ namespace ZooTrack.Services // Corrected Namespace
                 DetectionId = detectionId
             };
 
-            await _context.Logs.AddAsync(log);
-            await _context.SaveChangesAsync();
+            try
+            {
+                // ⭐ Validate foreign keys BEFORE trying to save
+                if (userId.HasValue)
+                {
+                    var userExists = await _context.Users.AnyAsync(u => u.UserId == userId.Value);
+                    if (!userExists)
+                    {
+                        // User doesn't exist - set to null to avoid FK constraint error
+                        log.UserId = null;
+                        Console.WriteLine($"WARNING: User {userId} doesn't exist. Log will be saved without UserId.");
+                    }
+                }
 
-            return log;
+                if (detectionId.HasValue)
+                {
+                    var detectionExists = await _context.Detections.AnyAsync(d => d.DetectionId == detectionId.Value);
+                    if (!detectionExists)
+                    {
+                        // Detection doesn't exist - set to null to avoid FK constraint error
+                        log.DetectionId = null;
+                        Console.WriteLine($"WARNING: Detection {detectionId} doesn't exist. Log will be saved without DetectionId.");
+                    }
+                }
+
+                await _context.Logs.AddAsync(log);
+                await _context.SaveChangesAsync();
+
+                return log;
+            }
+            catch (DbUpdateException ex) when (ex.InnerException?.Message?.Contains("FOREIGN KEY constraint failed") == true)
+            {
+                // ⭐ FK constraint error - log to console instead and return a dummy log
+                Console.WriteLine($"WARNING: Failed to save log to database due to FK constraint: {actionType} - {message}");
+                Console.WriteLine($"  UserId: {userId}, DetectionId: {detectionId}");
+                Console.WriteLine($"  Error: {ex.InnerException.Message}");
+
+                // Return the log object even though it wasn't saved
+                return log;
+            }
+            catch (Exception ex)
+            {
+                // ⭐ Any other error - log to console and return dummy log
+                Console.WriteLine($"ERROR: Failed to save log to database: {actionType} - {message}");
+                Console.WriteLine($"  Error: {ex.Message}");
+
+                // Return the log object even though it wasn't saved
+                return log;
+            }
         }
 
-
-
         public async Task<PaginatedLogResponse> GetLogsAsync(
-      int? userId = null,
-      string actionType = null,
-      DateTime? startDate = null,
-      DateTime? endDate = null,
-      string level = null,
-      int? detectionId = null,
-      int pageNumber = 1,
-      int pageSize = 50)
+            int? userId = null,
+            string actionType = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            string level = null,
+            int? detectionId = null,
+            int pageNumber = 1,
+            int pageSize = 50)
         {
             // Validate pagination parameters
             if (pageNumber < 1) pageNumber = 1;
@@ -67,7 +107,6 @@ namespace ZooTrack.Services // Corrected Namespace
 
             if (endDate.HasValue)
             {
-                // Include the entire end date
                 var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
                 query = query.Where(l => l.Timestamp <= endOfDay);
             }
