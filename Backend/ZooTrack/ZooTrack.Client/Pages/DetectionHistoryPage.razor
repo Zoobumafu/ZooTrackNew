@@ -12,7 +12,7 @@
                 <i class="bi bi-search me-2 text-primary"></i>
                 Detection History
             </h2>
-            <p class="text-muted">View all detected animals from your cameras</p>
+            <p class="text-muted">View and filter animal detections from your cameras</p>
         </div>
     </div>
 
@@ -23,22 +23,35 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">From Date:</label>
-                    <input type="date" class="form-control" @bind="filterFromDate" />
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">From Date:</label>
+                    <input type="date" class="form-control" @bind="dateFrom" />
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">To Date:</label>
-                    <input type="date" class="form-control" @bind="filterToDate" />
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">To Date:</label>
+                    <input type="date" class="form-control" @bind="dateTo" />
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button class="btn btn-primary w-100" @onclick="LoadDetectionsAsync" disabled="@isLoading">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Detected Object:</label>
+                    <select class="form-select" @bind="filterObject">
+                        <option value="">All Objects</option>
+                        @foreach (var obj in availableObjects)
+                        {
+                            <option value="@obj">@obj</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button class="btn btn-primary flex-fill" @onclick="LoadDetections" disabled="@isLoading">
                         @if (isLoading)
                         {
                             <span class="spinner-border spinner-border-sm me-2"></span>
                         }
                         <i class="bi bi-arrow-clockwise me-1"></i>
-                        Load Detections
+                        Apply Filters
+                    </button>
+                    <button class="btn btn-outline-secondary" @onclick="ClearFilters" disabled="@isLoading">
+                        <i class="bi bi-x-circle"></i>
                     </button>
                 </div>
             </div>
@@ -62,7 +75,7 @@
             <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <p class="text-muted">Loading detection records...</p>
+            <p class="text-muted">Loading detections...</p>
         </div>
     }
 
@@ -75,15 +88,15 @@
                     <i class="bi bi-list-ul me-2"></i>
                     Detection Results
                 </h5>
-                <span class="badge bg-primary fs-6">@detections.Count Record(s)</span>
+                <span class="badge bg-primary fs-6">@filteredDetections.Count Record(s)</span>
             </div>
             <div class="card-body p-0">
-                @if (detections.Count == 0)
+                @if (filteredDetections.Count == 0)
                 {
                     <div class="text-center py-5">
                         <i class="bi bi-inbox display-1 text-muted mb-3"></i>
                         <h5 class="text-muted">No Detections Found</h5>
-                        <p class="text-muted">Try adjusting your date range or check if cameras are running</p>
+                        <p class="text-muted">Try adjusting your filters or check if cameras are detecting animals</p>
                     </div>
                 }
                 else
@@ -92,16 +105,16 @@
                         <table class="table table-hover table-striped mb-0">
                             <thead class="table-dark">
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Date & Time</th>
-                                    <th>Detected Object</th>
-                                    <th>Device</th>
-                                    <th>Confidence</th>
-                                    <th>Image</th>
+                                    <th style="width: 80px;">ID</th>
+                                    <th style="width: 180px;">Date & Time</th>
+                                    <th style="width: 150px;">Detected Object</th>
+                                    <th style="width: 120px;">Device</th>
+                                    <th style="width: 150px;">Confidence</th>
+                                    <th style="width: 120px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var detection in detections)
+                                @foreach (var detection in filteredDetections)
                                 {
                                     <tr>
                                         <td>
@@ -113,7 +126,7 @@
                                             <small class="text-muted">@detection.DetectedAt.ToString("HH:mm:ss")</small>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info fs-6">
+                                            <span class="badge bg-info text-dark fs-6">
                                                 @(string.IsNullOrEmpty(detection.DetectedObject) ? "Unknown" : detection.DetectedObject)
                                             </span>
                                         </td>
@@ -129,24 +142,13 @@
                                                          style="width: @(detection.Confidence)%">
                                                     </div>
                                                 </div>
-                                                <small>@detection.Confidence.ToString("F1")%</small>
+                                                <small class="fw-bold">@detection.Confidence.ToString("F1")%</small>
                                             </div>
                                         </td>
                                         <td>
-                                            @if (detection.Media != null && !string.IsNullOrEmpty(detection.Media.FilePath))
-                                            {
-                                                <img src="@GetImageUrl(detection.Media.FilePath)"
-                                                     alt="Detection"
-                                                     class="img-thumbnail"
-                                                     style="width: 80px; height: 60px; object-fit: cover; cursor: pointer;"
-                                                     @onclick="@(() => ShowImageModal(detection))" />
-                                            }
-                                            else
-                                            {
-                                                <div class="text-muted small">
-                                                    <i class="bi bi-image"></i> No image
-                                                </div>
-                                            }
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(detection)">
+                                                <i class="bi bi-eye"></i> View
+                                            </button>
                                         </td>
                                     </tr>
                                 }
@@ -159,32 +161,41 @@
     }
 </div>
 
-<!-- Image Modal -->
-@if (selectedDetection != null && selectedDetection.Media != null)
+<!-- Details Modal -->
+@if (selectedDetection != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.7);" @onclick="CloseImageModal">
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.7);" @onclick="CloseModal">
         <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation="true">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="bi bi-camera-fill me-2"></i>
-                        Detection #@selectedDetection.DetectionId - @selectedDetection.DetectedObject
+                        <i class="bi bi-info-circle me-2"></i>
+                        Detection #@selectedDetection.DetectionId
                     </h5>
-                    <button type="button" class="btn-close" @onclick="CloseImageModal"></button>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
                 </div>
-                <div class="modal-body text-center">
-                    <img src="@GetImageUrl(selectedDetection.Media.FilePath)"
-                         alt="Detection"
-                         class="img-fluid rounded"
-                         style="max-height: 70vh;" />
-                    <div class="mt-3">
-                        <p><strong>Date:</strong> @selectedDetection.DetectedAt.ToString("yyyy-MM-dd HH:mm:ss")</p>
-                        <p><strong>Confidence:</strong> @selectedDetection.Confidence.ToString("F1")%</p>
-                        <p><strong>Camera:</strong> @selectedDetection.DeviceId</p>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Date & Time:</strong> @selectedDetection.DetectedAt.ToString("yyyy-MM-dd HH:mm:ss")</p>
+                            <p><strong>Detected Object:</strong> <span class="badge bg-info">@selectedDetection.DetectedObject</span></p>
+                            <p><strong>Confidence:</strong> <span class="badge bg-success">@selectedDetection.Confidence.ToString("F1")%</span></p>
+                            <p><strong>Device ID:</strong> <span class="badge bg-warning text-dark">@selectedDetection.DeviceId</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            @if (selectedDetection.MediaId.HasValue)
+                            {
+                                <p><strong>Media ID:</strong> @selectedDetection.MediaId</p>
+                            }
+                            @if (selectedDetection.TrackingId.HasValue)
+                            {
+                                <p><strong>Tracking ID:</strong> @selectedDetection.TrackingId</p>
+                            }
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CloseImageModal">Close</button>
+                    <button class="btn btn-secondary" @onclick="CloseModal">Close</button>
                 </div>
             </div>
         </div>
@@ -193,58 +204,71 @@
 
 @code {
     // State
-    private List<DetectionDto>? detections = null;
+    private List<Detection>? detections = null;
+    private List<Detection> filteredDetections = new();
     private bool isLoading = false;
     private string? errorMessage = null;
-    private DetectionDto? selectedDetection = null;
+    private Detection? selectedDetection = null;
 
-    // Filters - Changed to DateTime type
-    private DateTime filterFromDate = DateTime.Today.AddDays(-7);
-    private DateTime filterToDate = DateTime.Today;
+    // Filters
+    private DateTime dateFrom = DateTime.Today.AddDays(-7);
+    private DateTime dateTo = DateTime.Today;
+    private string filterObject = "";
+
+    // Available objects for dropdown
+    private List<string> availableObjects = new();
 
     // Lifecycle
     protected override async Task OnInitializedAsync()
     {
-        await LoadDetectionsAsync();
+        await LoadDetections();
     }
 
-    // Methods
-    private async Task LoadDetectionsAsync()
+    // Load detections from API
+    private async Task LoadDetections()
     {
         isLoading = true;
         errorMessage = null;
-        detections = null;
 
         try
         {
-            // Build API URL with query parameters - format dates as strings
-            var fromDateStr = filterFromDate.ToString("yyyy-MM-dd");
-            var toDateStr = filterToDate.ToString("yyyy-MM-dd");
-            var apiUrl = $"api/detection?from={fromDateStr}&to={toDateStr}";
+            // Format dates as strings
+            var fromStr = dateFrom.ToString("yyyy-MM-dd");
+            var toStr = dateTo.ToString("yyyy-MM-dd");
+            var url = $"api/detection?from={fromStr}&to={toStr}";
 
-            Logger.LogInformation("Fetching detections from: {ApiUrl}", apiUrl);
+            Logger.LogInformation("Fetching detections from: {Url}", url);
 
-            // Make the API call
-            var response = await Http.GetAsync(apiUrl);
-
-            Logger.LogInformation("Response status: {StatusCode}", response.StatusCode);
+            var response = await Http.GetAsync(url);
 
             if (response.IsSuccessStatusCode)
             {
-                detections = await response.Content.ReadFromJsonAsync<List<DetectionDto>>();
-                Logger.LogInformation("Successfully loaded {Count} detections", detections?.Count ?? 0);
+                detections = await response.Content.ReadFromJsonAsync<List<Detection>>();
+                Logger.LogInformation("Loaded {Count} detections", detections?.Count ?? 0);
+
+                // Extract unique objects for filter dropdown
+                if (detections != null)
+                {
+                    availableObjects = detections
+                        .Where(d => !string.IsNullOrEmpty(d.DetectedObject))
+                        .Select(d => d.DetectedObject!)
+                        .Distinct()
+                        .OrderBy(o => o)
+                        .ToList();
+                }
+
+                ApplyFilters();
             }
             else
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                errorMessage = $"Failed to load detections: {response.StatusCode} - {errorContent}";
-                Logger.LogError("API Error: {Error}", errorMessage);
+                errorMessage = $"Failed to load detections: {response.StatusCode}";
+                Logger.LogError("API error: {Status}", response.StatusCode);
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error loading detections: {ex.Message}";
-            Logger.LogError(ex, "Exception while loading detections");
+            errorMessage = $"Error: {ex.Message}";
+            Logger.LogError(ex, "Exception loading detections");
         }
         finally
         {
@@ -252,16 +276,43 @@
         }
     }
 
-    private string GetImageUrl(string relativePath)
+    // Apply client-side filters
+    private void ApplyFilters()
     {
-        if (string.IsNullOrEmpty(relativePath))
-            return "";
+        if (detections == null)
+        {
+            filteredDetections = new();
+            return;
+        }
 
-        // Build full URL from backend base address
-        var baseUrl = Http.BaseAddress?.ToString().TrimEnd('/') ?? "https://localhost:7019";
-        return $"{baseUrl}/{relativePath.TrimStart('/')}";
+        filteredDetections = detections
+            .Where(d => string.IsNullOrEmpty(filterObject) || d.DetectedObject == filterObject)
+            .OrderByDescending(d => d.DetectedAt)
+            .ToList();
     }
 
+    // Clear all filters
+    private async Task ClearFilters()
+    {
+        dateFrom = DateTime.Today.AddDays(-7);
+        dateTo = DateTime.Today;
+        filterObject = "";
+        await LoadDetections();
+    }
+
+    // Show detection details
+    private void ShowDetails(Detection detection)
+    {
+        selectedDetection = detection;
+    }
+
+    // Close modal
+    private void CloseModal()
+    {
+        selectedDetection = null;
+    }
+
+    // Get confidence color
     private string GetConfidenceColorClass(float confidence)
     {
         if (confidence >= 80) return "bg-success";
@@ -269,30 +320,15 @@
         return "bg-danger";
     }
 
-    private void ShowImageModal(DetectionDto detection)
-    {
-        selectedDetection = detection;
-    }
-
-    private void CloseImageModal()
-    {
-        selectedDetection = null;
-    }
-
-    // DTOs
-    public class DetectionDto
+    // Detection Model
+    public class Detection
     {
         public int DetectionId { get; set; }
         public DateTime DetectedAt { get; set; }
         public string? DetectedObject { get; set; }
         public float Confidence { get; set; }
         public int DeviceId { get; set; }
-        public MediaDto? Media { get; set; }
-    }
-
-    public class MediaDto
-    {
-        public int MediaId { get; set; }
-        public string FilePath { get; set; } = "";
+        public int? MediaId { get; set; }
+        public int? TrackingId { get; set; }
     }
 }
