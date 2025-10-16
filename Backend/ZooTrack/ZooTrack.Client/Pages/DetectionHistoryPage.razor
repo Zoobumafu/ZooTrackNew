@@ -1,334 +1,304 @@
 ﻿@page "/detections"
+@using System.Net.Http.Json
+@using System.Text.Json
 @inject HttpClient Http
 @inject ILogger<DetectionHistoryPage> Logger
 
-<PageTitle>Detection History - ZooTrack</PageTitle>
+<PageTitle>Detection History</PageTitle>
 
-<div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col">
-            <h2 class="mb-2">
-                <i class="bi bi-search me-2 text-primary"></i>
-                Detection History
-            </h2>
-            <p class="text-muted">View and filter animal detections from your cameras</p>
-        </div>
-    </div>
+<div style="padding: 20px; max-width: 1400px; margin: 0 auto;">
+    <h3 style="margin-bottom: 20px; color: #333;">Detection History</h3>
 
-    <!-- Filters Card -->
-    <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Filter Detections</h5>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">From Date:</label>
-                    <input type="date" class="form-control" @bind="dateFrom" />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">To Date:</label>
-                    <input type="date" class="form-control" @bind="dateTo" />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Detected Object:</label>
-                    <select class="form-select" @bind="filterObject">
-                        <option value="">All Objects</option>
-                        @foreach (var obj in availableObjects)
-                        {
-                            <option value="@obj">@obj</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex align-items-end gap-2">
-                    <button class="btn btn-primary flex-fill" @onclick="LoadDetections" disabled="@isLoading">
-                        @if (isLoading)
-                        {
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                        }
-                        <i class="bi bi-arrow-clockwise me-1"></i>
-                        Apply Filters
-                    </button>
-                    <button class="btn btn-outline-secondary" @onclick="ClearFilters" disabled="@isLoading">
-                        <i class="bi bi-x-circle"></i>
-                    </button>
-                </div>
+    <!-- Date Filter Section -->
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">From Date:</label>
+                <input type="date" @bind="dateFrom" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+            </div>
+
+            <div style="flex: 1; min-width: 200px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">To Date:</label>
+                <input type="date" @bind="dateTo" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button @onclick="LoadDetections" disabled="@isLoading"
+                        style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                    @if (isLoading)
+                    {
+                        <span>Loading...</span>
+                    }
+                    else
+                    {
+                        <span>Filter</span>
+                    }
+                </button>
+
+                <button @onclick="ClearFilters" disabled="@isLoading"
+                        style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                    Clear
+                </button>
             </div>
         </div>
-    </div>
 
-    <!-- Error Message -->
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger alert-dismissible fade show">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            <strong>Error:</strong> @errorMessage
-            <button type="button" class="btn-close" @onclick="@(() => errorMessage = null)"></button>
-        </div>
-    }
+        @if (!string.IsNullOrEmpty(filterInfo))
+        {
+            <div style="margin-top: 10px; color: #666; font-size: 14px;">
+                @filterInfo
+            </div>
+        }
+    </div>
 
     <!-- Loading State -->
     @if (isLoading)
     {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="text-muted">Loading detections...</p>
+        <div style="text-align: center; padding: 40px;">
+            <div style="font-size: 18px; color: #666;">Loading detections...</div>
         </div>
     }
-
-    <!-- Results -->
-    @if (!isLoading && detections != null)
+    else if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="card shadow-sm">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="bi bi-list-ul me-2"></i>
-                    Detection Results
-                </h5>
-                <span class="badge bg-primary fs-6">@filteredDetections.Count Record(s)</span>
-            </div>
-            <div class="card-body p-0">
-                @if (filteredDetections.Count == 0)
-                {
-                    <div class="text-center py-5">
-                        <i class="bi bi-inbox display-1 text-muted mb-3"></i>
-                        <h5 class="text-muted">No Detections Found</h5>
-                        <p class="text-muted">Try adjusting your filters or check if cameras are detecting animals</p>
+        <!-- Error State -->
+        <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; border: 1px solid #f5c6cb;">
+            <strong>Error:</strong> @errorMessage
+        </div>
+    }
+    else if (detections == null || !detections.Any())
+    {
+        <!-- Empty State -->
+        <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px;">
+            <div style="font-size: 48px; margin-bottom: 10px;">📭</div>
+            <h4 style="color: #666; margin: 0;">No Detections Found</h4>
+            <p style="color: #999; margin-top: 10px;">Try adjusting your date filters or check back later.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Detections List -->
+        <div style="margin-bottom: 15px; color: #666; font-weight: 500;">
+            Found @detections.Count detection(s)
+        </div>
+
+        <!-- Desktop Table View -->
+        <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: none;" class="desktop-view">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 12px; text-align: left; font-weight: 600;">ID</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600;">Detected At</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600;">Object</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600;">Confidence</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600;">Device</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600;">Tracking ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var detection in detections)
+                    {
+                        <tr style="border-bottom: 1px solid #dee2e6; transition: background 0.2s;"
+                            @onmouseenter="@(() => { })"
+                            @onmouseleave="@(() => { })"
+                            class="table-row">
+                            <td style="padding: 12px;">@detection.DetectionId</td>
+                            <td style="padding: 12px;">@detection.DetectedAt.ToString("MM/dd/yyyy HH:mm:ss")</td>
+                            <td style="padding: 12px;">
+                                <span style="@GetObjectStyle(detection.DetectedObject)">
+                                    @(detection.DetectedObject ?? "Unknown")
+                                </span>
+                            </td>
+                            <td style="padding: 12px;">
+                                <span style="@GetConfidenceStyle(detection.Confidence)">
+                                    @detection.Confidence.ToString("F1")%
+                                </span>
+                            </td>
+                            <td style="padding: 12px;">Device @detection.DeviceId</td>
+                            <td style="padding: 12px;">@(detection.TrackingId?.ToString() ?? "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div style="display: none;" class="mobile-view">
+            @foreach (var detection in detections)
+            {
+                <div style="background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <strong style="color: #007bff;">ID: @detection.DetectionId</strong>
+                        <span style="@GetConfidenceStyle(detection.Confidence)">
+                            @detection.Confidence.ToString("F1")%
+                        </span>
                     </div>
-                }
-                else
-                {
-                    <div class="table-responsive">
-                        <table class="table table-hover table-striped mb-0">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th style="width: 80px;">ID</th>
-                                    <th style="width: 180px;">Date & Time</th>
-                                    <th style="width: 150px;">Detected Object</th>
-                                    <th style="width: 120px;">Device</th>
-                                    <th style="width: 150px;">Confidence</th>
-                                    <th style="width: 120px;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var detection in filteredDetections)
-                                {
-                                    <tr>
-                                        <td>
-                                            <span class="badge bg-secondary">#@detection.DetectionId</span>
-                                        </td>
-                                        <td>
-                                            <strong>@detection.DetectedAt.ToString("yyyy-MM-dd")</strong>
-                                            <br />
-                                            <small class="text-muted">@detection.DetectedAt.ToString("HH:mm:ss")</small>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-info text-dark fs-6">
-                                                @(string.IsNullOrEmpty(detection.DetectedObject) ? "Unknown" : detection.DetectedObject)
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-warning text-dark">
-                                                Camera @detection.DeviceId
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="progress me-2" style="width: 80px; height: 10px;">
-                                                    <div class="progress-bar @GetConfidenceColorClass(detection.Confidence)"
-                                                         style="width: @(detection.Confidence)%">
-                                                    </div>
-                                                </div>
-                                                <small class="fw-bold">@detection.Confidence.ToString("F1")%</small>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetails(detection)">
-                                                <i class="bi bi-eye"></i> View
-                                            </button>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+
+                    <div style="margin-bottom: 8px;">
+                        <strong>Time:</strong> @detection.DetectedAt.ToString("MM/dd/yyyy HH:mm:ss")
                     </div>
-                }
-            </div>
+
+                    <div style="margin-bottom: 8px;">
+                        <strong>Object:</strong>
+                        <span style="@GetObjectStyle(detection.DetectedObject)">
+                            @(detection.DetectedObject ?? "Unknown")
+                        </span>
+                    </div>
+
+                    <div style="margin-bottom: 8px;">
+                        <strong>Device:</strong> Device @detection.DeviceId
+                    </div>
+
+                    @if (detection.TrackingId.HasValue)
+                    {
+                        <div>
+                            <strong>Tracking ID:</strong> @detection.TrackingId
+                        </div>
+                    }
+                </div>
+            }
         </div>
     }
 </div>
 
-<!-- Details Modal -->
-@if (selectedDetection != null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.7);" @onclick="CloseModal">
-        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation="true">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-info-circle me-2"></i>
-                        Detection #@selectedDetection.DetectionId
-                    </h5>
-                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>Date & Time:</strong> @selectedDetection.DetectedAt.ToString("yyyy-MM-dd HH:mm:ss")</p>
-                            <p><strong>Detected Object:</strong> <span class="badge bg-info">@selectedDetection.DetectedObject</span></p>
-                            <p><strong>Confidence:</strong> <span class="badge bg-success">@selectedDetection.Confidence.ToString("F1")%</span></p>
-                            <p><strong>Device ID:</strong> <span class="badge bg-warning text-dark">@selectedDetection.DeviceId</span></p>
-                        </div>
-                        <div class="col-md-6">
-                            @if (selectedDetection.MediaId.HasValue)
-                            {
-                                <p><strong>Media ID:</strong> @selectedDetection.MediaId</p>
-                            }
-                            @if (selectedDetection.TrackingId.HasValue)
-                            {
-                                <p><strong>Tracking ID:</strong> @selectedDetection.TrackingId</p>
-                            }
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CloseModal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+<style>
+    @@media (min-width: 768px) {
+        .desktop-view {
+            display: block !important;
+        }
+
+        .mobile-view {
+            display: none !important;
+        }
+    }
+
+    @@media (max-width: 767px) {
+        .desktop-view {
+            display: none !important;
+        }
+
+        .mobile-view {
+            display: block !important;
+        }
+    }
+
+    .table-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    button:hover:not(:disabled) {
+        opacity: 0.9;
+    }
+
+    button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+</style>
 
 @code {
-    // State
-    private List<Detection>? detections = null;
-    private List<Detection> filteredDetections = new();
-    private bool isLoading = false;
-    private string? errorMessage = null;
-    private Detection? selectedDetection = null;
-
-    // Filters
+    private List<DetectionDto>? detections;
     private DateTime dateFrom = DateTime.Today.AddDays(-7);
     private DateTime dateTo = DateTime.Today;
-    private string filterObject = "";
+    private bool isLoading = false;
+    private string? errorMessage;
+    private string? filterInfo;
 
-    // Available objects for dropdown
-    private List<string> availableObjects = new();
-
-    // Lifecycle
     protected override async Task OnInitializedAsync()
     {
         await LoadDetections();
     }
 
-    // Load detections from API
     private async Task LoadDetections()
     {
         isLoading = true;
         errorMessage = null;
+        filterInfo = $"Showing detections from {dateFrom:MM/dd/yyyy} to {dateTo:MM/dd/yyyy}";
+        StateHasChanged();
 
         try
         {
-            // Format dates as strings
+            // Format dates as yyyy-MM-dd for the API
             var fromStr = dateFrom.ToString("yyyy-MM-dd");
             var toStr = dateTo.ToString("yyyy-MM-dd");
-            var url = $"api/detection?from={fromStr}&to={toStr}";
 
+            var url = $"api/detection?from={fromStr}&to={toStr}";
             Logger.LogInformation("Fetching detections from: {Url}", url);
 
             var response = await Http.GetAsync(url);
+            var content = await response.Content.ReadAsStringAsync();
+
+            Logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+            Logger.LogInformation("API Response Content Length: {Length}", content?.Length ?? 0);
 
             if (response.IsSuccessStatusCode)
             {
-                detections = await response.Content.ReadFromJsonAsync<List<Detection>>();
-                Logger.LogInformation("Loaded {Count} detections", detections?.Count ?? 0);
-
-                // Extract unique objects for filter dropdown
-                if (detections != null)
+                var options = new JsonSerializerOptions
                 {
-                    availableObjects = detections
-                        .Where(d => !string.IsNullOrEmpty(d.DetectedObject))
-                        .Select(d => d.DetectedObject!)
-                        .Distinct()
-                        .OrderBy(o => o)
-                        .ToList();
-                }
+                    PropertyNameCaseInsensitive = true
+                };
 
-                ApplyFilters();
+                detections = JsonSerializer.Deserialize<List<DetectionDto>>(content, options);
+
+                Logger.LogInformation("Successfully deserialized {Count} detections", detections?.Count ?? 0);
+
+                if (detections != null && detections.Any())
+                {
+                    filterInfo += $" - {detections.Count} result(s)";
+                }
             }
             else
             {
-                errorMessage = $"Failed to load detections: {response.StatusCode}";
-                Logger.LogError("API error: {Status}", response.StatusCode);
+                errorMessage = $"Failed to load detections. Status: {response.StatusCode}";
+                Logger.LogError("API returned error: {StatusCode} - {Content}", response.StatusCode, content);
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error: {ex.Message}";
-            Logger.LogError(ex, "Exception loading detections");
+            errorMessage = $"Error loading detections: {ex.Message}";
+            Logger.LogError(ex, "Exception while loading detections");
         }
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
     }
 
-    // Apply client-side filters
-    private void ApplyFilters()
-    {
-        if (detections == null)
-        {
-            filteredDetections = new();
-            return;
-        }
-
-        filteredDetections = detections
-            .Where(d => string.IsNullOrEmpty(filterObject) || d.DetectedObject == filterObject)
-            .OrderByDescending(d => d.DetectedAt)
-            .ToList();
-    }
-
-    // Clear all filters
     private async Task ClearFilters()
     {
         dateFrom = DateTime.Today.AddDays(-7);
         dateTo = DateTime.Today;
-        filterObject = "";
         await LoadDetections();
     }
 
-    // Show detection details
-    private void ShowDetails(Detection detection)
+    private string GetConfidenceStyle(float confidence)
     {
-        selectedDetection = detection;
+        var color = confidence >= 90 ? "#28a745" :
+                    confidence >= 80 ? "#ffc107" :
+                    "#dc3545";
+        return $"font-weight: 600; color: {color};";
     }
 
-    // Close modal
-    private void CloseModal()
+    private string GetObjectStyle(string? obj)
     {
-        selectedDetection = null;
+        return "display: inline-block; padding: 4px 8px; background: #e3f2fd; color: #1976d2; border-radius: 4px; font-weight: 500;";
     }
 
-    // Get confidence color
-    private string GetConfidenceColorClass(float confidence)
-    {
-        if (confidence >= 80) return "bg-success";
-        if (confidence >= 60) return "bg-warning";
-        return "bg-danger";
-    }
-
-    // Detection Model
-    public class Detection
+    // DTO class that matches the backend Detection model
+    public class DetectionDto
     {
         public int DetectionId { get; set; }
-        public DateTime DetectedAt { get; set; }
-        public string? DetectedObject { get; set; }
         public float Confidence { get; set; }
+        public DateTime DetectedAt { get; set; }
         public int DeviceId { get; set; }
+        public string? DetectedObject { get; set; }
         public int? MediaId { get; set; }
+        public int? EventId { get; set; }
         public int? TrackingId { get; set; }
+        public float BoundingBoxX { get; set; }
+        public float BoundingBoxY { get; set; }
+        public float BoundingBoxWidth { get; set; }
+        public float BoundingBoxHeight { get; set; }
+        public int FrameNumber { get; set; }
+        public bool IsTarget { get; set; }
     }
 }
