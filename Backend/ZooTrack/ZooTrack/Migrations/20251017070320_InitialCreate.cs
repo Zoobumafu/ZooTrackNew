@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ZooTrackBackend.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreateWithSeedData : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -270,11 +270,11 @@ namespace ZooTrackBackend.Migrations
                 columns: new[] { "DeviceId", "LastActive", "Location", "Status" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2025, 6, 20, 14, 30, 0, 0, DateTimeKind.Unspecified), "North Zone", "Online" },
-                    { 2, new DateTime(2025, 6, 20, 14, 25, 0, 0, DateTimeKind.Unspecified), "South Zone", "Online" },
-                    { 3, new DateTime(2025, 6, 19, 22, 45, 0, 0, DateTimeKind.Unspecified), "East Zone", "Offline" },
-                    { 4, new DateTime(2025, 6, 20, 14, 35, 0, 0, DateTimeKind.Unspecified), "West Zone", "Online" },
-                    { 5, new DateTime(2025, 6, 20, 8, 15, 0, 0, DateTimeKind.Unspecified), "Central Zone", "Maintenance" }
+                    { 1, new DateTime(2025, 10, 17, 14, 55, 0, 0, DateTimeKind.Unspecified), "North Zone", "Online" },
+                    { 2, new DateTime(2025, 10, 17, 14, 50, 0, 0, DateTimeKind.Unspecified), "South Zone", "Online" },
+                    { 3, new DateTime(2025, 10, 16, 15, 0, 0, 0, DateTimeKind.Unspecified), "East Zone", "Offline" },
+                    { 4, new DateTime(2025, 10, 17, 14, 58, 0, 0, DateTimeKind.Unspecified), "West Zone", "Online" },
+                    { 5, new DateTime(2025, 10, 17, 11, 0, 0, 0, DateTimeKind.Unspecified), "Central Zone", "Maintenance" }
                 });
 
             migrationBuilder.InsertData(
@@ -282,29 +282,11 @@ namespace ZooTrackBackend.Migrations
                 columns: new[] { "EventId", "EndTime", "StartTime", "Status" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2025, 6, 19, 10, 25, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 6, 19, 10, 15, 0, 0, DateTimeKind.Unspecified), "Completed" },
-                    { 2, new DateTime(2025, 6, 19, 14, 45, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 6, 19, 14, 30, 0, 0, DateTimeKind.Unspecified), "Completed" },
-                    { 3, new DateTime(2025, 6, 20, 8, 35, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 6, 20, 8, 20, 0, 0, DateTimeKind.Unspecified), "Completed" },
-                    { 4, new DateTime(2025, 6, 20, 12, 20, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 6, 20, 12, 10, 0, 0, DateTimeKind.Unspecified), "Active" },
-                    { 5, new DateTime(2025, 6, 20, 15, 15, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 6, 20, 15, 0, 0, 0, DateTimeKind.Unspecified), "Active" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "TrackingRoutes",
-                columns: new[] { "Id", "DetectedObject", "DeviceId", "EndTime", "PathJson", "StartTime", "TrackingId" },
-                values: new object[,]
-                {
-                    { 1, "tiger", 1, new DateTime(2025, 6, 19, 10, 19, 15, 0, DateTimeKind.Unspecified), "[[120.5, 80.2], [122.0, 82.0], [125.0, 85.0]]", new DateTime(2025, 6, 19, 10, 18, 30, 0, DateTimeKind.Unspecified), 1001 },
-                    { 2, "elephant", 2, new DateTime(2025, 6, 19, 14, 35, 0, 0, DateTimeKind.Unspecified), "[[200.0, 150.0], [205.0, 155.0], [210.0, 160.0]]", new DateTime(2025, 6, 19, 14, 32, 0, 0, DateTimeKind.Unspecified), 2001 },
-                    { 3, "lion", 4, new DateTime(2025, 6, 20, 8, 25, 0, 0, DateTimeKind.Unspecified), "[[300.0, 200.0], [295.0, 205.0], [290.0, 210.0]]", new DateTime(2025, 6, 20, 8, 22, 45, 0, DateTimeKind.Unspecified), 4001 },
-                    { 4, "wolf", 4, new DateTime(2025, 6, 20, 8, 27, 30, 0, DateTimeKind.Unspecified), "[[180.0, 120.0], [175.0, 125.0], [170.0, 130.0]]", new DateTime(2025, 6, 20, 8, 25, 0, 0, DateTimeKind.Unspecified), 4002 },
-                    { 5, "bear", 1, new DateTime(2025, 6, 20, 15, 5, 0, 0, DateTimeKind.Unspecified), "[[220.0, 180.0], [225.0, 185.0], [230.0, 190.0]]", new DateTime(2025, 6, 20, 15, 2, 15, 0, DateTimeKind.Unspecified), 1002 },
-                    { 6, "tiger", 1, new DateTime(2025, 6, 18, 14, 25, 0, 0, DateTimeKind.Unspecified), "[[0.2, 0.3], [0.22, 0.32], [0.25, 0.35], [0.28, 0.38]]", new DateTime(2025, 6, 18, 14, 20, 0, 0, DateTimeKind.Unspecified), 1003 },
-                    { 7, "lion", 1, new DateTime(2025, 6, 17, 10, 35, 0, 0, DateTimeKind.Unspecified), "[[0.4, 0.5], [0.42, 0.48], [0.45, 0.46], [0.48, 0.44]]", new DateTime(2025, 6, 17, 10, 30, 0, 0, DateTimeKind.Unspecified), 1005 },
-                    { 8, "elephant", 2, new DateTime(2025, 6, 17, 15, 30, 0, 0, DateTimeKind.Unspecified), "[[0.3, 0.4], [0.32, 0.42], [0.34, 0.44], [0.36, 0.46], [0.38, 0.48]]", new DateTime(2025, 6, 17, 15, 20, 0, 0, DateTimeKind.Unspecified), 2004 },
-                    { 9, "bear", 3, new DateTime(2025, 6, 15, 9, 40, 0, 0, DateTimeKind.Unspecified), "[[0.5, 0.3], [0.52, 0.32], [0.54, 0.34], [0.56, 0.36]]", new DateTime(2025, 6, 15, 9, 30, 0, 0, DateTimeKind.Unspecified), 3001 },
-                    { 10, "deer", 5, new DateTime(2025, 6, 19, 16, 15, 0, 0, DateTimeKind.Unspecified), "[[0.45, 0.35], [0.47, 0.37], [0.49, 0.39], [0.51, 0.41]]", new DateTime(2025, 6, 19, 16, 10, 0, 0, DateTimeKind.Unspecified), 5002 },
-                    { 11, "tiger", 5, new DateTime(2025, 6, 20, 11, 12, 0, 0, DateTimeKind.Unspecified), "[[0.6, 0.4], [0.58, 0.42], [0.56, 0.44], [0.54, 0.46], [0.52, 0.48]]", new DateTime(2025, 6, 20, 11, 5, 0, 0, DateTimeKind.Unspecified), 5003 }
+                    { 1, new DateTime(2025, 10, 15, 16, 0, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 10, 15, 15, 0, 0, 0, DateTimeKind.Unspecified), "Completed" },
+                    { 2, new DateTime(2025, 10, 16, 16, 0, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 10, 16, 15, 0, 0, 0, DateTimeKind.Unspecified), "Completed" },
+                    { 3, new DateTime(2025, 10, 17, 12, 0, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 10, 17, 11, 0, 0, 0, DateTimeKind.Unspecified), "Completed" },
+                    { 4, new DateTime(2025, 10, 17, 16, 0, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 10, 17, 14, 0, 0, 0, DateTimeKind.Unspecified), "Active" },
+                    { 5, new DateTime(2025, 10, 17, 17, 0, 0, 0, DateTimeKind.Unspecified), new DateTime(2025, 10, 17, 15, 0, 0, 0, DateTimeKind.Unspecified), "Active" }
                 });
 
             migrationBuilder.InsertData(
@@ -322,10 +304,8 @@ namespace ZooTrackBackend.Migrations
                 columns: new[] { "LogId", "ActionType", "DetectionId", "Level", "Message", "Timestamp", "UserId" },
                 values: new object[,]
                 {
-                    { 1, "Login", null, "Info", "Admin logged into system", new DateTime(2025, 6, 19, 9, 0, 0, 0, DateTimeKind.Unspecified), 1 },
-                    { 3, "Login", null, "Info", "Zoo Manager logged into system", new DateTime(2025, 6, 19, 14, 0, 0, 0, DateTimeKind.Unspecified), 2 },
-                    { 5, "System_Maintenance", null, "Warning", "Device maintenance scheduled for Central Zone", new DateTime(2025, 6, 20, 8, 0, 0, 0, DateTimeKind.Unspecified), 1 },
-                    { 6, "Login", null, "Info", "Wildlife Observer logged into system", new DateTime(2025, 6, 20, 12, 30, 0, 0, DateTimeKind.Unspecified), 3 }
+                    { 1, "Login", null, "Info", "Admin logged into system", new DateTime(2025, 10, 17, 12, 0, 0, 0, DateTimeKind.Unspecified), 1 },
+                    { 3, "Login", null, "Info", "Zoo Manager logged into system", new DateTime(2025, 10, 17, 14, 0, 0, 0, DateTimeKind.Unspecified), 2 }
                 });
 
             migrationBuilder.InsertData(
@@ -333,13 +313,11 @@ namespace ZooTrackBackend.Migrations
                 columns: new[] { "MediaId", "DeviceId", "FilePath", "Timestamp", "Type" },
                 values: new object[,]
                 {
-                    { 1, 1, "Media/Videos/north_zone_20250619_101500.jpg", new DateTime(2025, 6, 19, 10, 15, 0, 0, DateTimeKind.Unspecified), "Video" },
-                    { 2, 1, "Media/Images/north_zone_20250619_101800.jpg", new DateTime(2025, 6, 19, 10, 18, 0, 0, DateTimeKind.Unspecified), "Image" },
-                    { 3, 2, "Media/Videos/south_zone_20250619_143000.jpg", new DateTime(2025, 6, 19, 14, 30, 0, 0, DateTimeKind.Unspecified), "Video" },
-                    { 4, 2, "Media/Images/south_zone_20250619_143500.jpg", new DateTime(2025, 6, 19, 14, 35, 0, 0, DateTimeKind.Unspecified), "Image" },
-                    { 5, 4, "Media/Videos/west_zone_20250620_082000.jpg", new DateTime(2025, 6, 20, 8, 20, 0, 0, DateTimeKind.Unspecified), "Video" },
-                    { 6, 5, "Media/Images/central_zone_20250620_121000.jpg", new DateTime(2025, 6, 20, 12, 10, 0, 0, DateTimeKind.Unspecified), "Image" },
-                    { 7, 1, "Media/Videos/north_zone_20250620_150000.jpg", new DateTime(2025, 6, 20, 15, 0, 0, 0, DateTimeKind.Unspecified), "Video" }
+                    { 1, 1, "Media/Videos/video1.mp4", new DateTime(2025, 10, 15, 15, 0, 0, 0, DateTimeKind.Unspecified), "Video" },
+                    { 2, 1, "Media/Images/image1.jpg", new DateTime(2025, 10, 15, 15, 3, 0, 0, DateTimeKind.Unspecified), "Image" },
+                    { 3, 2, "Media/Videos/video2.mp4", new DateTime(2025, 10, 16, 15, 0, 0, 0, DateTimeKind.Unspecified), "Video" },
+                    { 4, 2, "Media/Images/image2.jpg", new DateTime(2025, 10, 16, 15, 5, 0, 0, DateTimeKind.Unspecified), "Image" },
+                    { 5, 4, "Media/Videos/video3.mp4", new DateTime(2025, 10, 17, 11, 0, 0, 0, DateTimeKind.Unspecified), "Video" }
                 });
 
             migrationBuilder.InsertData(
@@ -357,91 +335,18 @@ namespace ZooTrackBackend.Migrations
                 columns: new[] { "DetectionId", "BoundingBoxHeight", "BoundingBoxWidth", "BoundingBoxX", "BoundingBoxY", "Confidence", "DetectedAt", "DetectedObject", "DeviceId", "EventId", "FrameNumber", "IsTarget", "MediaId", "TrackingId" },
                 values: new object[,]
                 {
-                    { 1, 200f, 150f, 120.5f, 80.2f, 0.92f, new DateTime(2025, 6, 19, 10, 18, 30, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 450, false, 1, 1001 },
-                    { 2, 195f, 148f, 125f, 85f, 0.88f, new DateTime(2025, 6, 19, 10, 19, 15, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 495, false, 1, 1001 },
-                    { 3, 250f, 180f, 200f, 150f, 0.95f, new DateTime(2025, 6, 19, 14, 32, 0, 0, DateTimeKind.Unspecified), "elephant", 2, 2, 720, false, 3, 2001 },
-                    { 4, 160f, 120f, 50f, 100f, 0.87f, new DateTime(2025, 6, 19, 14, 35, 30, 0, DateTimeKind.Unspecified), "giraffe", 2, 2, 0, false, 4, 2002 },
-                    { 5, 130f, 100f, 300f, 200f, 0.91f, new DateTime(2025, 6, 20, 8, 22, 45, 0, DateTimeKind.Unspecified), "lion", 4, 3, 165, false, 5, 4001 },
-                    { 6, 110f, 90f, 180f, 120f, 0.89f, new DateTime(2025, 6, 20, 8, 25, 0, 0, DateTimeKind.Unspecified), "wolf", 4, 3, 300, false, 5, 4002 },
-                    { 7, 100f, 80f, 150f, 90f, 0.83f, new DateTime(2025, 6, 20, 12, 12, 30, 0, DateTimeKind.Unspecified), "deer", 5, 4, 0, false, 6, 5001 },
-                    { 8, 180f, 140f, 220f, 180f, 0.94f, new DateTime(2025, 6, 20, 15, 2, 15, 0, DateTimeKind.Unspecified), "bear", 1, 5, 135, false, 7, 1002 },
-                    { 9, 0.25f, 0.15f, 0.2f, 0.3f, 0.76f, new DateTime(2025, 6, 18, 14, 20, 0, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 200, false, 1, 1003 },
-                    { 10, 0.18f, 0.12f, 0.6f, 0.1f, 0.45f, new DateTime(2025, 6, 18, 16, 45, 0, 0, DateTimeKind.Unspecified), "deer", 1, 1, 300, false, 1, 1004 },
-                    { 11, 0.3f, 0.2f, 0.4f, 0.5f, 0.92f, new DateTime(2025, 6, 17, 10, 30, 0, 0, DateTimeKind.Unspecified), "lion", 1, 1, 150, false, 1, 1005 },
-                    { 12, 0.12f, 0.08f, 0.1f, 0.2f, 0.38f, new DateTime(2025, 6, 18, 11, 15, 0, 0, DateTimeKind.Unspecified), "bird", 2, 2, 100, false, 3, 2003 },
-                    { 13, 0.35f, 0.25f, 0.3f, 0.4f, 0.89f, new DateTime(2025, 6, 17, 15, 20, 0, 0, DateTimeKind.Unspecified), "elephant", 2, 2, 250, false, 3, 2004 },
-                    { 14, 0.15f, 0.1f, 0.7f, 0.6f, 0.55f, new DateTime(2025, 6, 16, 13, 45, 0, 0, DateTimeKind.Unspecified), "wolf", 2, 2, 180, false, 3, 2005 },
-                    { 15, 0.28f, 0.18f, 0.5f, 0.3f, 0.91f, new DateTime(2025, 6, 15, 9, 30, 0, 0, DateTimeKind.Unspecified), "bear", 3, 1, 120, false, 1, 3001 },
-                    { 16, 0.1f, 0.06f, 0.2f, 0.7f, 0.42f, new DateTime(2025, 6, 15, 14, 20, 0, 0, DateTimeKind.Unspecified), "rabbit", 3, 1, 90, false, 1, 3002 },
-                    { 17, 0.2f, 0.15f, 0.8f, 0.2f, 0.67f, new DateTime(2025, 6, 19, 8, 45, 0, 0, DateTimeKind.Unspecified), "fox", 4, 3, 75, false, 5, 4003 },
-                    { 18, 0.08f, 0.05f, 0.1f, 0.8f, 0.29f, new DateTime(2025, 6, 18, 17, 30, 0, 0, DateTimeKind.Unspecified), "bird", 4, 3, 45, false, 5, 4004 },
-                    { 19, 0.3f, 0.2f, 0.45f, 0.35f, 0.84f, new DateTime(2025, 6, 19, 16, 10, 0, 0, DateTimeKind.Unspecified), "deer", 5, 4, 220, false, 6, 5002 },
-                    { 20, 0.32f, 0.22f, 0.6f, 0.4f, 0.95f, new DateTime(2025, 6, 20, 11, 5, 0, 0, DateTimeKind.Unspecified), "tiger", 5, 4, 280, false, 6, 5003 }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Alerts",
-                columns: new[] { "AlertId", "CreatedAt", "DetectionId", "Message", "UserId" },
-                values: new object[,]
-                {
-                    { 1, new DateTime(2025, 6, 19, 10, 18, 35, 0, DateTimeKind.Unspecified), 1, "High confidence tiger detection in North Zone", 1 },
-                    { 2, new DateTime(2025, 6, 19, 14, 32, 5, 0, DateTimeKind.Unspecified), 3, "Large animal detected in South Zone - requires attention", 2 },
-                    { 3, new DateTime(2025, 6, 20, 8, 22, 50, 0, DateTimeKind.Unspecified), 5, "Predator activity detected in West Zone", 1 },
-                    { 4, new DateTime(2025, 6, 20, 8, 25, 5, 0, DateTimeKind.Unspecified), 6, "Wolf pack movement detected in West Zone", 2 },
-                    { 5, new DateTime(2025, 6, 20, 15, 2, 20, 0, DateTimeKind.Unspecified), 8, "Bear sighting in North Zone - immediate attention required", 1 }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Animals",
-                columns: new[] { "AnimalId", "ConfidenceLevel", "DetectionId", "Species" },
-                values: new object[,]
-                {
-                    { 1, 0.92f, 1, "Siberian Tiger" },
-                    { 2, 0.88f, 2, "Siberian Tiger" },
-                    { 3, 0.95f, 3, "African Elephant" },
-                    { 4, 0.87f, 4, "Reticulated Giraffe" },
-                    { 5, 0.91f, 5, "African Lion" },
-                    { 6, 0.89f, 6, "Gray Wolf" },
-                    { 7, 0.83f, 7, "White-tailed Deer" },
-                    { 8, 0.94f, 8, "Brown Bear" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "DetectionValidations",
-                columns: new[] { "Id", "DetectionId", "IsFalseNegative", "IsFalsePositive", "IsTruePositive", "IsValidated", "ValidatedAt", "ValidatedBy", "ValidationNotes" },
-                values: new object[,]
-                {
-                    { 1, 1, false, false, true, true, new DateTime(2025, 6, 19, 11, 0, 0, 0, DateTimeKind.Unspecified), "Admin", "Confirmed tiger identification" },
-                    { 2, 2, false, false, true, true, new DateTime(2025, 6, 19, 11, 5, 0, 0, DateTimeKind.Unspecified), "Admin", "Same tiger - tracking confirmed" },
-                    { 3, 3, false, false, true, true, new DateTime(2025, 6, 19, 15, 0, 0, 0, DateTimeKind.Unspecified), "Zoo Manager", "Adult elephant confirmed" },
-                    { 4, 4, false, false, false, false, new DateTime(2025, 6, 20, 0, 0, 0, 0, DateTimeKind.Unspecified), "", "" },
-                    { 5, 7, false, true, false, true, new DateTime(2025, 6, 20, 13, 0, 0, 0, DateTimeKind.Unspecified), "Wildlife Observer", "False positive - was a large log" },
-                    { 6, 9, false, false, true, true, new DateTime(2025, 6, 18, 15, 0, 0, 0, DateTimeKind.Unspecified), "Admin", "Tiger confirmed in North Zone" },
-                    { 7, 11, false, false, true, true, new DateTime(2025, 6, 17, 11, 0, 0, 0, DateTimeKind.Unspecified), "Zoo Manager", "Lion sighting verified" },
-                    { 8, 13, false, false, true, true, new DateTime(2025, 6, 17, 16, 0, 0, 0, DateTimeKind.Unspecified), "Wildlife Observer", "Elephant behavior normal" },
-                    { 9, 15, false, false, true, true, new DateTime(2025, 6, 15, 10, 0, 0, 0, DateTimeKind.Unspecified), "Admin", "Bear spotted in East Zone" },
-                    { 10, 19, false, false, true, true, new DateTime(2025, 6, 19, 17, 0, 0, 0, DateTimeKind.Unspecified), "Wildlife Observer", "Deer grazing - normal behavior" },
-                    { 11, 20, false, false, true, true, new DateTime(2025, 6, 20, 12, 0, 0, 0, DateTimeKind.Unspecified), "Zoo Manager", "High confidence tiger detection" },
-                    { 12, 10, false, true, false, true, new DateTime(2025, 6, 18, 17, 0, 0, 0, DateTimeKind.Unspecified), "Admin", "Shadow mistaken for deer" },
-                    { 13, 12, false, true, false, true, new DateTime(2025, 6, 18, 12, 0, 0, 0, DateTimeKind.Unspecified), "Wildlife Observer", "Leaf movement, not a bird" },
-                    { 14, 14, false, true, false, true, new DateTime(2025, 6, 16, 14, 30, 0, 0, DateTimeKind.Unspecified), "Zoo Manager", "Rock formation misidentified as wolf" },
-                    { 15, 16, false, true, false, true, new DateTime(2025, 6, 15, 15, 0, 0, 0, DateTimeKind.Unspecified), "Admin", "Small debris, not rabbit" },
-                    { 16, 17, false, true, false, true, new DateTime(2025, 6, 19, 9, 0, 0, 0, DateTimeKind.Unspecified), "Wildlife Observer", "Bush movement mistaken for fox" },
-                    { 17, 18, false, true, false, true, new DateTime(2025, 6, 18, 18, 0, 0, 0, DateTimeKind.Unspecified), "Zoo Manager", "Flying plastic bag, not bird" },
-                    { 18, 6, false, false, false, false, new DateTime(2025, 6, 20, 0, 0, 0, 0, DateTimeKind.Unspecified), "", "" },
-                    { 19, 8, false, false, false, false, new DateTime(2025, 6, 20, 0, 0, 0, 0, DateTimeKind.Unspecified), "", "" }
+                    { 1, 0f, 0f, 0f, 0f, 92f, new DateTime(2025, 10, 15, 15, 3, 0, 0, DateTimeKind.Unspecified), "tiger", 1, 1, 0, false, 1, null },
+                    { 2, 0f, 0f, 0f, 0f, 95f, new DateTime(2025, 10, 16, 15, 2, 0, 0, DateTimeKind.Unspecified), "elephant", 2, 2, 0, false, 3, null },
+                    { 3, 0f, 0f, 0f, 0f, 87f, new DateTime(2025, 10, 16, 15, 5, 0, 0, DateTimeKind.Unspecified), "giraffe", 2, 2, 0, false, 4, null },
+                    { 4, 0f, 0f, 0f, 0f, 91f, new DateTime(2025, 10, 17, 11, 2, 0, 0, DateTimeKind.Unspecified), "lion", 4, 3, 0, false, 5, null },
+                    { 5, 0f, 0f, 0f, 0f, 89f, new DateTime(2025, 10, 17, 11, 5, 0, 0, DateTimeKind.Unspecified), "wolf", 4, 3, 0, false, 5, null },
+                    { 6, 0f, 0f, 0f, 0f, 94f, new DateTime(2025, 10, 17, 14, 45, 0, 0, DateTimeKind.Unspecified), "bear", 1, 5, 0, false, 1, null }
                 });
 
             migrationBuilder.InsertData(
                 table: "Logs",
                 columns: new[] { "LogId", "ActionType", "DetectionId", "Level", "Message", "Timestamp", "UserId" },
-                values: new object[,]
-                {
-                    { 2, "Detection_Review", 1, "Info", "Validated tiger detection", new DateTime(2025, 6, 19, 11, 0, 0, 0, DateTimeKind.Unspecified), 1 },
-                    { 4, "Alert_Response", 3, "Info", "Responded to elephant detection alert", new DateTime(2025, 6, 19, 14, 33, 0, 0, DateTimeKind.Unspecified), 2 },
-                    { 7, "Detection_Review", 7, "Info", "Marked detection as false positive", new DateTime(2025, 6, 20, 13, 0, 0, 0, DateTimeKind.Unspecified), 3 },
-                    { 8, "Emergency_Alert", 8, "Critical", "Emergency alert triggered for bear sighting", new DateTime(2025, 6, 20, 15, 2, 20, 0, DateTimeKind.Unspecified), 1 }
-                });
+                values: new object[] { 2, "Detection_Review", 1, "Info", "Validated tiger detection", new DateTime(2025, 10, 17, 13, 0, 0, 0, DateTimeKind.Unspecified), 1 });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Alerts_DetectionId",
