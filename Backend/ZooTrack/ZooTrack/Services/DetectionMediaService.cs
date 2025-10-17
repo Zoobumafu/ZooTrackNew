@@ -84,7 +84,7 @@ namespace ZooTrack.Services
             if (detection == null)
                 throw new ArgumentNullException(nameof(detection));
 
-            // ✅ NULL detectionId - detection doesn't exist yet
+            //  NULL detectionId - detection doesn't exist yet
             await _logService.AddLogAsync(1, "ProcessingDetection",
                 $"Starting to process detection: {detection.DetectedObject} at {detection.DetectedAt}",
                 "Debug", null);
@@ -109,13 +109,13 @@ namespace ZooTrack.Services
                 }
 
                 await _logService.AddLogAsync(1, "Step3_StartSaveFrame",
-                    $"✅ Passed ShouldSave check! Step 3: About to save frame (Device: {detection.DeviceId}, FrameSize: {frameBytes?.Length ?? 0} bytes)",
+                    $" Passed ShouldSave check! Step 3: About to save frame (Device: {detection.DeviceId}, FrameSize: {frameBytes?.Length ?? 0} bytes)",
                     "Info", null);
 
                 int mediaId = await SaveDetectionFrameAsync(frameBytes, detection.DeviceId);
 
                 await _logService.AddLogAsync(1, "Step3_FrameSavedSuccess",
-                    $"✅ Step 3 COMPLETE: Frame saved successfully! MediaId={mediaId}",
+                    $" Step 3 COMPLETE: Frame saved successfully! MediaId={mediaId}",
                     "Info", null);
 
                 detection.MediaId = mediaId;
@@ -130,7 +130,7 @@ namespace ZooTrack.Services
                     detection.EventId = activeEvent.EventId;
 
                     await _logService.AddLogAsync(1, "Step3_5_EventIdSet",
-                        $"✅ EventId set to {detection.EventId} (Active Event)",
+                        $" EventId set to {detection.EventId} (Active Event)",
                         "Info", null);
                 }
 
@@ -141,23 +141,23 @@ namespace ZooTrack.Services
                 // ⭐ This method now saves the detection and returns the ID
                 await InitializeOrUpdateTrackingForSaving(detection);
 
-                // ✅ NOW detection.DetectionId exists, safe to log with it
+                //  NOW detection.DetectionId exists, safe to log with it
                 await _logService.AddLogAsync(1, "Step4_TrackingComplete",
-                    $"✅ Step 4 COMPLETE: Detection saved to database! DetectionId={detection.DetectionId}, TrackingId={detection.TrackingId}",
+                    $" Step 4 COMPLETE: Detection saved to database! DetectionId={detection.DetectionId}, TrackingId={detection.TrackingId}",
                     "Info", detection.DetectionId);
 
                 await LogStatusIfNeeded();
 
-                // ✅ NOW detection.DetectionId exists, safe to log with it
+                //  NOW detection.DetectionId exists, safe to log with it
                 await _logService.AddLogAsync(1, "ProcessDetectionSuccess",
-                    $"🎉 FULLY COMPLETED: Detection {detection.DetectionId} for '{detection.DetectedObject}' saved successfully with {detection.Confidence:F1}% confidence!",
+                    $"FULLY COMPLETED: Detection {detection.DetectionId} for '{detection.DetectedObject}' saved successfully with {detection.Confidence:F1}% confidence!",
                     "Info", detection.DetectionId);
             }
             catch (Exception ex)
             {
-                // ✅ NULL detectionId - detection might not exist yet
+                //  NULL detectionId - detection might not exist yet
                 await _logService.AddLogAsync(1, "ProcessDetectionError",
-                    $"❌ CRITICAL ERROR in ProcessDetectionForSaving:\n" +
+                    $"CRITICAL ERROR in ProcessDetectionForSaving:\n" +
                     $"Exception Type: {ex.GetType().Name}\n" +
                     $"Message: {ex.Message}\n" +
                     $"Stack Trace: {ex.StackTrace}\n" +
@@ -508,7 +508,7 @@ namespace ZooTrack.Services
 
             if (detection.Confidence > recentDetection.Confidence + 10)
             {
-                // ✅ Use recentDetection.DetectionId which definitely exists
+                //  Use recentDetection.DetectionId which definitely exists
                 await _logService.AddLogAsync(1, "HigherConfidenceDetection",
                     $"Saving higher confidence detection: {detection.Confidence:F1}% vs {recentDetection.Confidence:F1}%",
                     "Info", recentDetection.DetectionId);
@@ -546,7 +546,7 @@ namespace ZooTrack.Services
                 await _context.SaveChangesAsync();
 
                 await _logService.AddLogAsync(1, "SaveFrame_Success",
-                    $"✅ SaveDetectionFrameAsync completed successfully! MediaId={media.MediaId}",
+                    $" SaveDetectionFrameAsync completed successfully! MediaId={media.MediaId}",
                     "Info", null);
 
                 return media.MediaId;
@@ -554,7 +554,7 @@ namespace ZooTrack.Services
             catch (Exception ex)
             {
                 await _logService.AddLogAsync(1, "SaveFrame_Error",
-                    $"❌ ERROR in SaveDetectionFrameAsync: {ex.Message}\nStack: {ex.StackTrace}",
+                    $"ERROR in SaveDetectionFrameAsync: {ex.Message}\nStack: {ex.StackTrace}",
                     "Error", null);
                 throw;
             }
@@ -613,14 +613,14 @@ namespace ZooTrack.Services
                 // ⭐ SAVE FIRST - this assigns detection.DetectionId
                 await _context.SaveChangesAsync();
 
-                // ✅ NOW it's safe to log with detection.DetectionId
+                //  NOW it's safe to log with detection.DetectionId
                 await _logService.AddLogAsync(1, "Tracking_Success",
-                    $"✅ Detection saved to database! DetectionId={detection.DetectionId}",
+                    $" Detection saved to database! DetectionId={detection.DetectionId}",
                     "Info", detection.DetectionId);
 
                 if (!matchedId.HasValue)
                 {
-                    // ✅ NOW it's safe to log with detection.DetectionId
+                    //  NOW it's safe to log with detection.DetectionId
                     await _logService.AddLogAsync(1, "TrackerCreated",
                         $"Created new tracker {detection.TrackingId} for detection of {detection.DetectedObject}",
                         "Info", detection.DetectionId);
@@ -628,9 +628,9 @@ namespace ZooTrack.Services
             }
             catch (Exception ex)
             {
-                // ✅ NULL detectionId - detection might not exist yet
+                //  NULL detectionId - detection might not exist yet
                 await _logService.AddLogAsync(1, "Tracking_Error",
-                    $"❌ ERROR in InitializeOrUpdateTrackingForSaving: {ex.Message}\n" +
+                    $"ERROR in InitializeOrUpdateTrackingForSaving: {ex.Message}\n" +
                     $"Inner Exception: {ex.InnerException?.Message}\n" +
                     $"Stack: {ex.StackTrace}",
                     "Error", null);
