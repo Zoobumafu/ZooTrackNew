@@ -1,0 +1,11 @@
+names:
+- cougar
+- coyote
+- brown bear
+- warthog
+- Indian cobra
+- lion
+- hyena
+nc: 7
+train: C:\Training\yolo_data\images\train
+val: C:\Training\yolo_data\images\val
