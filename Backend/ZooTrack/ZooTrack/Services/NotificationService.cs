@@ -5,12 +5,6 @@ using SQLitePCL;
 using System.Threading.Tasks;
 using ZooTrackBackend.Services;
 
-
-/*
- * In The FUTURE:
- * INotificationService interface and register it cleanly into your project with Dependency Injection
-*/
-
 namespace ZooTrack.Services
 {
     public class NotificationService

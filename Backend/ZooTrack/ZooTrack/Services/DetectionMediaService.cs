@@ -101,7 +101,8 @@ namespace ZooTrack.Services
             }
         }
 
-        // called by specific CameraInstance: processes new detection, saves it to DB, and manages tracking
+        // called by specific CameraInstance int real time:
+        // processes new detection, saves it to DB, and manages tracking
         public async Task ProcessDetectionForSaving(Detection detection, byte[] frameBytes)
         {
             if (detection == null)

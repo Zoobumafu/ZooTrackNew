@@ -21,7 +21,7 @@ namespace ZooTrack.Services
         public List<string> TargetAnimals { get; set; } = new List<string>();
         public string HighlightSavePath { get; set; } = "";
 
-        const float CONFIDENCE = 0.45f;
+        const float CONFIDENCE = 0.40f;
 
         private readonly ILogger _logger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
@@ -124,7 +124,7 @@ namespace ZooTrack.Services
                     using var skImage = SKImage.FromEncodedData(rawData); // convert to readble by YOLO format
                     if (skImage != null)
                     {
-                        var results = _yolo.RunObjectDetection(skImage, confidence: CONFIDENCE); // run YOLO with 50% confidence threshold
+                        var results = _yolo.RunObjectDetection(skImage, confidence: CONFIDENCE); // run YOLO with 65% confidence threshold
                         foreach (var detectedAnimal in results)
                         {
                             string label = detectedAnimal.Label.Name.ToLowerInvariant();

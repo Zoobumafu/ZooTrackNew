@@ -9,8 +9,6 @@ using ZooTrack.Hubs;
 namespace ZooTrack.Services
 {
 /// <summary>
-/// This service processes frames from all cameras, search for targets and sends it to the client.
-/// 
 /// 1. check what cameras work
 /// 2. process frames from all camears
 /// 3. send the frame to the client
