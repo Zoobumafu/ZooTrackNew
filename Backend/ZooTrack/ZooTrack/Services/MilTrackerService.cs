@@ -10,11 +10,13 @@ namespace ZooTrackBackend.Services
     /// The Tracker gets frame and starting position of the target object, then update the position in the next frames.
     /// MIL - Multiple Instance Learning, trains a classifier in an online manner to separate the object from the background
     /// 
+    /// Tracking fills in the gaps between actual detections,thus, we get continuous
+    /// object positions without running the heavy detection model constantly
     /// </summary>
-    
+
     public class MilTrackerService : IDisposable
     {
-        private TrackerMIL _tracker;
+        private TrackerMIL _tracker; // actual trackingMIL algorithm instance
         private bool _isInitialized = false;
         private readonly ILogger<MilTrackerService>? _logger;
 
@@ -37,7 +39,7 @@ namespace ZooTrackBackend.Services
 
             try
             {
-                _tracker.Init(frame, boundingBox);
+                _tracker.Init(frame, boundingBox); // tracker learns what the object looks like from this initial bounding box
                 _isInitialized = true;
                 return _isInitialized;
             }
@@ -61,6 +63,7 @@ namespace ZooTrackBackend.Services
             try
             {
                 var boundingBox = new Rect();
+                // tracker analyzes the new frame and calculates where it thinks the object moved to
                 bool success = _tracker.Update(frame, ref boundingBox);
 
                 if (success)
@@ -80,8 +83,8 @@ namespace ZooTrackBackend.Services
         /// </summary>
         public void Reset()
         {
-            _tracker?.Dispose();
-            _tracker = TrackerMIL.Create();
+            _tracker?.Dispose(); // destroys current tracker
+            _tracker = TrackerMIL.Create(); // create fresh tracker instance
             _isInitialized = false;
         }
 

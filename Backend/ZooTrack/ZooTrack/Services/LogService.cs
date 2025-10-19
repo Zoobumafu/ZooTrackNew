@@ -13,8 +13,7 @@ namespace ZooTrack.Services
         {
             _context = context;
         }
-
-        // ⭐ FIXED: Gracefully handle FK constraint errors
+      
         public async Task<Log> AddLogAsync(int? userId, string actionType, string message = "", string level = "Info", int? detectionId = null)
         {
             var log = new Log
@@ -29,7 +28,7 @@ namespace ZooTrack.Services
 
             try
             {
-                // ⭐ Validate foreign keys BEFORE trying to save
+                // Validate foreign keys BEFORE trying to save
                 if (userId.HasValue)
                 {
                     var userExists = await _context.Users.AnyAsync(u => u.UserId == userId.Value);
@@ -59,7 +58,7 @@ namespace ZooTrack.Services
             }
             catch (DbUpdateException ex) when (ex.InnerException?.Message?.Contains("FOREIGN KEY constraint failed") == true)
             {
-                // ⭐ FK constraint error - log to console instead and return a dummy log
+                // FK constraint error - log to console instead and return a dummy log
                 Console.WriteLine($"WARNING: Failed to save log to database due to FK constraint: {actionType} - {message}");
                 Console.WriteLine($"  UserId: {userId}, DetectionId: {detectionId}");
                 Console.WriteLine($"  Error: {ex.InnerException.Message}");
@@ -69,7 +68,7 @@ namespace ZooTrack.Services
             }
             catch (Exception ex)
             {
-                // ⭐ Any other error - log to console and return dummy log
+                // Any other error - log to console and return dummy log
                 Console.WriteLine($"ERROR: Failed to save log to database: {actionType} - {message}");
                 Console.WriteLine($"  Error: {ex.Message}");
 

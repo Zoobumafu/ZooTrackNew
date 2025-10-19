@@ -1,4 +1,5 @@
-﻿using OpenCvSharp;
+﻿using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.Blazor;
+using OpenCvSharp;
 using SkiaSharp;
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
@@ -19,6 +20,8 @@ namespace ZooTrack.Services
         public bool IsInitialized { get; private set; } = false;
         public List<string> TargetAnimals { get; set; } = new List<string>();
         public string HighlightSavePath { get; set; } = "";
+
+        const float CONFIDENCE = 0.45f;
 
         private readonly ILogger _logger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
@@ -87,15 +90,23 @@ namespace ZooTrack.Services
             }
         }
 
-        public FrameData ProcessFrame()
+        /// <summary>
+        /// main processing method:
+        ///     calls for YOLO for detection, DrawDetection() for drawing b-box, 
+        ///     and call for DetectionMediaService.ProcessDetectionForSaving() for continue processing and tracking.
+        /// </summary>
+        /// <returns>
+        /// FrameData object, contains: cameraID, JPEG bytes, target detection status, list of detected targets
+        /// </returns>
+        public FrameData ProcessFrame() // main method
         {
             if (!IsProcessing || !IsInitialized || _capture == null)
             {
                 return CreateErrorFrame("Idle");
             }
 
-            using var frame = new Mat();
-            if (!_capture.Read(frame) || frame.Empty())
+            using var frame = new Mat(); // frame buffer
+            if (!_capture.Read(frame) || frame.Empty()) // read frame is fails
             {
                 _logger.LogWarning("Error! Could not read frame from CameraId: {CameraId}. Device may be disconnected or in use.", CameraId);
                 return CreateErrorFrame("Cannot Read Frame");
@@ -109,23 +120,22 @@ namespace ZooTrack.Services
             {
                 if (_yolo != null)
                 {
-                    Cv2.ImEncode(".jpg", frame, out byte[] rawData);
-                    using var skImage = SKImage.FromEncodedData(rawData);
+                    Cv2.ImEncode(".jpg", frame, out byte[] rawData); // encode into JPEG
+                    using var skImage = SKImage.FromEncodedData(rawData); // convert to readble by YOLO format
                     if (skImage != null)
                     {
-                        var results = _yolo.RunObjectDetection(skImage, confidence: 0.4f);
+                        var results = _yolo.RunObjectDetection(skImage, confidence: CONFIDENCE); // run YOLO with 50% confidence threshold
                         foreach (var detectedAnimal in results)
                         {
                             string label = detectedAnimal.Label.Name.ToLowerInvariant();
                             bool isTarget = TargetAnimals.Contains(label, StringComparer.OrdinalIgnoreCase);
                             DrawDetection(frame, detectedAnimal, isTarget);
 
-                            if (isTarget)
+                            if (isTarget) // detectedAnimal label is in TargetAnimals list
                             {
                                 detectedTargets.Add(label);
 
-                                // FIXED: Added proper exception handling
-                                _ = Task.Run(async () =>
+                                _ = Task.Run(async () => // creating Detecion object with b-box info
                                 {
                                     try
                                     {
@@ -142,11 +152,12 @@ namespace ZooTrack.Services
                                             IsTarget = isTarget
                                         };
 
+                                        // Create services scope
                                         using var scope = _serviceScopeFactory.CreateScope();
                                         var mediaService = scope.ServiceProvider.GetRequiredService<DetectionMediaService>();
                                         var logService = scope.ServiceProvider.GetRequiredService<ILogService>();
 
-                                        await mediaService.ProcessDetectionForSaving(tempDetection, rawData);
+                                        await mediaService.ProcessDetectionForSaving(tempDetection, rawData); // in DetectionMediaService
 
                                         // Log success
                                         await logService.AddLogAsync(1, "DetectionProcessedSuccessfully",
@@ -155,7 +166,6 @@ namespace ZooTrack.Services
                                     }
                                     catch (Exception ex)
                                     {
-                                        // THIS WAS MISSING - exceptions were being swallowed!
                                         _logger.LogError(ex, "CRITICAL: Failed to process detection in Task.Run for Camera {CameraId}. Object: {Object}, Confidence: {Confidence}",
                                             CameraId, detectedAnimal.Label.Name, detectedAnimal.Confidence * 100);
 
@@ -189,7 +199,7 @@ namespace ZooTrack.Services
             if (hasTargets)
                 HandleHighlightRecording(frame, hasTargets);
 
-            var jpegQuality = hasTargets ? 95 : 75;
+            var jpegQuality = hasTargets ? 95 : 75; // HQ for targets
             var jpegParams = new int[] { (int)ImwriteFlags.JpegQuality, jpegQuality };
             Cv2.ImEncode(".jpg", frame, out byte[] finalJpegBytes, jpegParams);
 
@@ -222,15 +232,18 @@ namespace ZooTrack.Services
             return new FrameData { CameraId = CameraId, JpegBytes = jpegBytes };
         }
 
+        // Drawing b-box and labels on processed frame
         private void DrawDetection(Mat frame, YoloDotNet.Models.ObjectDetection detection, bool isTarget)
         {
             var rect = detection.BoundingBox;
 
+            // different settings for targets
             var color = isTarget ? Scalar.LimeGreen : Scalar.Gray;
             var thickness = isTarget ? 3 : 2;
             var cvRect = new Rect(rect.Left, rect.Top, rect.Width, rect.Height);
             Cv2.Rectangle(frame, cvRect, color, thickness);
-
+            
+            // labels setting
             string text = $"{detection.Label.Name} ({detection.Confidence:P0})";
             double fontScale = isTarget ? 0.6 : 0.5;
             var textColor = isTarget ? Scalar.White : Scalar.LightGray;
@@ -259,7 +272,7 @@ namespace ZooTrack.Services
 
         private void HandleHighlightRecording(Mat frame, bool hasTargetsInFrame)
         {
-            if (!hasTargetsInFrame || string.IsNullOrEmpty(HighlightSavePath)) return;
+            if (!hasTargetsInFrame || string.IsNullOrEmpty(HighlightSavePath)) return; // should never return
 
             if (!_isRecording)
                 StartHighlightRecording();
@@ -274,7 +287,7 @@ namespace ZooTrack.Services
 
         private void StartHighlightRecording()
         {
-            if (_isRecording) return;
+            if (_isRecording) return; // prevent multiple recordings simultaneously
             _isRecording = true;
 
             try
@@ -421,8 +434,7 @@ namespace ZooTrack.Services
             if (_cameraInstances.TryGetValue(cameraId, out var instance) && instance.IsInitialized)
             {
                 instance.TargetAnimals = (targetAnimals == null || targetAnimals.Count == 0)
-                    ? _defaultTargetAnimals
-                    : targetAnimals;
+                    ? _defaultTargetAnimals : targetAnimals;
 
                 instance.HighlightSavePath = savePath ?? "";
                 instance.IsProcessing = true;
@@ -480,6 +492,8 @@ namespace ZooTrack.Services
         }
     }
 
+    // Data Transfer Object (DTO), packages all the information for processed frame.
+    // Allows clean communication between the layers
     public class FrameData
     {
         public int CameraId { get; set; }

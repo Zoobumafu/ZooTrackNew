@@ -4,6 +4,7 @@ using ZooTrackBackend.Services.ZooTrack.Services;
 
 namespace ZooTrackBackend.Services
 {
+    // Provides backend logic for our UI dashboard
     public class DashboardService : IDashboardService
     {
         private readonly ZootrackDbContext _context;
@@ -62,7 +63,6 @@ namespace ZooTrackBackend.Services
                 SystemUptime = $"{uptimePercentage:F1}%"
             };
         }
-
         public async Task<List<DeviceStatusDto>> GetDeviceStatusAsync()
         {
             var now = DateTime.Now;

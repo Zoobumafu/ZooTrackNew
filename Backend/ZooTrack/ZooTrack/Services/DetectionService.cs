@@ -10,18 +10,10 @@ using ZooTrackBackend.Services;
 namespace ZooTrack.Services
 {
     /// <summary>
-    /// Service responsible for managing detection operations including creation, validation, 
-    /// tracking, and correlation with related entities (devices, media, events).
-    /// Provides comprehensive logging and notification capabilities for detection events.
+    /// Most of the responsibilites of this service are now part of DetectionMediaService.cs, and here they are not used.
+    /// We kept this services beacuse its other roles in realtions with DetectionController.cs
     /// </summary>
-    /// <remarks>
-    /// This service handles:
-    /// - Detection creation and validation
-    /// - Foreign key relationship management
-    /// - Confidence-based alerting and notifications
-    /// - Frame extraction and object tracking integration
-    /// - Comprehensive audit logging for all detection operations
-    /// </remarks>
+
     public class DetectionService : IDetectionService
     {
         #region Constants
@@ -37,7 +29,6 @@ namespace ZooTrack.Services
 
         /// Default system user ID for service-level operations
         private const int SYSTEM_USER_ID = 1;
-
 
         /// Time window in minutes for detecting frequent detections from the same device
         private const int FREQUENT_DETECTION_WINDOW_MINUTES = 10;
