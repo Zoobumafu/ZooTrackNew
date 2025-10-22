@@ -7,5 +7,6 @@ names:
 - lion
 - hyena
 nc: 7
+test: C:\Training\yolo_data\images\test
 train: C:\Training\yolo_data\images\train
 val: C:\Training\yolo_data\images\val
